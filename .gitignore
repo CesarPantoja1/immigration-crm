@@ -1,0 +1,14 @@
+# Archivos y carpetas a ignorar para este proyecto
+__pycache__/
+*.pyc
+db.sqlite3
+.idea/
+node_modules/
+dist/
+.env
+# Ignorar archivos de Vite y frontend temporales
+CodigoProyecto/frontend/.vite/
+CodigoProyecto/frontend/dist/
+# Otros archivos temporales
+*.log
+
