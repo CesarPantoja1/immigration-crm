@@ -1,14 +1,81 @@
-# Archivos y carpetas a ignorar para este proyecto
+# ===========================
+# Python / Django
+# ===========================
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.log
+*.pot
 *.pyc
 db.sqlite3
-.idea/
-node_modules/
-dist/
-.env
-# Ignorar archivos de Vite y frontend temporales
-CodigoProyecto/frontend/.vite/
-CodigoProyecto/frontend/dist/
-# Otros archivos temporales
-*.log
+db.sqlite3-journal
+.Python
+venv/
+env/
+ENV/
+*.coverage
+htmlcov/
+.pytest_cache/
+.tox/
 
+# ===========================
+# PyCharm
+# ===========================
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# ===========================
+# VS Code
+# ===========================
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+*.code-workspace
+
+# ===========================
+# Frontend (Node/React/Vite)
+# ===========================
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/build/
+*.local
+
+# ===========================
+# Environment & Secrets
+# ===========================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ===========================
+# OS
+# ===========================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ===========================
+# Behave / BDD
+# ===========================
+features/reports/
+*.behave
+
+# ===========================
+# General
+# ===========================
+*.log
+*.bak
+*.tmp
