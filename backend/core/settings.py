@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'apps.usuarios.apps.UsuariosConfig',  # App de usuarios con arquitectura N-capas
     # 'rest_framework',  # Descomentar cuando se use
     # 'corsheaders',     # Para que React pueda conectar
 ]
