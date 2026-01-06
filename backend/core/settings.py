@@ -37,12 +37,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'backend',
-    'rest_framework',  # Si vas a usar React'corsheaders',     # Para que React pueda conectar
+    # 'rest_framework',  # Descomentar cuando se use
+    # 'corsheaders',     # Para que React pueda conectar
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    # 'corsheaders.middleware.CorsMiddleware',  # Descomentar cuando se instale django-cors-headers
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -80,11 +80,12 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'postgres',
         'USER': 'postgres.lhbezpqwcolfccrwhfkl',
-        'PASSWORD': 'da!@zBS.U.8cbDb', # La que generaste al crear el proyecto
+        'PASSWORD': 'da!@zBS.U.8cbDb',
         'HOST': 'aws-0-us-west-2.pooler.supabase.com',
         'PORT': '6543',
     }
 }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -121,3 +122,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
