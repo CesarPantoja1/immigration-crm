@@ -1,19 +1,20 @@
 #language: es
 
 Característica: Agendamiento de entrevista
-  Como solicitante de un trámite migratorio
+  Como solicitante de un trámite migratorio ## Aclarar solicitud aprobada
   quiero agendar una entrevista asociada a mi solicitud
   para cumplir una etapa obligatoria del proceso y continuar con mi trámite.
 
 Antecedentes:
-  Dado que el solicitante ha logrado iniciar sesión en el sistema
+  Dado que el solicitante ha logrado iniciar sesión en el sistema ## No
   Y existe una solicitud migratoria registrada a su nombre
   Y el sistema dispone de fechas de entrevista configuradas
   Y la fecha actual del sistema es "<fecha_actual>"
 
-Esquema del escenario: Intento de agendamiento de entrevista según estado de la solicitud
+  ## Caracteristica de solicitud aprobadas , enfocar en seguridad , conjunto seleccion ddescarte, registrar eleccion usuairo
+Esquema del escenario: Agendamiento de entrevista según estado de la solicitud
   Dado que la solicitud se encuentra en estado "<estado_solicitud>"
-  Cuando el solicitante intenta agendar una entrevista en la fecha "<fecha_entrevista>"
+  Cuando el solicitante intenta agendar una entrevista en la fecha "<fecha_entrevista>" ## DO, DONT TRY YODA
   Entonces el sistema debe "<accion_sistema>" el agendamiento
   Y mostrar el mensaje "<mensaje>"
 
