@@ -1,62 +1,57 @@
 #language: es
 
 Característica: Agendamiento de entrevista
-  Como solicitante de un trámite migratorio ## Aclarar solicitud aprobada
-  quiero agendar una entrevista asociada a mi solicitud
+  Como solicitante de un trámite migratorio con solicitud previamente aprobada,
+  quiero agendar una entrevista asociada a mi solicitud,
   para cumplir una etapa obligatoria del proceso y continuar con mi trámite.
 
 Antecedentes:
-  Dado que el solicitante ha logrado iniciar sesión en el sistema ## No
-  Y existe una solicitud migratoria registrada a su nombre
-  Y el sistema dispone de fechas de entrevista configuradas
+  Dado que el solicitante cuenta con una solicitud migratoria aprobada
+  Y el sistema tiene disponibles fechas de entrevista para agendamiento
   Y la fecha actual del sistema es "<fecha_actual>"
 
-  ## Caracteristica de solicitud aprobadas , enfocar en seguridad , conjunto seleccion ddescarte, registrar eleccion usuairo
-Esquema del escenario: Agendamiento de entrevista según estado de la solicitud
-  Dado que la solicitud se encuentra en estado "<estado_solicitud>"
-  Cuando el solicitante intenta agendar una entrevista en la fecha "<fecha_entrevista>" ## DO, DONT TRY YODA
-  Entonces el sistema debe "<accion_sistema>" el agendamiento
-  Y mostrar el mensaje "<mensaje>"
 
-Ejemplos:
-  | estado_solicitud | fecha_entrevista              | accion_sistema | mensaje |
-  | Aprobada         | <fecha_actual + 35 días>      | permitir       | Entrevista agendada exitosamente |
-  | En revisión      | <fecha_actual + 35 días>      | bloquear       | Error: la solicitud aún no está habilitada para entrevista |
-  | Observada        | <fecha_actual + 37 días>      | bloquear       | Error: debe corregir la solicitud antes de agendar la entrevista |
-  | Aprobada         | <fecha_actual - 30 días>      | bloquear       | Error: la fecha seleccionada no está disponible para entrevistas |
+  Escenario: Registro de fecha y horario seleccionados por el solicitante
+  Dado que el solicitante accede al agendamiento de entrevista
+  Y el sistema presenta fechas y horarios disponibles definidos por la embajada
+  Cuando el solicitante selecciona una fecha y un horario
+  Entonces el sistema registra la entrevista asociada a su solicitud
+  Y la entrevista queda en estado "Programada"
+  Y la selección queda protegida frente a modificaciones no autorizadas
 
 
-Esquema del escenario: Validación de disponibilidad de fechas para entrevistas
-  Dado que la solicitud se encuentra en estado "Aprobada"
-  Y el sistema tiene configuradas las siguientes restricciones:
-    | anticipacion_minima_dias | anticipacion_maxima_dias | dias_laborables |
-    | <config.anticipacion_min>| <config.anticipacion_max>| <config.dias_laborables> |
-  Cuando el solicitante intenta agendar una entrevista en la fecha "<fecha_entrevista>"
-  Entonces el sistema debe "<accion_sistema>" el agendamiento
-  Y mostrar el mensaje "<mensaje>"
 
-Ejemplos:
-  | fecha_entrevista                                    | accion_sistema | mensaje |
-  | <fecha_actual + (config.anticipacion_min - 1) días> | bloquear       | Error: debe agendar con al menos <config.anticipacion_min> días de anticipación |
-  | <fecha_actual + (config.anticipacion_max + 1) días> | bloquear       | Error: no se pueden agendar entrevistas con más de <config.anticipacion_max> días de anticipación |
-  | <fecha_actual + 5 días (sábado)>                    | bloquear       | Error: la fecha seleccionada corresponde a un día no laborable (sábado) |
-  | <fecha_actual + 6 días (domingo)>                   | bloquear       | Error: la fecha seleccionada corresponde a un día no laborable (domingo) |
-  | <fecha_actual + config.anticipacion_min días>       | permitir       | Entrevista agendada exitosamente |
-
-
-Esquema del escenario: Validación de capacidad disponible en fechas de entrevista
-  Dado que la solicitud se encuentra en estado "Aprobada"
-  Y la fecha "<fecha_entrevista>" tiene "<cupos_disponibles>" cupos disponibles
-  Y la fecha "<fecha_entrevista>" tiene "<cupos_totales>" cupos totales
-  Cuando el solicitante intenta agendar una entrevista en la fecha "<fecha_entrevista>"
-  Entonces el sistema debe "<accion_sistema>" el agendamiento
-  Y mostrar el mensaje "<mensaje>"
-
-Ejemplos:
-  | fecha_entrevista                         | cupos_disponibles              | cupos_totales              | accion_sistema | mensaje |
-  | <fecha_actual + 35 días>                 | <config.cupos_total * 0.25>    | <config.cupos_total>       | permitir       | Entrevista agendada exitosamente |
-  | <fecha_actual + 40 días>                 | 0                              | <config.cupos_total>       | bloquear       | Error: no hay cupos disponibles para la fecha seleccionada |
-  | <fecha_actual + 45 días>                 | 1                              | <config.cupos_total>       | permitir       | Entrevista agendada exitosamente |
+#Esquema del escenario: Validación de disponibilidad de fechas para entrevistas
+#  Dado que la solicitud se encuentra en estado "Aprobada"
+#  Y el sistema tiene configuradas las siguientes restricciones:
+#    | anticipacion_minima_dias | anticipacion_maxima_dias | dias_laborables |
+#    | <config.anticipacion_min>| <config.anticipacion_max>| <config.dias_laborables> |
+#  Cuando el solicitante intenta agendar una entrevista en la fecha "<fecha_entrevista>"
+#  Entonces el sistema debe "<accion_sistema>" el agendamiento
+#  Y mostrar el mensaje "<mensaje>"
+#
+#Ejemplos:
+#  | fecha_entrevista                                    | accion_sistema | mensaje |
+#  | <fecha_actual + (config.anticipacion_min - 1) días> | bloquear       | Error: debe agendar con al menos <config.anticipacion_min> días de anticipación |
+#  | <fecha_actual + (config.anticipacion_max + 1) días> | bloquear       | Error: no se pueden agendar entrevistas con más de <config.anticipacion_max> días de anticipación |
+#  | <fecha_actual + 5 días (sábado)>                    | bloquear       | Error: la fecha seleccionada corresponde a un día no laborable (sábado) |
+#  | <fecha_actual + 6 días (domingo)>                   | bloquear       | Error: la fecha seleccionada corresponde a un día no laborable (domingo) |
+#  | <fecha_actual + config.anticipacion_min días>       | permitir       | Entrevista agendada exitosamente |
+#
+#
+#Esquema del escenario: Validación de capacidad disponible en fechas de entrevista
+#  Dado que la solicitud se encuentra en estado "Aprobada"
+#  Y la fecha "<fecha_entrevista>" tiene "<cupos_disponibles>" cupos disponibles
+#  Y la fecha "<fecha_entrevista>" tiene "<cupos_totales>" cupos totales
+#  Cuando el solicitante intenta agendar una entrevista en la fecha "<fecha_entrevista>"
+#  Entonces el sistema debe "<accion_sistema>" el agendamiento
+#  Y mostrar el mensaje "<mensaje>"
+#
+#Ejemplos:
+#  | fecha_entrevista                         | cupos_disponibles              | cupos_totales              | accion_sistema | mensaje |
+#  | <fecha_actual + 35 días>                 | <config.cupos_total * 0.25>    | <config.cupos_total>       | permitir       | Entrevista agendada exitosamente |
+#  | <fecha_actual + 40 días>                 | 0                              | <config.cupos_total>       | bloquear       | Error: no hay cupos disponibles para la fecha seleccionada |
+#  | <fecha_actual + 45 días>                 | 1                              | <config.cupos_total>       | permitir       | Entrevista agendada exitosamente |
 
 
 Escenario: Agendamiento con selección de horario específico
@@ -73,13 +68,13 @@ Escenario: Agendamiento con selección de horario específico
   Y muestra el mensaje "Entrevista agendada para el <fecha_actual + 35 días (formato_legible)> a las <config.horario_inicio>"
 
 
-Escenario: Intento de agendar en horario no disponible
-  Dado que la solicitud se encuentra en estado "Aprobada"
-  Y la fecha "<fecha_actual + 35 días>" tiene el horario "<horario_agotado>" en estado "Agotado"
-  Cuando el solicitante intenta agendar la entrevista en "<fecha_actual + 35 días>" a las "<horario_agotado>"
-  Entonces el sistema bloquea el agendamiento
-  Y muestra el mensaje "Error: el horario seleccionado ya no está disponible"
-  Y sugiere los horarios alternativos disponibles para esa fecha
+#Escenario: Intento de agendar en horario no disponible
+#  Dado que la solicitud se encuentra en estado "Aprobada"
+#  Y la fecha "<fecha_actual + 35 días>" tiene el horario "<horario_agotado>" en estado "Agotado"
+#  Cuando el solicitante intenta agendar la entrevista en "<fecha_actual + 35 días>" a las "<horario_agotado>"
+#  Entonces el sistema bloquea el agendamiento
+#  Y muestra el mensaje "Error: el horario seleccionado ya no está disponible"
+#  Y sugiere los horarios alternativos disponibles para esa fecha
 
 
 # Escenario: Reprogramación de entrevista agendada
@@ -139,3 +134,30 @@ Escenario: Restricción de cancelación con tiempo insuficiente
   Entonces el sistema bloquea la cancelación
   Y muestra el mensaje "Error: no se puede cancelar con menos de <config.minimo_horas_cancelacion> horas de anticipación"
   Y sugiere contactar directamente con "<config.telefono_oficina>" o "<config.email_oficina>"
+
+
+  # Ese escenario no describe una acción normal de UI, sino una regla de seguridad y consistencia del negocio.
+
+# En un CRM real (y aquí tu profe está pensando como sistema institucional), existen múltiples formas de “intentar modificar” algo, por ejemplo:
+
+# Manipulación directa de URL
+
+# Reenvío de una petición anterior
+
+# Uso de un endpoint fuera del flujo correcto
+
+# Errores de integración con otros módulos
+
+# Intentos de modificación desde otro rol o contexto
+
+# BDD no prueba la UI, prueba el comportamiento observable del sistema ante una acción inválida.
+
+# Entonces, “intenta modificar” se entiende como:
+
+# realiza una acción que pretende cambiar la fecha sin pasar por el flujo formal de reprogramación.
+
+ Escenario: Protección de la entrevista frente a cambios fuera del proceso de reprogramación
+  Dado que el solicitante tiene una entrevista en estado "Programada"
+  Cuando realiza una acción que no corresponde al proceso de reprogramación
+  Entonces el sistema no permite modificar la fecha ni el horario
+  Y la entrevista se mantiene sin cambios
