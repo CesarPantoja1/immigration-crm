@@ -161,3 +161,17 @@ Escenario: Restricción de cancelación con tiempo insuficiente
   Cuando realiza una acción que no corresponde al proceso de reprogramación
   Entonces el sistema no permite modificar la fecha ni el horario
   Y la entrevista se mantiene sin cambios
+
+   Escenario: Agendar una nueva entrevista cuando ya existe una programada
+  Dado que el solicitante tiene una entrevista en estado "Programada"
+  Cuando intenta agendar una nueva entrevista
+  Entonces el sistema no permite crear una nueva entrevista
+  Y mantiene la entrevista existente sin cambios
+  Y muestra el mensaje "Ya existe una entrevista programada para esta solicitud"
+
+     #Tomando en cuenta el tema de lo que ya deberia estar implicito en el sistema , que tan buena idea es este escenario?
+  Escenario: Visualización de entrevista programada en el seguimiento del trámite
+  Dado que el solicitante tiene una entrevista en estado "Programada"
+  Cuando consulta el seguimiento de su trámite
+  Entonces el sistema muestra la fecha y horario de la entrevista
+  Y no presenta la opción de agendamiento nuevamente
