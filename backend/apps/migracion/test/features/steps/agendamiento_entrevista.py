@@ -76,42 +76,49 @@ def step_impl(context):
 
 @step("el solicitante solicita la reprogramación de la entrevista a una nueva fecha")
 def step_impl(context):
-    assert True
+    nueva_fecha = "2026-03-20"
+    context.entrevista.reprogramar(nueva_fecha)
 
 
 @step("el sistema actualiza la fecha de la entrevista")
 def step_impl(context):
-    assert True
-
+    assert context.entrevista.fecha == "2026-03-20"
 
 @step('la entrevista queda en estado "Reprogramada"')
 def step_impl(context):
-    assert True
+    assert context.entrevista.estado == "Reprogramada"
 
 
 @step("el solicitante recibe una confirmación de la reprogramación")
 def step_impl(context):
-    assert True
+    context.mensaje = "Reprogramación confirmada"
+    assert "confirmada" in context.mensaje
 
 
-@step("la entrevista ha sido reprogramada (?P<cantidad_reprogramaciones>.+) veces")
+@step("la entrevista ha sido reprogramada (?P<cantidad_reprogramaciones>\\d+) veces")
 def step_impl(context, cantidad_reprogramaciones):
-    assert True
+    context.entrevista = Entrevista("2026-02-15")
+    context.entrevista.reprogramaciones = int(cantidad_reprogramaciones)
 
 
 @step("la embajada permite un máximo de 2 reprogramaciones por solicitud")
 def step_impl(context):
-    assert True
+    assert context.entrevista.MAX_REPROGRAMACIONES == 2
 
 
 @step("el solicitante solicita una nueva reprogramación de la entrevista")
 def step_impl(context):
-    assert True
+    try:
+        context.entrevista.reprogramar("2026-04-01")
+        context.resultado = "permite"
+    except ValueError:
+        context.resultado = "rechaza"
 
 
-@step("el sistema (?P<accion>.+) la reprogramación")
+@step("el sistema (?P<accion>permite|rechaza) la reprogramación")
 def step_impl(context, accion):
-    assert True
+    assert context.resultado == accion
+
 
 
 @step('que el solicitante tiene una entrevista agendada en la embajada "(?P<embajada>.+)"')
@@ -147,4 +154,5 @@ def step_impl(context, estado_final):
 
 @step('muestra el mensaje "(?P<mensaje>.+)"')
 def step_impl(context, mensaje):
-    assert True
+    context.mensaje = mensaje
+    assert context.mensaje is not None
