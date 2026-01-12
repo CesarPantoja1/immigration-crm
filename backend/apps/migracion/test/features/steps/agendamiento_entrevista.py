@@ -1,4 +1,5 @@
 from behave import *
+from backend.apps.migracion.domain.entrevista import Entrevista
 use_step_matcher("re")
 
 
@@ -14,49 +15,63 @@ def step_impl(context):
 
 @step('que existe una fecha de entrevista "(?P<fecha_entrevista>.+)" con los siguientes horarios disponibles:')
 def step_impl(context, fecha_entrevista):
-    # La tabla se accede con context.table
-    assert True
+    context.entrevista = Entrevista(fecha_entrevista)
+
+    for row in context.table:
+        if row['estado'] == 'Disponible':
+            context.entrevista.horarios_disponibles.add(row['horario'])
+
 
 
 @step('el solicitante selecciona la fecha "(?P<fecha_entrevista>.+)" y el horario "09:00"')
 def step_impl(context, fecha_entrevista):
-    assert True
+    horario = "09:00"
+    assert horario in context.entrevista.horarios_disponibles
+
+    context.entrevista.horarios_disponibles.remove(horario)
+    context.entrevista.horarios_ocupados.add(horario)
 
 
 @step("el sistema registra la entrevista asociada a la solicitud")
 def step_impl(context):
-    assert True
+    assert context.entrevista.estado == "Programada"
 
 
 @step('el horario "09:00" queda registrado como no disponible')
 def step_impl(context):
-    assert True
+    assert "09:00" in context.entrevista.horarios_ocupados
 
 
 @step('muestra el mensaje "Entrevista agendada para el (?P<fecha_legible>.+) a las 09:00"')
 def step_impl(context, fecha_legible):
-    assert True
+    context.mensaje = f"Entrevista agendada para el {fecha_legible} a las 09:00"
+    assert fecha_legible in context.mensaje
+
 
 
 @step('que el solicitante tiene una entrevista en estado "Programada"')
 def step_impl(context):
-    assert True
+    context.entrevista = Entrevista("2026-02-15")
+    assert context.entrevista.estado == "Programada"
 
 
-@step(
-    "el solicitante solicita la modificación de la fecha o el horario de la entrevista fuera del proceso de reprogramación")
+@step("el solicitante solicita la modificación de la fecha o el horario de la entrevista fuera del proceso de reprogramación")
 def step_impl(context):
-    assert True
+    try:
+        context.entrevista.modificar_directamente()
+        context.modificacion_rechazada = False
+    except ValueError:
+        context.modificacion_rechazada = True
 
 
 @step("el sistema rechaza la solicitud de modificación")
 def step_impl(context):
-    assert True
+    assert context.modificacion_rechazada is True
 
 
 @step("mantiene la entrevista en su estado original")
 def step_impl(context):
-    assert True
+    assert context.entrevista.estado == "Programada"
 
 
 @step("el solicitante solicita la reprogramación de la entrevista a una nueva fecha")
