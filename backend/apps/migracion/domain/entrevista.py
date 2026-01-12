@@ -1,3 +1,5 @@
+from backend.apps.migracion.domain.value_objects import ReglaCancelacion
+
 class Entrevista:
     MAX_REPROGRAMACIONES = 2
 
@@ -21,3 +23,9 @@ class Entrevista:
         self.fecha = nueva_fecha
         self.estado = "Reprogramada"
         self.reprogramaciones += 1
+
+    def cancelar(self, regla: ReglaCancelacion, horas_restantes):
+        if not regla.permite_cancelar(horas_restantes):
+            raise ValueError("No cumple el tiempo mínimo de anticipación")
+
+        self.estado = "Cancelada"

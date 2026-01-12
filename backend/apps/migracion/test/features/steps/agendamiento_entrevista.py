@@ -1,5 +1,6 @@
 from behave import *
 from backend.apps.migracion.domain.entrevista import Entrevista
+from backend.apps.migracion.domain.value_objects import ReglaCancelacion
 use_step_matcher("re")
 
 
@@ -123,33 +124,42 @@ def step_impl(context, accion):
 
 @step('que el solicitante tiene una entrevista agendada en la embajada "(?P<embajada>.+)"')
 def step_impl(context, embajada):
-    assert True
+    context.entrevista = Entrevista("2026-02-15")
+    context.embajada = embajada
 
 
 @step(
-    'la embajada "(?P<embajada>.+)" define un mínimo de (?P<minimo_horas_cancelacion>.+) horas de anticipación para cancelaciones')
+    'la embajada "(?P<embajada>.+)" define un mínimo de (?P<minimo_horas_cancelacion>\\d+) horas de anticipación para cancelaciones')
 def step_impl(context, embajada, minimo_horas_cancelacion):
-    assert True
+    context.regla_cancelacion = ReglaCancelacion(
+        int(minimo_horas_cancelacion)
+    )
 
 
-@step("el tiempo restante hasta la entrevista es de (?P<horas_restantes>.+) horas")
+@step("el tiempo restante hasta la entrevista es de (?P<horas_restantes>\\d+) horas")
 def step_impl(context, horas_restantes):
-    assert True
+    context.horas_restantes = int(horas_restantes)
 
 
 @step("el solicitante solicita la cancelación de la entrevista")
 def step_impl(context):
-    assert True
+    try:
+        context.entrevista.cancelar(
+            context.regla_cancelacion,
+            context.horas_restantes
+        )
+        context.resultado = "permite"
+    except ValueError:
+        context.resultado = "rechaza"
 
-
-@step("el sistema (?P<accion>.+) la cancelación")
+@step("el sistema (?P<accion>permite|rechaza) la cancelación")
 def step_impl(context, accion):
-    assert True
+    assert context.resultado == accion
 
 
 @step('la entrevista queda en estado "(?P<estado_final>.+)"')
 def step_impl(context, estado_final):
-    assert True
+    assert context.entrevista.estado == estado_final
 
 
 @step('muestra el mensaje "(?P<mensaje>.+)"')
