@@ -1,0 +1,22 @@
+{
+  "name": "immigration-crm-frontend",
+  "version": "1.0.0",
+  "description": "Frontend para el sistema CRM migratorio - MigraFácil",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx http-server -p 3000 -o",
+    "start": "npx http-server -p 3000",
+    "serve": "npx http-server -p 3000 -o"
+  },
+  "keywords": [
+    "crm",
+    "migracion",
+    "frontend"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
+
