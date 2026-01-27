@@ -1,8 +1,6 @@
 from behave import *
-from src.models import *
 
 use_step_matcher("parse")
-
 
 @step("que existen los siguientes checklists de documentos por tipo de visa:")
 def step_impl(context):
