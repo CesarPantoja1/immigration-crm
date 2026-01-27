@@ -215,12 +215,13 @@
     }
 
     function enviarTramite() {
+        console.log("Archivos cargados:", archivosCargados, "de", totalDocumentos);
         if (archivosCargados < totalDocumentos) {
             alert("Por favor, sube los 4 documentos obligatorios antes de enviar.");
         } else {
-            alert("¡Expediente de Vivienda enviado con éxito!");
-            window.location.href = "inicioMigrante.html";
-
+            alert("¡Solicitud enviada con éxito! Ahora puedes agendar tu entrevista.");
+            console.log("Redirigiendo a agendamientoEntrevista.html...");
+            window.location.href = "./agendamientoEntrevista.html";
         }
     }
 </script>
