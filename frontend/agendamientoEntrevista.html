@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendamiento de Entrevista - MigraFácil</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap"
+          rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd',
+                            400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8',
+                            800: '#1e40af', 900: '#1e3a8a',
+                        },
+                        accent: {light: '#38bdf8', DEFAULT: '#0ea5e9', dark: '#0284c7'}
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        serif: ['Playfair Display', 'Georgia', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html, body {
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+
+        .horario-btn.selected {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .horario-btn.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .fecha-card.selected {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased bg-gradient-to-br from-primary-50 via-white to-blue-50 h-screen w-screen flex flex-col">
+
+<header class="shrink-0 bg-white/80 backdrop-blur-md border-b border-gray-100 p-4 lg:p-6 shadow-sm z-40">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-4">
+            <a href="inicioMigrante.html" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+            </a>
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <span class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent antialiased transform translate-z-0">MigraFácil</span>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold text-primary-600 bg-primary-50 px-3 py-1 rounded-full uppercase tracking-tighter">Paso 3: Agendar entrevista</span>
+        </div>
+    </div>
+</header>
+
+<div class="fixed bottom-8 left-8 z-50">
+    <a href="login.html"
+       class="flex items-center space-x-3 px-5 py-3 bg-white border border-gray-100 rounded-2xl text-gray-400 hover:text-red-500 hover:border-red-100 transition-all duration-300 shadow-sm hover:shadow-lg">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+        </svg>
+        <span class="font-bold text-sm">Salir</span>
+    </a>
+</div>
+
+<main class="flex-grow flex items-center justify-center p-6 overflow-hidden">
+    <div class="max-w-5xl w-full bg-white rounded-[2.5rem] shadow-2xl border border-gray-50 flex flex-col h-[85vh]">
+
+        <!-- Vista principal de agendamiento -->
+        <div id="vista-agendamiento">
+            <div class="p-8 border-b border-gray-50">
+                <h2 class="text-2xl font-black text-gray-900">Agendar Entrevista</h2>
+                <p class="text-sm text-gray-500">Selecciona una fecha y horario disponible para tu entrevista en la embajada.</p>
+            </div>
+
+            <div class="flex-grow overflow-y-auto p-8 custom-scroll">
+                <!-- Selector de Embajada -->
+                <div class="mb-8">
+                    <label class="block text-sm font-bold text-gray-700 mb-3">Embajada</label>
+                    <select id="embajada-select" onchange="cambiarEmbajada()"
+                            class="w-full p-4 border border-gray-200 rounded-xl text-gray-700 font-medium focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all">
+                        <option value="USA" data-horas="24">Estados Unidos (24h anticipacion para cancelar)</option>
+                        <option value="España" data-horas="48">Espana (48h anticipacion para cancelar)</option>
+                        <option value="Canadá" data-horas="72">Canada (72h anticipacion para cancelar)</option>
+                    </select>
+                </div>
+
+                <!-- Selector de Fecha -->
+                <div class="mb-8">
+                    <label class="block text-sm font-bold text-gray-700 mb-3">Fecha disponible</label>
+                    <div class="grid grid-cols-3 gap-4" id="fechas-container">
+                        <div class="fecha-card p-4 border-2 border-gray-100 rounded-2xl cursor-pointer hover:border-primary-300 transition-all text-center"
+                             onclick="seleccionarFecha('2026-02-15', '15 de febrero de 2026', this)">
+                            <p class="text-xs text-gray-400 uppercase font-bold">Feb</p>
+                            <p class="text-3xl font-black text-gray-900">15</p>
+                            <p class="text-xs text-gray-500">2026</p>
+                        </div>
+                        <div class="fecha-card p-4 border-2 border-gray-100 rounded-2xl cursor-pointer hover:border-primary-300 transition-all text-center"
+                             onclick="seleccionarFecha('2026-03-20', '20 de marzo de 2026', this)">
+                            <p class="text-xs text-gray-400 uppercase font-bold">Mar</p>
+                            <p class="text-3xl font-black text-gray-900">20</p>
+                            <p class="text-xs text-gray-500">2026</p>
+                        </div>
+                        <div class="fecha-card p-4 border-2 border-gray-100 rounded-2xl cursor-pointer hover:border-primary-300 transition-all text-center"
+                             onclick="seleccionarFecha('2026-04-10', '10 de abril de 2026', this)">
+                            <p class="text-xs text-gray-400 uppercase font-bold">Abr</p>
+                            <p class="text-3xl font-black text-gray-900">10</p>
+                            <p class="text-xs text-gray-500">2026</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Horarios disponibles -->
+                <div class="mb-6" id="horarios-section" style="display: none;">
+                    <label class="block text-sm font-bold text-gray-700 mb-3">Horarios disponibles</label>
+                    <div class="grid grid-cols-4 gap-3" id="horarios-container">
+                        <button class="horario-btn p-3 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-700 hover:border-primary-300 transition-all"
+                                onclick="seleccionarHorario('08:00', this)">08:00</button>
+                        <button class="horario-btn p-3 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-700 hover:border-primary-300 transition-all"
+                                onclick="seleccionarHorario('09:00', this)">09:00</button>
+                        <button class="horario-btn p-3 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-700 hover:border-primary-300 transition-all"
+                                onclick="seleccionarHorario('10:00', this)">10:00</button>
+                        <button class="horario-btn p-3 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-700 hover:border-primary-300 transition-all"
+                                onclick="seleccionarHorario('11:00', this)">11:00</button>
+                    </div>
+                </div>
+
+                <!-- Resumen de seleccion -->
+                <div id="resumen-seleccion" class="hidden p-6 bg-primary-50 rounded-2xl border border-primary-100">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-primary-600 font-bold uppercase">Entrevista seleccionada</p>
+                            <p id="resumen-texto" class="text-lg font-black text-gray-900"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-8 bg-gray-50/50 border-t border-gray-50 flex justify-end">
+                <button id="btn-confirmar" onclick="confirmarEntrevista()" disabled
+                        class="px-8 py-3 bg-gray-300 text-white font-bold rounded-xl shadow-lg transition-all cursor-not-allowed">
+                    Confirmar entrevista
+                </button>
+            </div>
+        </div>
+
+        <!-- Vista de entrevista confirmada -->
+        <div id="vista-confirmada" class="hidden">
+            <div class="p-8 border-b border-gray-50 flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-black text-gray-900">Entrevista Programada</h2>
+                    <p class="text-sm text-gray-500">Tu entrevista ha sido agendada exitosamente.</p>
+                </div>
+                <span id="estado-badge" class="text-xs font-bold text-green-600 bg-green-50 px-4 py-2 rounded-full">Programada</span>
+            </div>
+
+            <div class="flex-grow p-8 custom-scroll">
+                <!-- Tarjeta de confirmacion -->
+                <div class="bg-gradient-to-br from-primary-500 to-primary-700 rounded-3xl p-8 text-white mb-8">
+                    <div class="flex items-center space-x-4 mb-6">
+                        <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-white/70 font-medium">Embajada de</p>
+                            <p id="confirmacion-embajada" class="text-2xl font-black">Estados Unidos</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-sm text-white/70 font-medium mb-1">Fecha</p>
+                            <p id="confirmacion-fecha" class="text-xl font-bold">15 de febrero de 2026</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-white/70 font-medium mb-1">Horario</p>
+                            <p id="confirmacion-horario" class="text-xl font-bold">09:00</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mensaje de confirmacion -->
+                <div id="mensaje-confirmacion" class="p-4 bg-green-50 border border-green-100 rounded-xl mb-8">
+                    <p class="text-sm text-green-700 font-medium"></p>
+                </div>
+
+                <!-- Info de reprogramaciones -->
+                <div class="p-4 bg-yellow-50 border border-yellow-100 rounded-xl mb-8">
+                    <div class="flex items-start space-x-3">
+                        <svg class="w-5 h-5 text-yellow-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <div>
+                            <p class="text-sm font-bold text-yellow-800">Reprogramaciones disponibles</p>
+                            <p id="info-reprogramaciones" class="text-xs text-yellow-700">Puedes reprogramar tu entrevista hasta 2 veces.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Acciones -->
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="mostrarReprogramar()" id="btn-reprogramar"
+                            class="p-4 border-2 border-gray-100 rounded-2xl text-center hover:border-primary-300 transition-all group">
+                        <div class="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:bg-primary-50 transition-colors">
+                            <svg class="w-6 h-6 text-gray-400 group-hover:text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </div>
+                        <p class="font-bold text-gray-900">Reprogramar</p>
+                        <p class="text-xs text-gray-500">Cambiar fecha u horario</p>
+                    </button>
+                    <button onclick="intentarCancelar()" id="btn-cancelar"
+                            class="p-4 border-2 border-gray-100 rounded-2xl text-center hover:border-red-300 transition-all group">
+                        <div class="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:bg-red-50 transition-colors">
+                            <svg class="w-6 h-6 text-gray-400 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </div>
+                        <p class="font-bold text-gray-900">Cancelar</p>
+                        <p class="text-xs text-gray-500">Cancelar entrevista</p>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-8 bg-gray-50/50 border-t border-gray-50 flex justify-end">
+                <a href="inicioMigrante.html"
+                   class="px-8 py-3 bg-primary-600 text-white font-bold rounded-xl shadow-lg shadow-primary-500/30 hover:bg-primary-700 transition-all">
+                    Volver al inicio
+                </a>
+            </div>
+        </div>
+
+        <!-- Vista de reprogramacion -->
+        <div id="vista-reprogramar" class="hidden">
+            <div class="p-8 border-b border-gray-50">
+                <div class="flex items-center space-x-3">
+                    <button onclick="volverAConfirmada()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </button>
+                    <div>
+                        <h2 class="text-2xl font-black text-gray-900">Reprogramar Entrevista</h2>
+                        <p class="text-sm text-gray-500">Selecciona una nueva fecha y horario.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-grow overflow-y-auto p-8 custom-scroll">
+                <!-- Aviso de reprogramacion -->
+                <div id="aviso-reprogramacion" class="p-4 bg-yellow-50 border border-yellow-100 rounded-xl mb-6">
+                    <p class="text-sm text-yellow-700 font-medium"></p>
+                </div>
+
+                <!-- Nueva fecha -->
+                <div class="mb-8">
+                    <label class="block text-sm font-bold text-gray-700 mb-3">Nueva fecha</label>
+                    <div class="grid grid-cols-3 gap-4" id="nuevas-fechas-container">
+                        <div class="fecha-card p-4 border-2 border-gray-100 rounded-2xl cursor-pointer hover:border-primary-300 transition-all text-center"
+                             onclick="seleccionarNuevaFecha('2026-03-20', '20 de marzo de 2026', this)">
+                            <p class="text-xs text-gray-400 uppercase font-bold">Mar</p>
+                            <p class="text-3xl font-black text-gray-900">20</p>
+                            <p class="text-xs text-gray-500">2026</p>
+                        </div>
+                        <div class="fecha-card p-4 border-2 border-gray-100 rounded-2xl cursor-pointer hover:border-primary-300 transition-all text-center"
+                             onclick="seleccionarNuevaFecha('2026-04-10', '10 de abril de 2026', this)">
+                            <p class="text-xs text-gray-400 uppercase font-bold">Abr</p>
+                            <p class="text-3xl font-black text-gray-900">10</p>
+                            <p class="text-xs text-gray-500">2026</p>
+                        </div>
+                        <div class="fecha-card p-4 border-2 border-gray-100 rounded-2xl cursor-pointer hover:border-primary-300 transition-all text-center"
+                             onclick="seleccionarNuevaFecha('2026-05-15', '15 de mayo de 2026', this)">
+                            <p class="text-xs text-gray-400 uppercase font-bold">May</p>
+                            <p class="text-3xl font-black text-gray-900">15</p>
+                            <p class="text-xs text-gray-500">2026</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nuevos horarios -->
+                <div class="mb-6" id="nuevos-horarios-section" style="display: none;">
+                    <label class="block text-sm font-bold text-gray-700 mb-3">Nuevo horario</label>
+                    <div class="grid grid-cols-4 gap-3" id="nuevos-horarios-container">
+                        <button class="horario-btn p-3 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-700 hover:border-primary-300 transition-all"
+                                onclick="seleccionarNuevoHorario('08:00', this)">08:00</button>
+                        <button class="horario-btn p-3 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-700 hover:border-primary-300 transition-all"
+                                onclick="seleccionarNuevoHorario('09:00', this)">09:00</button>
+                        <button class="horario-btn p-3 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-700 hover:border-primary-300 transition-all"
+                                onclick="seleccionarNuevoHorario('10:00', this)">10:00</button>
+                        <button class="horario-btn p-3 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-700 hover:border-primary-300 transition-all"
+                                onclick="seleccionarNuevoHorario('11:00', this)">11:00</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-8 bg-gray-50/50 border-t border-gray-50 flex justify-between">
+                <button onclick="volverAConfirmada()"
+                        class="px-6 py-3 border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all">
+                    Cancelar
+                </button>
+                <button id="btn-confirmar-reprogramacion" onclick="confirmarReprogramacion()" disabled
+                        class="px-8 py-3 bg-gray-300 text-white font-bold rounded-xl shadow-lg transition-all cursor-not-allowed">
+                    Confirmar reprogramacion
+                </button>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<!-- Modal de error -->
+<div id="modal-error" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </div>
+        <h3 class="text-xl font-black text-gray-900 text-center mb-2">Error</h3>
+        <p id="modal-error-mensaje" class="text-sm text-gray-500 text-center mb-6"></p>
+        <button onclick="cerrarModalError()"
+                class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all">
+            Entendido
+        </button>
+    </div>
+</div>
+
+<!-- Modal de exito -->
+<div id="modal-exito" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+        <h3 class="text-xl font-black text-gray-900 text-center mb-2">Operacion exitosa</h3>
+        <p id="modal-exito-mensaje" class="text-sm text-gray-500 text-center mb-6"></p>
+        <button onclick="cerrarModalExito()"
+                class="w-full py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition-all">
+            Continuar
+        </button>
+    </div>
+</div>
+
+<script>
+    // Estado de la aplicacion - basado en la clase Entrevista del dominio
+    const MAX_REPROGRAMACIONES = 2;
+
+    let entrevista = {
+        embajada: 'USA',
+        fecha: null,
+        fechaLegible: null,
+        horario: null,
+        estado: null, // Programada, Reprogramada, Cancelada
+        reprogramaciones: 0,
+        horariosDisponibles: new Set(['08:00', '09:00', '10:00', '11:00']),
+        horariosOcupados: new Set()
+    };
+
+    // Reglas de cancelacion por embajada (basado en ReglaCancelacion)
+    const reglasCancelacion = {
+        'USA': 24,
+        'España': 48,
+        'Canadá': 72
+    };
+
+    // Seleccion temporal para agendamiento
+    let seleccionTemporal = {
+        fecha: null,
+        fechaLegible: null,
+        horario: null
+    };
+
+    // Seleccion temporal para reprogramacion
+    let seleccionReprogramacion = {
+        fecha: null,
+        fechaLegible: null,
+        horario: null
+    };
+
+    function cambiarEmbajada() {
+        const select = document.getElementById('embajada-select');
+        entrevista.embajada = select.value;
+    }
+
+    function seleccionarFecha(fecha, fechaLegible, elemento) {
+        // Limpiar selecciones previas
+        document.querySelectorAll('#fechas-container .fecha-card').forEach(el => {
+            el.classList.remove('selected');
+        });
+
+        elemento.classList.add('selected');
+        seleccionTemporal.fecha = fecha;
+        seleccionTemporal.fechaLegible = fechaLegible;
+
+        // Mostrar horarios
+        document.getElementById('horarios-section').style.display = 'block';
+
+        // Resetear horario seleccionado
+        seleccionTemporal.horario = null;
+        document.querySelectorAll('#horarios-container .horario-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+
+        actualizarBotonConfirmar();
+        actualizarResumen();
+    }
+
+    function seleccionarHorario(horario, elemento) {
+        if (elemento.classList.contains('disabled')) return;
+
+        // Limpiar selecciones previas
+        document.querySelectorAll('#horarios-container .horario-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+
+        elemento.classList.add('selected');
+        seleccionTemporal.horario = horario;
+
+        actualizarBotonConfirmar();
+        actualizarResumen();
+    }
+
+    function actualizarResumen() {
+        const resumen = document.getElementById('resumen-seleccion');
+        const texto = document.getElementById('resumen-texto');
+
+        if (seleccionTemporal.fecha && seleccionTemporal.horario) {
+            texto.textContent = `${seleccionTemporal.fechaLegible} a las ${seleccionTemporal.horario}`;
+            resumen.classList.remove('hidden');
+        } else {
+            resumen.classList.add('hidden');
+        }
+    }
+
+    function actualizarBotonConfirmar() {
+        const btn = document.getElementById('btn-confirmar');
+
+        if (seleccionTemporal.fecha && seleccionTemporal.horario) {
+            btn.disabled = false;
+            btn.classList.remove('bg-gray-300', 'cursor-not-allowed');
+            btn.classList.add('bg-primary-600', 'shadow-primary-500/30', 'hover:bg-primary-700');
+        } else {
+            btn.disabled = true;
+            btn.classList.add('bg-gray-300', 'cursor-not-allowed');
+            btn.classList.remove('bg-primary-600', 'shadow-primary-500/30', 'hover:bg-primary-700');
+        }
+    }
+
+    function confirmarEntrevista() {
+        // Registrar entrevista (basado en los steps del feature)
+        entrevista.fecha = seleccionTemporal.fecha;
+        entrevista.fechaLegible = seleccionTemporal.fechaLegible;
+        entrevista.horario = seleccionTemporal.horario;
+        entrevista.estado = 'Programada';
+
+        // El horario queda registrado como no disponible
+        entrevista.horariosDisponibles.delete(entrevista.horario);
+        entrevista.horariosOcupados.add(entrevista.horario);
+
+        // Actualizar vista de confirmacion
+        document.getElementById('confirmacion-embajada').textContent = entrevista.embajada;
+        document.getElementById('confirmacion-fecha').textContent = entrevista.fechaLegible;
+        document.getElementById('confirmacion-horario').textContent = entrevista.horario;
+
+        // Mostrar mensaje segun el feature
+        const mensaje = `Entrevista agendada para el ${entrevista.fechaLegible} a las ${entrevista.horario}`;
+        document.querySelector('#mensaje-confirmacion p').textContent = mensaje;
+
+        // Cambiar vista
+        document.getElementById('vista-agendamiento').classList.add('hidden');
+        document.getElementById('vista-confirmada').classList.remove('hidden');
+    }
+
+    function mostrarReprogramar() {
+        // Verificar limite de reprogramaciones (basado en el escenario del feature)
+        if (entrevista.reprogramaciones >= MAX_REPROGRAMACIONES) {
+            mostrarError('Error: ha alcanzado el limite maximo de reprogramaciones permitidas');
+            return;
+        }
+
+        // Mostrar aviso si es la ultima reprogramacion
+        const aviso = document.getElementById('aviso-reprogramacion');
+        if (entrevista.reprogramaciones === MAX_REPROGRAMACIONES - 1) {
+            aviso.querySelector('p').textContent = 'Esta es su ultima reprogramacion permitida';
+            aviso.classList.remove('hidden');
+        } else {
+            aviso.querySelector('p').textContent = `Reprogramaciones restantes: ${MAX_REPROGRAMACIONES - entrevista.reprogramaciones}`;
+        }
+
+        // Resetear seleccion
+        seleccionReprogramacion = { fecha: null, fechaLegible: null, horario: null };
+        document.querySelectorAll('#nuevas-fechas-container .fecha-card').forEach(el => {
+            el.classList.remove('selected');
+        });
+        document.getElementById('nuevos-horarios-section').style.display = 'none';
+        actualizarBotonReprogramacion();
+
+        // Cambiar vista
+        document.getElementById('vista-confirmada').classList.add('hidden');
+        document.getElementById('vista-reprogramar').classList.remove('hidden');
+    }
+
+    function volverAConfirmada() {
+        document.getElementById('vista-reprogramar').classList.add('hidden');
+        document.getElementById('vista-confirmada').classList.remove('hidden');
+    }
+
+    function seleccionarNuevaFecha(fecha, fechaLegible, elemento) {
+        document.querySelectorAll('#nuevas-fechas-container .fecha-card').forEach(el => {
+            el.classList.remove('selected');
+        });
+
+        elemento.classList.add('selected');
+        seleccionReprogramacion.fecha = fecha;
+        seleccionReprogramacion.fechaLegible = fechaLegible;
+
+        document.getElementById('nuevos-horarios-section').style.display = 'block';
+
+        seleccionReprogramacion.horario = null;
+        document.querySelectorAll('#nuevos-horarios-container .horario-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+
+        actualizarBotonReprogramacion();
+    }
+
+    function seleccionarNuevoHorario(horario, elemento) {
+        document.querySelectorAll('#nuevos-horarios-container .horario-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+
+        elemento.classList.add('selected');
+        seleccionReprogramacion.horario = horario;
+
+        actualizarBotonReprogramacion();
+    }
+
+    function actualizarBotonReprogramacion() {
+        const btn = document.getElementById('btn-confirmar-reprogramacion');
+
+        if (seleccionReprogramacion.fecha && seleccionReprogramacion.horario) {
+            btn.disabled = false;
+            btn.classList.remove('bg-gray-300', 'cursor-not-allowed');
+            btn.classList.add('bg-primary-600', 'shadow-primary-500/30', 'hover:bg-primary-700');
+        } else {
+            btn.disabled = true;
+            btn.classList.add('bg-gray-300', 'cursor-not-allowed');
+            btn.classList.remove('bg-primary-600', 'shadow-primary-500/30', 'hover:bg-primary-700');
+        }
+    }
+
+    function confirmarReprogramacion() {
+        // Actualizar entrevista (basado en el escenario de reprogramacion)
+        entrevista.fecha = seleccionReprogramacion.fecha;
+        entrevista.fechaLegible = seleccionReprogramacion.fechaLegible;
+        entrevista.horario = seleccionReprogramacion.horario;
+        entrevista.estado = 'Reprogramada';
+        entrevista.reprogramaciones++;
+
+        // Actualizar vista
+        document.getElementById('confirmacion-fecha').textContent = entrevista.fechaLegible;
+        document.getElementById('confirmacion-horario').textContent = entrevista.horario;
+        document.getElementById('estado-badge').textContent = 'Reprogramada';
+        document.getElementById('estado-badge').classList.remove('text-green-600', 'bg-green-50');
+        document.getElementById('estado-badge').classList.add('text-yellow-600', 'bg-yellow-50');
+
+        // Actualizar info de reprogramaciones
+        const restantes = MAX_REPROGRAMACIONES - entrevista.reprogramaciones;
+        if (restantes === 0) {
+            document.getElementById('info-reprogramaciones').textContent = 'Has agotado tus reprogramaciones disponibles.';
+            document.getElementById('btn-reprogramar').classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            document.getElementById('info-reprogramaciones').textContent = `Reprogramaciones restantes: ${restantes}`;
+        }
+
+        // Mostrar mensaje de confirmacion
+        document.querySelector('#mensaje-confirmacion p').textContent = 'Reprogramacion confirmada';
+
+        // Mostrar modal de exito
+        mostrarExito('Reprogramacion confirmada exitosamente');
+
+        // Volver a vista confirmada
+        volverAConfirmada();
+    }
+
+    function intentarCancelar() {
+        // Obtener regla de cancelacion para la embajada (basado en ReglaCancelacion)
+        const minimoHoras = reglasCancelacion[entrevista.embajada];
+
+        // Simular horas restantes (para demo, usar 48 horas)
+        const horasRestantes = 48;
+
+        // Verificar si permite cancelar
+        if (horasRestantes >= minimoHoras) {
+            // Permite cancelacion
+            entrevista.estado = 'Cancelada';
+
+            document.getElementById('estado-badge').textContent = 'Cancelada';
+            document.getElementById('estado-badge').classList.remove('text-green-600', 'bg-green-50', 'text-yellow-600', 'bg-yellow-50');
+            document.getElementById('estado-badge').classList.add('text-red-600', 'bg-red-50');
+
+            document.querySelector('#mensaje-confirmacion p').textContent = 'Cancelacion confirmada exitosamente';
+            document.getElementById('mensaje-confirmacion').classList.remove('bg-green-50', 'border-green-100');
+            document.getElementById('mensaje-confirmacion').classList.add('bg-red-50', 'border-red-100');
+            document.querySelector('#mensaje-confirmacion p').classList.remove('text-green-700');
+            document.querySelector('#mensaje-confirmacion p').classList.add('text-red-700');
+
+            // Deshabilitar botones
+            document.getElementById('btn-reprogramar').classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+            document.getElementById('btn-cancelar').classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+
+            mostrarExito('Cancelacion confirmada exitosamente');
+        } else {
+            // Rechaza cancelacion
+            mostrarError(`Error: no es posible cancelar la entrevista debido a que no se cumple el tiempo minimo de anticipacion (${minimoHoras} horas para ${entrevista.embajada})`);
+        }
+    }
+
+    function mostrarError(mensaje) {
+        document.getElementById('modal-error-mensaje').textContent = mensaje;
+        document.getElementById('modal-error').classList.remove('hidden');
+    }
+
+    function cerrarModalError() {
+        document.getElementById('modal-error').classList.add('hidden');
+    }
+
+    function mostrarExito(mensaje) {
+        document.getElementById('modal-exito-mensaje').textContent = mensaje;
+        document.getElementById('modal-exito').classList.remove('hidden');
+    }
+
+    function cerrarModalExito() {
+        document.getElementById('modal-exito').classList.add('hidden');
+    }
+
+    // Intentar modificacion directa (para testing del feature de proteccion)
+    function intentarModificacionDirecta() {
+        // Basado en el escenario: Rechazo de modificacion directa
+        mostrarError('Modificacion directa no permitida. Use el proceso de reprogramacion.');
+    }
+</script>
+</body>
+</html>
