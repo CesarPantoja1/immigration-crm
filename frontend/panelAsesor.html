@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel del Asesor - MigraFácil</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd',
+                            400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8',
+                            800: '#1e40af', 900: '#1e3a8a',
+                        },
+                        accent: {light: '#38bdf8', DEFAULT: '#0ea5e9', dark: '#0284c7'}
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html, body {
+            overflow: hidden;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-[#fafbff] h-screen w-screen">
+
+<div class="flex flex-col h-full w-full">
+
+    <header class="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-8 shrink-0 z-10 shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/20">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <span class="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent italic">MigraFácil</span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-sm font-medium text-gray-500">Panel del Asesor</span>
+        </div>
+    </header>
+
+    <div class="flex flex-grow min-h-0">
+
+        <aside class="w-72 bg-white border-r border-gray-100 flex flex-col shrink-0 h-full">
+            <div id="sidebar-container"></div>
+
+            <main class="flex-grow flex flex-col p-10 overflow-hidden">
+            </main>
+
+            <script src="js/sidebar.js"></script>
+        </aside>
+
+        <div class="flex-grow flex flex-col h-full min-w-0">
+
+            <main class="flex-grow flex flex-col p-10 overflow-hidden">
+                <div class="grid grid-cols-3 gap-8 mb-8 shrink-0">
+                    <div class="bg-white p-6 rounded-[2rem] flex items-center space-x-4 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 font-medium tracking-tight">Casos Activos</p>
+                            <p class="text-2xl font-bold text-gray-900">198</p>
+                            <p class="text-[10px] text-green-500 font-bold">↑ 37.8% <span
+                                    class="text-gray-400 font-normal italic font-sans">este mes</span></p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-[2rem] flex items-center space-x-4 shadow-sm border-l-4 border-primary-500">
+                        <div class="w-12 h-12 bg-primary-50 text-primary-600 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                                <path d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 font-medium tracking-tight">Por Revisar</p>
+                            <p class="text-2xl font-bold text-gray-900">24</p>
+                            <p class="text-[10px] text-primary-500 font-bold">Pendientes hoy</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-[2rem] flex items-center space-x-4 shadow-sm">
+                        <div class="w-12 h-12 bg-accent-light/10 text-accent rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 font-medium tracking-tight">Citas Agendadas</p>
+                            <p class="text-2xl font-bold text-gray-900">89</p>
+                            <p class="text-[10px] text-accent font-bold">↑ 11% <span
+                                    class="text-gray-400 font-normal italic font-sans">esta semana</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-grow grid grid-cols-3 gap-8 overflow-hidden">
+                    <div class="col-span-2 bg-white rounded-[2.5rem] shadow-sm p-8 flex flex-col overflow-hidden">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-900 font-serif">Solicitudes Recientes</h2>
+                            <span class="text-[10px] font-bold text-primary-600 bg-primary-50 px-3 py-1 rounded-full uppercase tracking-tighter">Vista Global</span>
+                        </div>
+                        <div class="overflow-y-auto pr-2 flex-grow">
+                            <table class="w-full text-left text-sm">
+                                <thead class="text-gray-400 text-[11px] font-bold uppercase tracking-wider">
+                                <tr>
+                                    <th class="pb-4">Cliente</th>
+                                    <th class="pb-4 text-center">Tipo Visa</th>
+                                    <th class="pb-4 text-center">Estado</th>
+                                    <th class="pb-4 text-right">Acción</th>
+                                </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50">
+                                <tr class="group hover:bg-gray-50/50 transition-colors">
+                                    <td class="py-4 font-bold text-gray-800">Juan Pérez</td>
+                                    <td class="py-4 text-center"><span
+                                            class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-bold">Vivienda</span>
+                                    </td>
+                                    <td class="py-4 text-center"><span
+                                            class="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-bold">COMPLETO</span>
+                                    </td>
+                                    <td class="py-4 text-right">
+                                        <button class="text-primary-600 font-bold text-[11px] border border-primary-200 px-4 py-1.5 rounded-xl hover:bg-primary-600 hover:text-white transition-all">
+                                            REVISAR
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="group hover:bg-gray-50/50 transition-colors">
+                                    <td class="py-4 font-bold text-gray-800">Maria Garcia</td>
+                                    <td class="py-4 text-center"><span
+                                            class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-bold">Trabajo</span>
+                                    </td>
+                                    <td class="py-4 text-center"><span
+                                            class="px-3 py-1 bg-yellow-50 text-yellow-600 rounded-full text-[10px] font-bold">PENDIENTE</span>
+                                    </td>
+                                    <td class="py-4 text-right">
+                                        <button class="text-primary-600 font-bold text-[11px] border border-primary-200 px-4 py-1.5 rounded-xl hover:bg-primary-600 hover:text-white transition-all">
+                                            REVISAR
+                                        </button>
+                                    </td>
+                                </tr>
+                                </tr>
+                                <tr class="group hover:bg-gray-50/50 transition-colors">
+                                    <td class="py-4 font-bold text-gray-800">Maria Garcia</td>
+                                    <td class="py-4 text-center"><span
+                                            class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-bold">Trabajo</span>
+                                    </td>
+                                    <td class="py-4 text-center"><span
+                                            class="px-3 py-1 bg-yellow-50 text-yellow-600 rounded-full text-[10px] font-bold">PENDIENTE</span>
+                                    </td>
+                                    <td class="py-4 text-right">
+                                        <button class="text-primary-600 font-bold text-[11px] border border-primary-200 px-4 py-1.5 rounded-xl hover:bg-primary-600 hover:text-white transition-all">
+                                            REVISAR
+                                        </button>
+                                    </td>
+                                </tr>
+                                </tr>
+                                <tr class="group hover:bg-gray-50/50 transition-colors">
+                                    <td class="py-4 font-bold text-gray-800">Maria Garcia</td>
+                                    <td class="py-4 text-center"><span
+                                            class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-bold">Trabajo</span>
+                                    </td>
+                                    <td class="py-4 text-center"><span
+                                            class="px-3 py-1 bg-yellow-50 text-yellow-600 rounded-full text-[10px] font-bold">PENDIENTE</span>
+                                    </td>
+                                    <td class="py-4 text-right">
+                                        <button class="text-primary-600 font-bold text-[11px] border border-primary-200 px-4 py-1.5 rounded-xl hover:bg-primary-600 hover:text-white transition-all">
+                                            REVISAR
+                                        </button>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-[2.5rem] shadow-sm p-8 flex flex-col items-center justify-between overflow-hidden">
+                        <div class="w-full text-left">
+                            <h2 class="text-xl font-bold text-gray-900 font-serif mb-1 tracking-tight">Clientes</h2>
+                            <p class="text-[11px] text-gray-400 font-medium">Estado de admisiones</p>
+                        </div>
+
+                        <div class="relative w-48 h-48 flex items-center justify-center">
+                            <svg class="w-full h-full transform -rotate-90">
+                                <circle cx="96" cy="96" r="80" stroke="#f2f2f2" stroke-width="15" fill="transparent"/>
+                                <circle cx="96" cy="96" r="80" stroke="#2563eb" stroke-width="20" stroke-dasharray="502"
+                                        stroke-dashoffset="175" stroke-linecap="round" fill="transparent"/>
+                                <circle cx="96" cy="96" r="80" stroke="#0ea5e9" stroke-width="20" stroke-dasharray="502"
+                                        stroke-dashoffset="440" stroke-linecap="round" fill="transparent"/>
+                            </svg>
+                            <div class="absolute text-center">
+                                <p class="text-3xl font-black text-gray-900">65%</p>
+                                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Nuevos</p>
+                            </div>
+                        </div>
+
+                        <div class="w-full space-y-3 mt-4">
+                            <div class="flex items-center justify-between text-[11px]">
+                                <span class="flex items-center text-gray-500 font-bold"><div
+                                        class="w-2.5 h-2.5 bg-primary-600 rounded-full mr-2"></div> TRABAJO</span>
+                                <span class="font-bold text-gray-900">45%</span>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px]">
+                                <span class="flex items-center text-gray-500 font-bold"><div
+                                        class="w-2.5 h-2.5 bg-accent rounded-full mr-2"></div> ESTUDIO</span>
+                                <span class="font-bold text-gray-900">20%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div class="mt-auto p-6 border-t border-gray-100">
+        <div class="flex items-center space-x-3 px-2">
+            <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-bold border border-white shadow-sm">
+                JP
+            </div>
+            <div>
+                <p class="text-sm font-bold text-gray-900 leading-tight">Juan Asesor</p>
+                <p class="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Gestor de Casos</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/sidebar.js"></script>
+</body>
+</html>
