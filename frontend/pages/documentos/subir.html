@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subir Documento | MigraFácil</title>
+    <link rel="stylesheet" href="../../src/styles/variables.css">
+    <link rel="stylesheet" href="../../src/styles/base.css">
+    <link rel="stylesheet" href="../../src/styles/components.css">
+    <link rel="stylesheet" href="../../src/styles/layout.css">
+    <style>
+        .upload-container {
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--neutral-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: var(--neutral-500);
+            font-size: 0.875rem;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--neutral-200);
+            border-radius: var(--radius-lg);
+            padding: 3rem 2rem;
+            text-align: center;
+            background: var(--neutral-50);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.04);
+        }
+
+        .upload-zone.dragover {
+            transform: scale(1.01);
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem;
+            color: var(--neutral-400);
+        }
+
+        .upload-zone.dragover .upload-icon {
+            color: var(--primary);
+        }
+
+        .upload-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--neutral-800);
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-hint {
+            font-size: 0.8125rem;
+            color: var(--neutral-500);
+        }
+
+        .upload-hint span {
+            color: var(--primary);
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .upload-formats {
+            margin-top: 1rem;
+            font-size: 0.75rem;
+            color: var(--neutral-400);
+        }
+
+        .form-section {
+            margin-top: 2rem;
+        }
+
+        .form-row {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .file-preview {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: white;
+            border: 1px solid var(--neutral-200);
+            border-radius: var(--radius);
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-preview.visible {
+            display: flex;
+        }
+
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-light);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .file-name {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--neutral-800);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-size {
+            font-size: 0.75rem;
+            color: var(--neutral-500);
+            margin-top: 0.125rem;
+        }
+
+        .file-remove {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: none;
+            color: var(--neutral-400);
+            cursor: pointer;
+            border-radius: var(--radius);
+            transition: all 0.15s ease;
+        }
+
+        .file-remove:hover {
+            background: var(--neutral-100);
+            color: var(--error);
+        }
+
+        .upload-progress {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .upload-progress.visible {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: var(--neutral-200);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 0.75rem;
+            color: var(--neutral-500);
+            margin-top: 0.5rem;
+            text-align: right;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--neutral-100);
+        }
+
+        .form-actions .btn {
+            flex: 1;
+        }
+
+        .recent-uploads {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--neutral-100);
+        }
+
+        .section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--neutral-800);
+            margin-bottom: 1rem;
+        }
+
+        .recent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .recent-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--neutral-50);
+            border-radius: var(--radius);
+        }
+
+        .recent-item-icon {
+            width: 32px;
+            height: 32px;
+            background: white;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--neutral-500);
+        }
+
+        .recent-item-info {
+            flex: 1;
+        }
+
+        .recent-item-name {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--neutral-800);
+        }
+
+        .recent-item-date {
+            font-size: 0.75rem;
+            color: var(--neutral-500);
+        }
+
+        .recent-item-status {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+        }
+
+        .recent-item-status.pending {
+            background: var(--warning-light);
+            color: #b45309;
+        }
+
+        .recent-item-status.approved {
+            background: var(--success-light);
+            color: #047857;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="sidebar-logo">MigraFácil</a>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="../migrante/dashboard.html" class="nav-item">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    <span>Inicio</span>
+                </a>
+                <a href="../migrante/documentos.html" class="nav-item active">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <span>Documentos</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    <span>Mi Progreso</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span>Mensajes</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <a href="#" class="nav-item">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    <span>Cerrar sesión</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
+                
+                <nav class="breadcrumb">
+                    <a href="../migrante/documentos.html">Documentos</a>
+                    <span>/</span>
+                    <span>Subir</span>
+                </nav>
+            </header>
+
+            <div class="content">
+                <div class="upload-container">
+                    <div class="page-header">
+                        <h1 class="page-title">Subir documento</h1>
+                        <p class="page-subtitle">Sube los documentos requeridos para tu proceso migratorio</p>
+                    </div>
+
+                    <form id="uploadForm">
+                        <!-- Upload Zone -->
+                        <div class="upload-zone" id="uploadZone">
+                            <input type="file" id="fileInput" hidden accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <p class="upload-title">Arrastra tu archivo aquí</p>
+                            <p class="upload-hint">o <span>selecciona un archivo</span> de tu dispositivo</p>
+                            <p class="upload-formats">PDF, JPG, PNG, DOC hasta 10MB</p>
+                        </div>
+
+                        <!-- File Preview -->
+                        <div class="file-preview" id="filePreview">
+                            <div class="file-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                            </div>
+                            <div class="file-info">
+                                <div class="file-name" id="fileName">documento.pdf</div>
+                                <div class="file-size" id="fileSize">2.4 MB</div>
+                            </div>
+                            <button type="button" class="file-remove" id="fileRemove">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Upload Progress -->
+                        <div class="upload-progress" id="uploadProgress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <div class="progress-text" id="progressText">0%</div>
+                        </div>
+
+                        <!-- Form Fields -->
+                        <div class="form-section">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Tipo de documento</label>
+                                    <select class="form-select" id="docType" required>
+                                        <option value="">Seleccionar tipo</option>
+                                        <option value="passport">Pasaporte</option>
+                                        <option value="visa">Visa actual</option>
+                                        <option value="birth_cert">Acta de nacimiento</option>
+                                        <option value="id_card">Documento de identidad</option>
+                                        <option value="employment">Carta de empleo</option>
+                                        <option value="bank">Estado bancario</option>
+                                        <option value="education">Título educativo</option>
+                                        <option value="photo">Fotografía</option>
+                                        <option value="other">Otro</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row" style="margin-top: 1rem;">
+                                <div class="form-group">
+                                    <label class="form-label">Notas (opcional)</label>
+                                    <textarea class="form-input" id="docNotes" rows="3" placeholder="Agregar notas o comentarios sobre el documento..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="form-actions">
+                            <a href="../migrante/documentos.html" class="btn btn-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                                Subir documento
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Recent Uploads -->
+                    <div class="recent-uploads">
+                        <h3 class="section-title">Subidos recientemente</h3>
+                        <div class="recent-list">
+                            <div class="recent-item">
+                                <div class="recent-item-icon">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                    </svg>
+                                </div>
+                                <div class="recent-item-info">
+                                    <div class="recent-item-name">Pasaporte_2024.pdf</div>
+                                    <div class="recent-item-date">Hace 2 días</div>
+                                </div>
+                                <span class="recent-item-status approved">Aprobado</span>
+                            </div>
+                            <div class="recent-item">
+                                <div class="recent-item-icon">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                    </svg>
+                                </div>
+                                <div class="recent-item-info">
+                                    <div class="recent-item-name">Carta_empleo.pdf</div>
+                                    <div class="recent-item-date">Hace 5 días</div>
+                                </div>
+                                <span class="recent-item-status pending">En revisión</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { Sidebar } from '../../src/components/sidebar.js';
+        
+        // Initialize sidebar
+        new Sidebar();
+
+        // DOM elements
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const filePreview = document.getElementById('filePreview');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const fileRemove = document.getElementById('fileRemove');
+        const submitBtn = document.getElementById('submitBtn');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const uploadForm = document.getElementById('uploadForm');
+
+        let selectedFile = null;
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Handle file selection
+        function handleFile(file) {
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            
+            if (!allowedTypes.includes(file.type)) {
+                alert('Tipo de archivo no permitido');
+                return;
+            }
+            
+            if (file.size > maxSize) {
+                alert('El archivo excede el tamaño máximo de 10MB');
+                return;
+            }
+
+            selectedFile = file;
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            filePreview.classList.add('visible');
+            uploadZone.style.display = 'none';
+            submitBtn.disabled = false;
+        }
+
+        // Remove file
+        function removeFile() {
+            selectedFile = null;
+            fileInput.value = '';
+            filePreview.classList.remove('visible');
+            uploadZone.style.display = 'block';
+            submitBtn.disabled = true;
+        }
+
+        // Click on upload zone
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // Drag and drop
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Remove file button
+        fileRemove.addEventListener('click', removeFile);
+
+        // Form submit
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const docType = document.getElementById('docType').value;
+            if (!docType) {
+                alert('Por favor selecciona el tipo de documento');
+                return;
+            }
+
+            // Show progress
+            uploadProgress.classList.add('visible');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Subiendo...';
+
+            // Simulate upload progress
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 20;
+                if (progress > 100) progress = 100;
+                progressFill.style.width = progress + '%';
+                progressText.textContent = Math.round(progress) + '%';
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        alert('Documento subido exitosamente');
+                        window.location.href = '../migrante/documentos.html';
+                    }, 500);
+                }
+            }, 200);
+        });
+    </script>
+</body>
+</html>

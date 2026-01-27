@@ -1,0 +1,325 @@
+/* ========================================
+   Components - Minimal Style
+   ======================================== */
+
+/* === Buttons === */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    line-height: 1.5;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    transition: all 150ms ease;
+    white-space: nowrap;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+
+.btn-secondary {
+    background: var(--neutral-100);
+    color: var(--neutral-700);
+    border-color: var(--neutral-200);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--neutral-200);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--neutral-600);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    background: var(--neutral-100);
+}
+
+.btn-sm {
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-xs);
+}
+
+.btn-lg {
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--font-md);
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: var(--radius-md);
+}
+
+.btn svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* === Form Inputs === */
+.form-group {
+    margin-bottom: var(--space-4);
+}
+
+.form-label {
+    display: block;
+    font-size: var(--font-sm);
+    font-weight: 500;
+    color: var(--neutral-700);
+    margin-bottom: var(--space-1);
+}
+
+.form-input {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-base);
+    color: var(--neutral-900);
+    background: var(--white);
+    border: 1px solid var(--neutral-200);
+    border-radius: var(--radius-md);
+    transition: all 150ms ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.form-input::placeholder {
+    color: var(--neutral-400);
+}
+
+.form-input.error {
+    border-color: var(--error);
+}
+
+.form-hint {
+    font-size: var(--font-xs);
+    color: var(--neutral-400);
+    margin-top: var(--space-1);
+}
+
+.form-error {
+    font-size: var(--font-xs);
+    color: var(--error);
+    margin-top: var(--space-1);
+}
+
+.input-icon-wrapper {
+    position: relative;
+}
+
+.input-icon-wrapper .form-input {
+    padding-left: 36px;
+}
+
+.input-icon-wrapper svg {
+    position: absolute;
+    left: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--neutral-400);
+}
+
+/* === Cards === */
+.card {
+    background: var(--white);
+    border: 1px solid var(--neutral-200);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--neutral-100);
+    margin-bottom: var(--space-4);
+}
+
+.card-title {
+    font-size: var(--font-md);
+    font-weight: 500;
+    color: var(--neutral-900);
+}
+
+/* === Badges === */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 2px 8px;
+    font-size: var(--font-xs);
+    font-weight: 500;
+    border-radius: var(--radius-full);
+}
+
+.badge-default {
+    background: var(--neutral-100);
+    color: var(--neutral-600);
+}
+
+.badge-primary {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.badge-success {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+.badge-warning {
+    background: var(--warning-light);
+    color: var(--warning);
+}
+
+.badge-error {
+    background: var(--error-light);
+    color: var(--error);
+}
+
+.badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: currentColor;
+}
+
+/* === Avatar === */
+.avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-weight: 500;
+    border-radius: var(--radius-full);
+}
+
+.avatar-sm {
+    width: 28px;
+    height: 28px;
+    font-size: var(--font-xs);
+}
+
+.avatar-md {
+    width: 36px;
+    height: 36px;
+    font-size: var(--font-sm);
+}
+
+.avatar-lg {
+    width: 44px;
+    height: 44px;
+    font-size: var(--font-base);
+}
+
+/* === Progress === */
+.progress {
+    width: 100%;
+    height: 4px;
+    background: var(--neutral-100);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: var(--radius-full);
+    transition: width 300ms ease;
+}
+
+/* === Spinner === */
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--neutral-200);
+    border-top-color: var(--primary);
+    border-radius: var(--radius-full);
+    animation: spin 600ms linear infinite;
+}
+
+/* === Divider === */
+.divider {
+    height: 1px;
+    background: var(--neutral-100);
+    margin: var(--space-4) 0;
+}
+
+/* === Table === */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th {
+    text-align: left;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--font-xs);
+    font-weight: 500;
+    color: var(--neutral-500);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: var(--neutral-50);
+    border-bottom: 1px solid var(--neutral-200);
+}
+
+.table td {
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--font-sm);
+    color: var(--neutral-700);
+    border-bottom: 1px solid var(--neutral-100);
+}
+
+.table tr:hover td {
+    background: var(--neutral-50);
+}
+
+/* === Empty State === */
+.empty-state {
+    text-align: center;
+    padding: var(--space-12) var(--space-8);
+}
+
+.empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto var(--space-4);
+    color: var(--neutral-300);
+}
+
+.empty-title {
+    font-size: var(--font-md);
+    font-weight: 500;
+    color: var(--neutral-700);
+    margin-bottom: var(--space-1);
+}
+
+.empty-text {
+    font-size: var(--font-sm);
+    color: var(--neutral-400);
+}

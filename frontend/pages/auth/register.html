@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear cuenta - MigraFácil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../src/styles/variables.css">
+    <link rel="stylesheet" href="../../src/styles/base.css">
+    <link rel="stylesheet" href="../../src/styles/components.css">
+    <link rel="stylesheet" href="../../src/styles/layout.css">
+</head>
+<body>
+    <div class="auth-layout">
+        <div class="auth-left">
+            <div class="auth-left-content">
+                <h1>Comienza tu proceso hoy</h1>
+                <p>Únete a miles de personas que ya están gestionando su proceso migratorio de forma simple y organizada.</p>
+            </div>
+        </div>
+        
+        <div class="auth-right">
+            <div class="auth-form">
+                <div class="auth-logo">
+                    <div class="auth-logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                    </div>
+                    <span class="auth-logo-text">MigraFácil</span>
+                </div>
+                
+                <h2 class="auth-title">Crear cuenta</h2>
+                <p class="auth-subtitle">Completa tus datos para registrarte</p>
+                
+                <form id="register-form">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+                        <div class="form-group">
+                            <label class="form-label" for="nombre">Nombre</label>
+                            <input type="text" id="nombre" class="form-input" placeholder="Juan" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="apellido">Apellido</label>
+                            <input type="text" id="apellido" class="form-input" placeholder="Pérez">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="email">Correo electrónico</label>
+                        <input type="email" id="email" class="form-input" placeholder="tu@email.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="password">Contraseña</label>
+                        <input type="password" id="password" class="form-input" placeholder="Mínimo 8 caracteres" required minlength="8">
+                        <p class="form-hint">Usa al menos 8 caracteres con letras y números</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="confirm">Confirmar contraseña</label>
+                        <input type="password" id="confirm" class="form-input" placeholder="Repite tu contraseña" required>
+                    </div>
+                    
+                    <div style="margin-bottom: var(--space-5);">
+                        <label style="display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--font-sm); color: var(--neutral-600); cursor: pointer;">
+                            <input type="checkbox" id="terms" required style="accent-color: var(--primary); margin-top: 2px;">
+                            <span>Acepto los <a href="#">Términos de servicio</a> y la <a href="#">Política de privacidad</a></span>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;" id="submit-btn">
+                        Crear cuenta
+                    </button>
+                </form>
+                
+                <p class="auth-footer">
+                    ¿Ya tienes cuenta? <a href="login.html">Iniciar sesión</a>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import toast from '../../src/components/toast.js';
+        
+        const form = document.getElementById('register-form');
+        const submitBtn = document.getElementById('submit-btn');
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const nombre = document.getElementById('nombre').value;
+            const apellido = document.getElementById('apellido').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('confirm').value;
+            
+            if (password !== confirm) {
+                toast.error('Las contraseñas no coinciden');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span>';
+            
+            try {
+                const res = await fetch('http://localhost:8000/api/v1/auth/register/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, apellido, email, password })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    toast.success('Cuenta creada exitosamente');
+                    setTimeout(() => {
+                        window.location.href = 'login.html?email=' + encodeURIComponent(email);
+                    }, 1000);
+                } else {
+                    toast.error(data.email?.[0] || data.detail || 'Error al crear cuenta');
+                }
+            } catch (err) {
+                toast.error('Error de conexión');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Crear cuenta';
+            }
+        });
+    </script>
+</body>
+</html>

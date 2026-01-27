@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Asesor - MigraFácil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../src/styles/variables.css">
+    <link rel="stylesheet" href="../../src/styles/base.css">
+    <link rel="stylesheet" href="../../src/styles/components.css">
+    <link rel="stylesheet" href="../../src/styles/layout.css">
+    <style>
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+        }
+        
+        @media (max-width: 1100px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .stats-row { grid-template-columns: 1fr; } }
+        
+        .stat-card {
+            background: var(--white);
+            border: 1px solid var(--neutral-100);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .stat-icon svg { width: 20px; height: 20px; }
+        .stat-icon.primary { background: var(--primary-light); color: var(--primary); }
+        .stat-icon.warning { background: var(--warning-light); color: var(--warning); }
+        .stat-icon.success { background: var(--success-light); color: var(--success); }
+        .stat-icon.info { background: #dbeafe; color: #3b82f6; }
+        
+        .stat-content { flex: 1; }
+        .stat-value { font-size: var(--font-xl); font-weight: 600; color: var(--neutral-900); }
+        .stat-label { font-size: var(--font-xs); color: var(--neutral-500); }
+        
+        .section-card {
+            background: var(--white);
+            border: 1px solid var(--neutral-100);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            margin-bottom: var(--space-5);
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-4) var(--space-5);
+            border-bottom: 1px solid var(--neutral-100);
+        }
+        
+        .section-title { font-size: var(--font-md); font-weight: 500; color: var(--neutral-900); }
+        
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .search-input {
+            padding: var(--space-2) var(--space-3);
+            border: 1px solid var(--neutral-200);
+            border-radius: var(--radius-md);
+            font-size: var(--font-sm);
+            width: 220px;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .client-row {
+            display: flex;
+            align-items: center;
+            padding: var(--space-3) var(--space-5);
+            border-bottom: 1px solid var(--neutral-100);
+            transition: background 150ms ease;
+        }
+        
+        .client-row:last-child { border-bottom: none; }
+        .client-row:hover { background: var(--neutral-50); }
+        
+        .client-info {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .client-name { font-size: var(--font-sm); font-weight: 500; color: var(--neutral-800); }
+        .client-email { font-size: var(--font-xs); color: var(--neutral-400); }
+        
+        .client-col {
+            width: 120px;
+            flex-shrink: 0;
+            font-size: var(--font-sm);
+            color: var(--neutral-600);
+        }
+        
+        .client-progress {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .mini-bar {
+            width: 60px;
+            height: 4px;
+            background: var(--neutral-100);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+        
+        .mini-bar-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: var(--radius-full);
+        }
+        
+        .client-actions {
+            display: flex;
+            gap: var(--space-1);
+        }
+        
+        .content-row {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: var(--space-5);
+        }
+        
+        @media (max-width: 1000px) { .content-row { grid-template-columns: 1fr; } }
+        
+        .doc-item {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-3);
+            padding: var(--space-4);
+            border-bottom: 1px solid var(--neutral-100);
+        }
+        
+        .doc-item:last-child { border-bottom: none; }
+        
+        .doc-icon {
+            width: 36px;
+            height: 36px;
+            background: #fee2e2;
+            color: #ef4444;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .doc-icon svg { width: 18px; height: 18px; }
+        
+        .doc-content { flex: 1; min-width: 0; }
+        .doc-name { font-size: var(--font-sm); font-weight: 500; color: var(--neutral-800); margin-bottom: 2px; }
+        .doc-meta { font-size: var(--font-xs); color: var(--neutral-400); margin-bottom: var(--space-2); }
+        
+        .doc-actions { display: flex; gap: var(--space-2); }
+        
+        .quick-stats { padding: var(--space-4); }
+        
+        .quick-stat {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-2);
+        }
+        
+        .quick-stat:hover { background: var(--neutral-50); }
+        
+        .quick-stat-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        
+        .quick-stat-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .quick-stat-icon svg { width: 16px; height: 16px; }
+        .quick-stat-label { font-size: var(--font-sm); color: var(--neutral-600); }
+        .quick-stat-value { font-size: var(--font-md); font-weight: 600; color: var(--neutral-900); }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M2 12h20"/>
+                    </svg>
+                </div>
+                <span class="sidebar-brand">MigraFácil</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-label">Principal</div>
+                    <a href="dashboard.html" class="nav-item active">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                        </svg>
+                        Dashboard
+                    </a>
+                    <a href="#" class="nav-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        Clientes
+                    </a>
+                    <a href="#" class="nav-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        Documentos
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-label">Cuenta</div>
+                    <a href="#" class="nav-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                        Configuración
+                    </a>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-card" id="user-card">
+                    <div class="avatar avatar-md" style="background: #dbeafe; color: #3b82f6;" id="user-avatar">AS</div>
+                    <div class="user-info">
+                        <div class="user-name" id="user-name">Asesor</div>
+                        <div class="user-email">Asesor Senior</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <h1 class="header-title">Panel de Asesor</h1>
+                </div>
+                <div class="header-right">
+                    <button class="header-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                        <span class="badge-count">7</span>
+                    </button>
+                </div>
+            </header>
+            
+            <div class="page-content animate-fade">
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value">24</div>
+                            <div class="stat-label">Clientes activos</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value">12</div>
+                            <div class="stat-label">Docs. pendientes</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value">156</div>
+                            <div class="stat-label">Aprobados (mes)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon info">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value">8</div>
+                            <div class="stat-label">Por completar hoy</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3 class="section-title">Clientes asignados</h3>
+                        <div class="search-box">
+                            <input type="text" class="search-input" placeholder="Buscar cliente..." id="search-input">
+                        </div>
+                    </div>
+                    
+                    <div id="clients-list">
+                        <div class="client-row">
+                            <div class="client-info">
+                                <div class="avatar avatar-md">JP</div>
+                                <div>
+                                    <div class="client-name">Juan Pérez</div>
+                                    <div class="client-email">juan.perez@email.com</div>
+                                </div>
+                            </div>
+                            <div class="client-col">Trabajo (H1-B)</div>
+                            <div class="client-col">
+                                <span class="badge badge-primary">En revisión</span>
+                            </div>
+                            <div class="client-col client-progress">
+                                <div class="mini-bar"><div class="mini-bar-fill" style="width: 65%"></div></div>
+                                <span class="text-sm">65%</span>
+                            </div>
+                            <div class="client-actions">
+                                <button class="btn btn-ghost btn-icon" title="Ver">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="client-row">
+                            <div class="client-info">
+                                <div class="avatar avatar-md" style="background: var(--success-light); color: var(--success);">MG</div>
+                                <div>
+                                    <div class="client-name">María González</div>
+                                    <div class="client-email">maria.gonzalez@email.com</div>
+                                </div>
+                            </div>
+                            <div class="client-col">Estudiante (F-1)</div>
+                            <div class="client-col">
+                                <span class="badge badge-success">Activo</span>
+                            </div>
+                            <div class="client-col client-progress">
+                                <div class="mini-bar"><div class="mini-bar-fill" style="width: 90%"></div></div>
+                                <span class="text-sm">90%</span>
+                            </div>
+                            <div class="client-actions">
+                                <button class="btn btn-ghost btn-icon" title="Ver">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="client-row">
+                            <div class="client-info">
+                                <div class="avatar avatar-md" style="background: var(--warning-light); color: var(--warning);">CR</div>
+                                <div>
+                                    <div class="client-name">Carlos Rodríguez</div>
+                                    <div class="client-email">carlos.r@email.com</div>
+                                </div>
+                            </div>
+                            <div class="client-col">Inversor (EB-5)</div>
+                            <div class="client-col">
+                                <span class="badge badge-warning">Pendiente</span>
+                            </div>
+                            <div class="client-col client-progress">
+                                <div class="mini-bar"><div class="mini-bar-fill" style="width: 25%"></div></div>
+                                <span class="text-sm">25%</span>
+                            </div>
+                            <div class="client-actions">
+                                <button class="btn btn-ghost btn-icon" title="Ver">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="content-row">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <h3 class="section-title">Documentos por revisar</h3>
+                            <span class="badge badge-warning">12</span>
+                        </div>
+                        
+                        <div class="doc-item">
+                            <div class="doc-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                </svg>
+                            </div>
+                            <div class="doc-content">
+                                <div class="doc-name">Pasaporte_vigente.pdf</div>
+                                <div class="doc-meta">Juan Pérez • Hace 30 min</div>
+                                <div class="doc-actions">
+                                    <button class="btn btn-sm btn-primary">Aprobar</button>
+                                    <button class="btn btn-sm btn-secondary">Rechazar</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="doc-item">
+                            <div class="doc-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                </svg>
+                            </div>
+                            <div class="doc-content">
+                                <div class="doc-name">Certificado_estudios.pdf</div>
+                                <div class="doc-meta">María González • Hace 2 horas</div>
+                                <div class="doc-actions">
+                                    <button class="btn btn-sm btn-primary">Aprobar</button>
+                                    <button class="btn btn-sm btn-secondary">Rechazar</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="doc-item">
+                            <div class="doc-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                </svg>
+                            </div>
+                            <div class="doc-content">
+                                <div class="doc-name">Estados_financieros.pdf</div>
+                                <div class="doc-meta">Carlos Rodríguez • Hace 4 horas</div>
+                                <div class="doc-actions">
+                                    <button class="btn btn-sm btn-primary">Aprobar</button>
+                                    <button class="btn btn-sm btn-secondary">Rechazar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="section-card">
+                        <div class="section-header">
+                            <h3 class="section-title">Resumen del mes</h3>
+                        </div>
+                        <div class="quick-stats">
+                            <div class="quick-stat">
+                                <div class="quick-stat-left">
+                                    <div class="quick-stat-icon" style="background: var(--success-light); color: var(--success);">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="20 6 9 17 4 12"/>
+                                        </svg>
+                                    </div>
+                                    <span class="quick-stat-label">Aprobados</span>
+                                </div>
+                                <span class="quick-stat-value">156</span>
+                            </div>
+                            
+                            <div class="quick-stat">
+                                <div class="quick-stat-left">
+                                    <div class="quick-stat-icon" style="background: var(--error-light); color: var(--error);">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="18" y1="6" x2="6" y2="18"/>
+                                            <line x1="6" y1="6" x2="18" y2="18"/>
+                                        </svg>
+                                    </div>
+                                    <span class="quick-stat-label">Rechazados</span>
+                                </div>
+                                <span class="quick-stat-value">23</span>
+                            </div>
+                            
+                            <div class="quick-stat">
+                                <div class="quick-stat-left">
+                                    <div class="quick-stat-icon" style="background: var(--primary-light); color: var(--primary);">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="8.5" cy="7" r="4"/>
+                                            <line x1="20" y1="8" x2="20" y2="14"/>
+                                            <line x1="23" y1="11" x2="17" y2="11"/>
+                                        </svg>
+                                    </div>
+                                    <span class="quick-stat-label">Nuevos clientes</span>
+                                </div>
+                                <span class="quick-stat-value">8</span>
+                            </div>
+                            
+                            <div class="quick-stat">
+                                <div class="quick-stat-left">
+                                    <div class="quick-stat-icon" style="background: #dbeafe; color: #3b82f6;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <polyline points="12 6 12 12 16 14"/>
+                                        </svg>
+                                    </div>
+                                    <span class="quick-stat-label">Tiempo promedio</span>
+                                </div>
+                                <span class="quick-stat-value">2.5h</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script type="module">
+        import toast from '../../src/components/toast.js';
+        
+        // Check auth
+        const token = localStorage.getItem('access_token');
+        if (!token) window.location.href = '../auth/login.html';
+        
+        // Load user
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (user.nombre) {
+            document.getElementById('user-name').textContent = `${user.nombre} ${user.apellido || ''}`;
+            document.getElementById('user-avatar').textContent = (user.nombre[0] || 'A') + (user.apellido?.[0] || 'S');
+        }
+        
+        // Logout
+        document.getElementById('user-card').addEventListener('click', () => {
+            if (confirm('¿Cerrar sesión?')) {
+                localStorage.clear();
+                window.location.href = '../auth/login.html';
+            }
+        });
+        
+        // Search
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.client-row').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        });
+        
+        // Approve/Reject handlers
+        document.querySelectorAll('.doc-item .btn-primary').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const item = btn.closest('.doc-item');
+                const name = item.querySelector('.doc-name').textContent;
+                item.style.opacity = '0';
+                setTimeout(() => {
+                    item.remove();
+                    toast.success(`${name} aprobado`);
+                }, 200);
+            });
+        });
+        
+        document.querySelectorAll('.doc-item .btn-secondary').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const item = btn.closest('.doc-item');
+                const name = item.querySelector('.doc-name').textContent;
+                item.style.opacity = '0';
+                setTimeout(() => {
+                    item.remove();
+                    toast.error(`${name} rechazado`);
+                }, 200);
+            });
+        });
+    </script>
+</body>
+</html>
