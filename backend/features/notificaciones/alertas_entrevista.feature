@@ -1,5 +1,4 @@
 # language: es
-
 Característica: Alertas de entrevistas
   Como migrante
   Quiero recibir alertas oportunas sobre mi entrevista consular y mi preparación
@@ -30,7 +29,7 @@ Característica: Alertas de entrevistas
   # Entrevista agendada
   # =========================================================
 
-  Escenario: Confirmación visible cuando el asesor agenda una entrevista
+  Escenario: Notificar entrevista agendada al migrante
     Dado que la solicitud "SOL-2026-00001" no tiene entrevista registrada
     Cuando el asesor "Carlos Ruiz" registra una entrevista para "SOL-2026-00001" en "2026-02-15 09:00"
     Entonces en el centro de notificaciones del migrante aparece una notificación nueva con:
@@ -42,7 +41,7 @@ Característica: Alertas de entrevistas
   # Recordatorios
   # =========================================================
 
-  Esquema del escenario: Recordatorio por ventana antes de la entrevista
+  Esquema del escenario: Recordatorio antes de la entrevista
     Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00"
     Y la fecha y hora actual del sistema es "<fecha_hora_actual>"
     Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"
@@ -60,7 +59,7 @@ Característica: Alertas de entrevistas
   # Reprogramación
   # =========================================================
 
-  Escenario: Reprogramación informa el cambio con trazabilidad de antes y después
+  Escenario: Reprogramación de una entrevista
     Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00"
     Cuando el asesor "Carlos Ruiz" reprograma la entrevista de "SOL-2026-00001" a "2026-02-20 10:00"
     Entonces en el centro de notificaciones del migrante aparece una notificación nueva con:
@@ -84,7 +83,7 @@ Característica: Alertas de entrevistas
   # Cancelación
   # =========================================================
 
-  Escenario: Cancelación comunica el evento y evita confusión por recordatorios posteriores
+  Escenario: Cancelación de entrevista
     Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00"
     Cuando el asesor "Carlos Ruiz" cancela la entrevista de "SOL-2026-00001"
     Entonces en el centro de notificaciones del migrante aparece una notificación nueva con:
@@ -108,7 +107,7 @@ Característica: Alertas de entrevistas
   # Preparación
   # =========================================================
 
-  Escenario: Alerta de preparación cuando falta una semana y no existe simulacro confirmado
+  Escenario: Alerta cuando falta una semana y no existe simulacro confirmado
     Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00"
     Y no existe un simulacro en estado "Confirmado" asociado a "SOL-2026-00001"
     Y la fecha y hora actual del sistema es "2026-02-08 09:00"
@@ -122,7 +121,7 @@ Característica: Alertas de entrevistas
   # Continuidad con Simulación/Recomendaciones
   # =========================================================
 
-  Escenario: Aviso operativo al asesor cuando un simulacro cambia a "Completado"
+  Escenario: Aviso al asesor cuando un simulacro ha sido completado
     Dado que el asesor "Carlos Ruiz" está autenticado en el sistema
     Y existe un simulacro "SIM-001" asociado a la solicitud "SOL-2026-00001"
     Y el simulacro "SIM-001" está en estado "En progreso"
@@ -132,7 +131,7 @@ Característica: Alertas de entrevistas
       | Simulación completada| SIM-001      |
     Y el detalle de la notificación es "Generar recomendaciones"
 
-  Escenario: Notificación al migrante cuando el documento de recomendaciones queda "Publicado"
+  Escenario: Notificar las recomendaciones publicadas al migrante
     Dado que existe un documento de recomendaciones para el simulacro "SIM-001" en estado "Publicado"
     Cuando el documento de recomendaciones del simulacro "SIM-001" se publica en el sistema
     Entonces en el centro de notificaciones del migrante aparece una notificación nueva con:
