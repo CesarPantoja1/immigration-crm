@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Input } from '../../../components/common'
 import AuthBranding from '../components/AuthBranding'
+import { useAuth } from '../../../contexts/AuthContext'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -40,12 +42,19 @@ export default function LoginPage() {
 
     setIsLoading(true)
     try {
-      // TODO: Implementar llamada real al API
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      console.log('Login:', formData)
-      // navigate('/dashboard')
+      const result = await login(formData.email, formData.password)
+      if (result.success) {
+        // Redirigir según el rol del usuario
+        if (result.user.role === 'advisor') {
+          navigate('/asesor')
+        } else {
+          navigate('/dashboard')
+        }
+      } else {
+        setErrors({ general: result.error || 'Credenciales inválidas' })
+      }
     } catch (err) {
-      setErrors({ general: 'Credenciales inválidas' })
+      setErrors({ general: 'Error al iniciar sesión' })
     } finally {
       setIsLoading(false)
     }
