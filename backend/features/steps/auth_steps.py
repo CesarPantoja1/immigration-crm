@@ -2,7 +2,7 @@
 Steps relacionados con autenticación y usuarios.
 """
 from behave import given, when, then
-from apps.usuarios.infrastructure.models import Usuario
+from apps.usuarios.infrastructure.models import UsuarioModel
 
 
 @given('que existe un usuario "{username}" con rol "{rol}"')
