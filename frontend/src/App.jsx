@@ -27,7 +27,8 @@ import {
   AdvisorSimulationsPage,
   AdvisorMeetingRoomPage,
   InterviewScheduling,
-  AdvisorInboxPage
+  AdvisorInboxPage,
+  IAConfigPage
 } from './features/advisor'
 
 // Pagina admin
@@ -224,6 +225,15 @@ function App() {
           <ProtectedRoute allowedRoles={['advisor']}>
             <AdvisorLayout>
               <AdvisorInboxPage />
+            </AdvisorLayout>
+          </ProtectedRoute>
+        } />
+
+        {/* Advisor IA Config (Configuración de IA) */}
+        <Route path="/asesor/configuracion-ia" element={
+          <ProtectedRoute allowedRoles={['advisor']}>
+            <AdvisorLayout>
+              <IAConfigPage />
             </AdvisorLayout>
           </ProtectedRoute>
         } />

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { notificacionesService } from '../services/notificacionesService'
 
 export default function ClientLayout({ children }) {
   const { user, logout } = useAuth()
@@ -9,8 +10,26 @@ export default function ClientLayout({ children }) {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // Contador de notificaciones no leídas (mock)
-  const unreadNotifications = 3
+  // Contador de notificaciones no leídas (desde la API)
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
+
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await notificacionesService.getConteoNoLeidas()
+        setUnreadNotifications(response.data?.count || 0)
+      } catch (error) {
+        console.warn('No se pudo obtener el conteo de notificaciones:', error)
+        setUnreadNotifications(0)
+      }
+    }
+    
+    fetchUnreadCount()
+    
+    // Actualizar cada 30 segundos
+    const interval = setInterval(fetchUnreadCount, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },

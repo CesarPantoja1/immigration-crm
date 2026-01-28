@@ -248,6 +248,106 @@ export const simulacrosService = {
    */
   async completarSimulacro(simulacroId) {
     return apiClient.post(`/simulacros/${simulacroId}/finalizar/`, {})
+  },
+
+  // =====================================================
+  // RECOMENDACIONES CON IA
+  // =====================================================
+
+  /**
+   * Obtiene simulacros completados del asesor (para agregar feedback)
+   */
+  async getSimulacrosCompletados() {
+    return apiClient.get('/simulacros/completados/')
+  },
+
+  /**
+   * Sube un archivo de transcripción (.txt)
+   * @param {number} simulacroId
+   * @param {File} archivo - Archivo .txt con la transcripción
+   */
+  async subirTranscripcion(simulacroId, archivo) {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+    return apiClient.post(`/simulacros/${simulacroId}/subir-transcripcion/`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+
+  /**
+   * Genera recomendaciones usando IA (Gemini)
+   * @param {number} simulacroId
+   */
+  async generarRecomendacionIA(simulacroId) {
+    return apiClient.post(`/simulacros/${simulacroId}/generar-recomendacion-ia/`, {})
+  },
+
+  /**
+   * Obtiene la recomendación de un simulacro específico (cliente)
+   * @param {number} simulacroId
+   */
+  async getMiRecomendacion(simulacroId) {
+    return apiClient.get(`/simulacros/${simulacroId}/mi-recomendacion/`)
+  },
+
+  /**
+   * Obtiene todas las recomendaciones del cliente
+   */
+  async getMisRecomendaciones() {
+    return apiClient.get('/mis-recomendaciones/')
+  },
+
+  /**
+   * Obtiene el detalle de una recomendación
+   * @param {number} recomendacionId
+   */
+  async getDetalleRecomendacion(recomendacionId) {
+    return apiClient.get(`/recomendaciones/${recomendacionId}/detalle-cliente/`)
+  },
+
+  // =====================================================
+  // CONFIGURACIÓN DE IA
+  // =====================================================
+
+  /**
+   * Obtiene la configuración de IA del asesor
+   */
+  async getConfiguracionIA() {
+    return apiClient.get('/configuracion-ia/')
+  },
+
+  /**
+   * Guarda la configuración de IA del asesor
+   * @param {Object} data - { api_key, modelo }
+   */
+  async guardarConfiguracionIA(data) {
+    return apiClient.post('/configuracion-ia/', data)
+  },
+
+  /**
+   * Actualiza la configuración de IA del asesor
+   * @param {Object} data - { api_key?, modelo?, activo? }
+   */
+  async actualizarConfiguracionIA(data) {
+    return apiClient.put('/configuracion-ia/', data)
+  },
+
+  /**
+   * Elimina la configuración de IA del asesor
+   */
+  async eliminarConfiguracionIA() {
+    return apiClient.delete('/configuracion-ia/')
+  },
+
+  /**
+   * Prueba si una API key es válida
+   * @param {string} apiKey - API key de Gemini
+   * @param {string} modelo - Modelo a probar
+   */
+  async testAPIKey(apiKey, modelo = 'gemini-2.5-flash') {
+    return apiClient.post('/configuracion-ia/test/', { api_key: apiKey, modelo })
   }
 }
 

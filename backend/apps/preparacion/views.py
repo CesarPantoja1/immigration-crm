@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db.models import Count, Q
 from datetime import datetime, timedelta
 
-from .models import Simulacro, Recomendacion, Practica
+from .models import Simulacro, Recomendacion, Practica, ConfiguracionIA
 from .serializers import (
     SimulacroListSerializer,
     SimulacroDetailSerializer,
@@ -16,6 +16,11 @@ from .serializers import (
     RecomendacionSerializer,
     PracticaListSerializer,
     PracticaDetailSerializer,
+    SimulacroCompletadoSerializer,
+    RecomendacionIASerializer,
+    RecomendacionClienteSerializer,
+    ConfiguracionIASerializer,
+    ConfiguracionIAUpdateSerializer,
 )
 
 
@@ -25,6 +30,10 @@ from .serializers import (
 
 class EsAsesor(permissions.BasePermission):
     def has_permission(self, request, view):
+        # En modo DEBUG, permitir también a usuarios con rol 'advisor' o admin
+        from django.conf import settings
+        if settings.DEBUG:
+            return request.user.rol in ['asesor', 'admin'] or request.user.is_superuser
         return request.user.rol == 'asesor'
 
 
@@ -272,6 +281,14 @@ class SolicitarSimulacroView(APIView):
             notas=f"Solicitud del cliente: {observaciones}" if observaciones else ""
         )
         
+        # Notificar al asesor sobre la nueva solicitud de simulacro
+        try:
+            from apps.notificaciones.services import notificacion_service
+            notificacion_service.notificar_simulacro_propuesto(simulacro, propuesto_por='cliente')
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error creando notificación: {e}")
+        
         return Response({
             'mensaje': 'Solicitud de simulacro enviada exitosamente',
             'simulacro': {
@@ -325,6 +342,14 @@ class AceptarPropuestaView(APIView):
         
         simulacro.estado = 'confirmado'
         simulacro.save()
+        
+        # Crear notificaciones de simulacro confirmado
+        try:
+            from apps.notificaciones.services import notificacion_service
+            notificacion_service.notificar_simulacro_confirmado(simulacro)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error creando notificación: {e}")
         
         return Response({
             'mensaje': 'Simulacro confirmado exitosamente',
@@ -413,24 +438,41 @@ class CancelarSimulacroView(APIView):
 class IngresarSalaView(APIView):
     """
     POST /api/simulacros/<id>/sala-espera/
-    Ingresa a la sala de espera.
+    Ingresa a la sala de espera (cliente o asesor).
     """
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request, pk):
         from django.conf import settings
         
+        user = request.user
+        
+        # Buscar el simulacro - puede ser cliente o asesor
         try:
-            simulacro = Simulacro.objects.get(
-                pk=pk,
-                cliente=request.user,
-                estado='confirmado',
-                is_deleted=False
-            )
+            if user.rol == 'asesor':
+                simulacro = Simulacro.objects.get(
+                    pk=pk,
+                    asesor=user,
+                    is_deleted=False
+                )
+            else:
+                simulacro = Simulacro.objects.get(
+                    pk=pk,
+                    cliente=user,
+                    is_deleted=False
+                )
         except Simulacro.DoesNotExist:
             return Response(
-                {'error': 'Simulacro no encontrado o no confirmado'},
+                {'error': 'Simulacro no encontrado'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Verificar estado permitido
+        estados_permitidos = ['confirmado', 'en_sala_espera']
+        if simulacro.estado not in estados_permitidos and not settings.DEBUG:
+            return Response(
+                {'error': f'El simulacro no está en estado permitido. Estado actual: {simulacro.estado}'},
+                status=status.HTTP_400_BAD_REQUEST
             )
         
         # En desarrollo, permitir siempre el acceso
@@ -452,8 +494,10 @@ class IngresarSalaView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
         
-        simulacro.estado = 'en_sala_espera'
-        simulacro.save()
+        # Solo cambiar estado si estaba en confirmado
+        if simulacro.estado == 'confirmado':
+            simulacro.estado = 'en_sala_espera'
+            simulacro.save()
         
         # Calcular tiempo para inicio
         fecha_simulacro = datetime.combine(simulacro.fecha, simulacro.hora)
@@ -477,22 +521,35 @@ class IniciarSimulacroView(APIView):
     def post(self, request, pk):
         from django.conf import settings
         
-        # En DEBUG permitimos iniciar desde confirmado o en_sala_espera
-        estados_permitidos = ['en_sala_espera']
-        if settings.DEBUG:
-            estados_permitidos = ['confirmado', 'en_sala_espera']
-        
+        # Primero buscar el simulacro sin filtrar por estado
         try:
             simulacro = Simulacro.objects.get(
                 pk=pk,
                 asesor=request.user,
-                estado__in=estados_permitidos,
                 is_deleted=False
             )
         except Simulacro.DoesNotExist:
             return Response(
-                {'error': 'Simulacro no encontrado o no está listo para iniciar'},
+                {'error': 'Simulacro no encontrado o no eres el asesor asignado'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Si ya está en progreso, simplemente devolver éxito
+        if simulacro.estado == 'en_progreso':
+            return Response({
+                'mensaje': 'Simulacro ya está en progreso',
+                'simulacro': SimulacroDetailSerializer(simulacro).data
+            })
+        
+        # Verificar estados permitidos
+        estados_permitidos = ['en_sala_espera']
+        if settings.DEBUG:
+            estados_permitidos = ['confirmado', 'en_sala_espera']
+        
+        if simulacro.estado not in estados_permitidos:
+            return Response(
+                {'error': f'El simulacro no está listo para iniciar. Estado actual: {simulacro.estado}'},
+                status=status.HTTP_400_BAD_REQUEST
             )
         
         simulacro.estado = 'en_progreso'
@@ -538,6 +595,15 @@ class FinalizarSimulacroView(APIView):
         
         simulacro.notas = request.data.get('notas', '')
         simulacro.save()
+        
+        # Crear notificación de simulacro completado para el asesor
+        try:
+            from apps.notificaciones.services import notificacion_service
+            notificacion_service.notificar_simulacion_completada(simulacro)
+        except Exception as e:
+            # No fallar si la notificación no se puede crear
+            import logging
+            logging.getLogger(__name__).error(f"Error creando notificación: {e}")
         
         return Response({
             'mensaje': 'Simulacro completado',
@@ -738,10 +804,331 @@ class GenerarRecomendacionView(APIView):
         recomendacion.nivel_preparacion = recomendacion.calcular_nivel_preparacion()
         recomendacion.save()
         
+        # Notificar al cliente que las recomendaciones están listas
+        try:
+            from apps.notificaciones.services import notificacion_service
+            notificacion_service.notificar_recomendaciones_listas(simulacro)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error creando notificación: {e}")
+        
         return Response({
             'mensaje': 'Recomendaciones generadas',
             'recomendacion': RecomendacionSerializer(recomendacion).data
         }, status=status.HTTP_201_CREATED)
+
+
+class SubirTranscripcionView(APIView):
+    """
+    POST /api/simulacros/<id>/transcripcion/
+    Sube un archivo de transcripción (.txt) para un simulacro completado.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsAsesor]
+    
+    def post(self, request, pk):
+        try:
+            simulacro = Simulacro.objects.get(
+                pk=pk,
+                asesor=request.user,
+                estado='completado',
+                is_deleted=False
+            )
+        except Simulacro.DoesNotExist:
+            return Response(
+                {'error': 'Simulacro no encontrado o no completado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Verificar si se envió un archivo
+        if 'archivo' not in request.FILES:
+            return Response(
+                {'error': 'Se requiere un archivo de transcripción (.txt)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        archivo = request.FILES['archivo']
+        
+        # Validar extensión
+        if not archivo.name.endswith('.txt'):
+            return Response(
+                {'error': 'El archivo debe ser de texto (.txt)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Leer contenido
+        try:
+            contenido = archivo.read().decode('utf-8')
+        except UnicodeDecodeError:
+            try:
+                archivo.seek(0)
+                contenido = archivo.read().decode('latin-1')
+            except Exception:
+                return Response(
+                    {'error': 'No se pudo leer el archivo. Asegúrate de que esté en formato de texto válido.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Validar contenido mínimo
+        if len(contenido.strip()) < 50:
+            return Response(
+                {'error': 'La transcripción es muy corta. Debe tener al menos 50 caracteres.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Guardar transcripción
+        archivo.seek(0)
+        simulacro.transcripcion_archivo = archivo
+        simulacro.transcripcion_texto = contenido
+        simulacro.save()
+        
+        return Response({
+            'mensaje': 'Transcripción subida exitosamente',
+            'simulacro_id': simulacro.id,
+            'caracteres': len(contenido),
+            'lineas': len(contenido.split('\n'))
+        })
+
+
+class GenerarRecomendacionIAView(APIView):
+    """
+    POST /api/simulacros/<id>/generar-recomendacion-ia/
+    Genera recomendaciones usando IA a partir de la transcripción.
+    Según feature: generacion_recomendaciones.feature
+    """
+    permission_classes = [permissions.IsAuthenticated, EsAsesor]
+    
+    def post(self, request, pk):
+        try:
+            simulacro = Simulacro.objects.get(
+                pk=pk,
+                asesor=request.user,
+                estado='completado',
+                is_deleted=False
+            )
+        except Simulacro.DoesNotExist:
+            return Response(
+                {'error': 'Simulacro no encontrado o no completado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Verificar transcripción (escenario 8)
+        if not simulacro.transcripcion_texto:
+            return Response({
+                'error': f'No es posible generar recomendaciones: la transcripción del simulacro SIM-{simulacro.id:03d} no está disponible'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Verificar si ya tiene recomendación
+        if hasattr(simulacro, 'recomendacion'):
+            return Response(
+                {'error': 'El simulacro ya tiene recomendaciones generadas'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Crear recomendación en estado "generando"
+        recomendacion = Recomendacion.objects.create(
+            simulacro=simulacro,
+            estado_feedback='generando'
+        )
+        
+        # Obtener tipo de visa de la solicitud
+        tipo_visa = 'general'
+        if simulacro.solicitud:
+            tipo_visa = simulacro.solicitud.tipo_visa or 'general'
+        
+        # Llamar al servicio de IA (usando configuración del asesor)
+        try:
+            from .ai_service import analizar_simulacro
+            resultado = analizar_simulacro(
+                simulacro.transcripcion_texto, 
+                tipo_visa,
+                asesor_id=request.user.id  # Usa la configuración del asesor
+            )
+            
+            if not resultado.analisis_completo:
+                # Escenario 9: análisis incompleto
+                recomendacion.estado_feedback = 'error'
+                recomendacion.error_mensaje = resultado.error or 'Análisis incompleto'
+                recomendacion.save()
+                return Response({
+                    'error': f'No es posible generar recomendaciones: el análisis de IA del simulacro SIM-{simulacro.id:03d} no se ha completado'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            # Actualizar recomendación con resultados de IA
+            recomendacion.claridad = resultado.claridad
+            recomendacion.coherencia = resultado.coherencia
+            recomendacion.seguridad = resultado.seguridad
+            recomendacion.pertinencia = resultado.pertinencia
+            recomendacion.nivel_preparacion = resultado.nivel_preparacion
+            recomendacion.fortalezas = resultado.fortalezas
+            recomendacion.puntos_mejora = resultado.puntos_mejora
+            recomendacion.recomendaciones = resultado.recomendaciones
+            recomendacion.accion_sugerida = resultado.accion_sugerida
+            recomendacion.estado_feedback = 'generado'
+            recomendacion.publicada = True
+            recomendacion.fecha_publicacion = timezone.now()
+            recomendacion.analisis_raw = {
+                'claridad': resultado.claridad,
+                'coherencia': resultado.coherencia,
+                'seguridad': resultado.seguridad,
+                'pertinencia': resultado.pertinencia
+            }
+            recomendacion.save()
+            
+            # Marcar simulacro como analizado
+            simulacro.analisis_ia_completado = True
+            simulacro.analisis_ia_fecha = timezone.now()
+            simulacro.save()
+            
+            # Notificar al cliente
+            try:
+                from apps.notificaciones.services import notificacion_service
+                notificacion_service.notificar_recomendaciones_listas(simulacro)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error notificando: {e}")
+            
+            return Response({
+                'mensaje': 'Recomendaciones generadas exitosamente por IA',
+                'estado': 'Feedback generado',
+                'recomendacion': RecomendacionSerializer(recomendacion).data
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error en análisis IA: {e}")
+            recomendacion.estado_feedback = 'error'
+            recomendacion.error_mensaje = str(e)
+            recomendacion.save()
+            return Response({
+                'error': f'Error al procesar con IA: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SimulacrosCompletadosAsesorView(generics.ListAPIView):
+    """
+    GET /api/simulacros/completados/
+    Lista simulacros completados del asesor para agregar recomendaciones.
+    """
+    serializer_class = SimulacroCompletadoSerializer
+    permission_classes = [permissions.IsAuthenticated, EsAsesor]
+    
+    def get_queryset(self):
+        return Simulacro.objects.filter(
+            asesor=self.request.user,
+            estado='completado',
+            is_deleted=False
+        ).select_related('cliente', 'solicitud').order_by('-fecha_fin')
+
+
+class RecomendacionClienteView(APIView):
+    """
+    GET /api/mis-recomendaciones/
+    Lista recomendaciones del cliente (sección "Mis recomendaciones").
+    Según feature escenario 7.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        user = request.user
+        
+        if user.rol != 'cliente':
+            return Response(
+                {'error': 'Solo los clientes pueden ver sus recomendaciones'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Obtener simulacros completados del cliente con recomendaciones publicadas
+        simulacros = Simulacro.objects.filter(
+            cliente=user,
+            estado='completado',
+            is_deleted=False
+        ).select_related('asesor', 'solicitud')
+        
+        recomendaciones = []
+        for sim in simulacros:
+            if hasattr(sim, 'recomendacion') and sim.recomendacion.publicada:
+                rec = sim.recomendacion
+                recomendaciones.append({
+                    'id': rec.id,
+                    'simulacro_id': sim.id,
+                    'simulacro_fecha': sim.fecha,
+                    'asesor_nombre': sim.asesor.get_full_name() if sim.asesor else None,
+                    'fecha_generacion': rec.fecha_generacion,
+                    'estado_feedback': rec.estado_feedback,
+                    'nivel_preparacion': rec.nivel_preparacion,
+                    'indicadores': {
+                        'claridad': rec.claridad,
+                        'coherencia': rec.coherencia,
+                        'seguridad': rec.seguridad,
+                        'pertinencia': rec.pertinencia
+                    },
+                    'fortalezas': rec.fortalezas,
+                    'puntos_mejora': rec.puntos_mejora,
+                    'recomendaciones': rec.recomendaciones,
+                    'recomendaciones_por_impacto': rec.organizar_por_impacto(),
+                    'accion_sugerida': rec.accion_sugerida or rec.obtener_accion_sugerida(),
+                    'resumen_ejecutivo': rec.resumen_ejecutivo
+                })
+        
+        return Response(recomendaciones)
+
+
+class RecomendacionDetalleClienteView(APIView):
+    """
+    GET /api/mis-recomendaciones/<id>/
+    Detalle de una recomendación para el cliente.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        user = request.user
+        
+        try:
+            recomendacion = Recomendacion.objects.select_related(
+                'simulacro', 'simulacro__asesor', 'simulacro__solicitud'
+            ).get(
+                pk=pk,
+                simulacro__cliente=user,
+                publicada=True
+            )
+        except Recomendacion.DoesNotExist:
+            return Response(
+                {'error': 'Recomendación no encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        sim = recomendacion.simulacro
+        
+        return Response({
+            'id': recomendacion.id,
+            'simulacro': {
+                'id': sim.id,
+                'fecha': sim.fecha,
+                'hora': sim.hora,
+                'duracion_minutos': sim.duracion_minutos,
+                'modalidad': sim.modalidad
+            },
+            'asesor': {
+                'nombre': sim.asesor.get_full_name() if sim.asesor else None,
+                'email': sim.asesor.email if sim.asesor else None
+            },
+            'fecha_generacion': recomendacion.fecha_generacion,
+            'estado_feedback': recomendacion.estado_feedback,
+            'nivel_preparacion': recomendacion.nivel_preparacion,
+            'nivel_preparacion_display': dict(Recomendacion.NIVELES_PREPARACION).get(recomendacion.nivel_preparacion, 'Medio'),
+            'indicadores': {
+                'claridad': {'valor': recomendacion.claridad, 'label': 'Claridad en respuestas'},
+                'coherencia': {'valor': recomendacion.coherencia, 'label': 'Coherencia del discurso'},
+                'seguridad': {'valor': recomendacion.seguridad, 'label': 'Seguridad al responder'},
+                'pertinencia': {'valor': recomendacion.pertinencia, 'label': 'Pertinencia de la información'}
+            },
+            'fortalezas': recomendacion.fortalezas,
+            'puntos_mejora': recomendacion.puntos_mejora,
+            'recomendaciones': recomendacion.recomendaciones,
+            'recomendaciones_por_impacto': recomendacion.organizar_por_impacto(),
+            'accion_sugerida': recomendacion.accion_sugerida or recomendacion.obtener_accion_sugerida(),
+            'resumen_ejecutivo': recomendacion.resumen_ejecutivo
+        })
 
 
 # =====================================================
@@ -975,3 +1362,180 @@ class EstadisticasPracticaView(APIView):
             'mejor_resultado': stats['mejor'],
             'por_tipo_visa': {item['tipo_visa']: item for item in por_tipo}
         })
+
+
+# =====================================================
+# DEBUG - Verificar usuario actual (solo en DEBUG)
+# =====================================================
+class DebugUserInfoView(APIView):
+    """Endpoint de debug para verificar información del usuario actual."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from django.conf import settings
+        if not settings.DEBUG:
+            return Response({'error': 'Solo disponible en modo DEBUG'}, status=403)
+        
+        user = request.user
+        return Response({
+            'id': user.id,
+            'email': user.email,
+            'rol': user.rol,
+            'is_superuser': user.is_superuser,
+            'is_staff': user.is_staff,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'es_asesor_check': user.rol == 'asesor',
+            'es_admin_check': user.rol == 'admin',
+            'es_cliente_check': user.rol == 'cliente',
+        })
+
+
+# =====================================================
+# CONFIGURACIÓN DE IA
+# =====================================================
+
+class ConfiguracionIAView(APIView):
+    """
+    GET: Obtiene la configuración de IA del asesor actual.
+    POST: Crea o actualiza la configuración de IA.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsAsesor]
+    
+    def get(self, request):
+        """Obtiene la configuración actual del asesor."""
+        try:
+            config = ConfiguracionIA.objects.get(asesor=request.user)
+            serializer = ConfiguracionIASerializer(config)
+            return Response({
+                'configurado': True,
+                'configuracion': serializer.data,
+                'modelos_disponibles': dict(ConfiguracionIA.MODELOS_GEMINI)
+            })
+        except ConfiguracionIA.DoesNotExist:
+            return Response({
+                'configurado': False,
+                'configuracion': None,
+                'modelos_disponibles': dict(ConfiguracionIA.MODELOS_GEMINI)
+            })
+    
+    def post(self, request):
+        """Crea o actualiza la configuración de IA."""
+        serializer = ConfiguracionIASerializer(
+            data=request.data,
+            context={'request': request}
+        )
+        
+        if serializer.is_valid():
+            config = serializer.save()
+            return Response({
+                'mensaje': 'Configuración guardada exitosamente',
+                'configuracion': ConfiguracionIASerializer(config).data
+            }, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request):
+        """Actualiza la configuración existente."""
+        try:
+            config = ConfiguracionIA.objects.get(asesor=request.user)
+        except ConfiguracionIA.DoesNotExist:
+            return Response(
+                {'error': 'No tienes configuración de IA. Usa POST para crear una.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        serializer = ConfiguracionIAUpdateSerializer(
+            config,
+            data=request.data,
+            partial=True
+        )
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'mensaje': 'Configuración actualizada exitosamente',
+                'configuracion': ConfiguracionIASerializer(config).data
+            })
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request):
+        """Elimina la configuración de IA."""
+        try:
+            config = ConfiguracionIA.objects.get(asesor=request.user)
+            config.delete()
+            return Response({'mensaje': 'Configuración eliminada'})
+        except ConfiguracionIA.DoesNotExist:
+            return Response(
+                {'error': 'No tienes configuración de IA'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class TestAPIKeyView(APIView):
+    """
+    POST: Prueba si una API key de Gemini es válida.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsAsesor]
+    
+    def post(self, request):
+        """Prueba una API key haciendo una solicitud simple a Gemini."""
+        api_key = request.data.get('api_key')
+        modelo = request.data.get('modelo', 'gemini-2.5-flash')
+        
+        if not api_key:
+            return Response(
+                {'error': 'Se requiere api_key'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Intentar hacer una solicitud simple a Gemini
+        import requests
+        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
+        headers = {"Content-Type": "application/json"}
+        
+        payload = {
+            "contents": [{
+                "parts": [{"text": "Responde solo con: OK"}]
+            }],
+            "generationConfig": {
+                "maxOutputTokens": 10,
+                "temperature": 0
+            }
+        }
+        
+        try:
+            response = requests.post(
+                f"{url}?key={api_key}",
+                headers=headers,
+                json=payload,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                return Response({
+                    'valida': True,
+                    'mensaje': f'API key válida para el modelo {modelo}',
+                    'modelo': modelo
+                })
+            else:
+                error_data = response.json()
+                error_msg = error_data.get('error', {}).get('message', 'Error desconocido')
+                return Response({
+                    'valida': False,
+                    'mensaje': f'Error: {error_msg}',
+                    'codigo': response.status_code
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except requests.Timeout:
+            return Response({
+                'valida': False,
+                'mensaje': 'Tiempo de espera agotado al conectar con Gemini'
+            }, status=status.HTTP_408_REQUEST_TIMEOUT)
+        except Exception as e:
+            return Response({
+                'valida': False,
+                'mensaje': f'Error de conexión: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

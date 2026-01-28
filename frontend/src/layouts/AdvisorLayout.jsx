@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { notificacionesService } from '../services/notificacionesService'
 
 export default function AdvisorLayout({ children }) {
   const { user, logout } = useAuth()
@@ -8,6 +9,27 @@ export default function AdvisorLayout({ children }) {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  
+  // Contador de notificaciones no leídas
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
+
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await notificacionesService.getConteoNoLeidas()
+        setUnreadNotifications(response.data?.count || 0)
+      } catch (error) {
+        console.warn('No se pudo obtener el conteo de notificaciones:', error)
+        setUnreadNotifications(0)
+      }
+    }
+    
+    fetchUnreadCount()
+    
+    // Actualizar cada 30 segundos
+    const interval = setInterval(fetchUnreadCount, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   const navigation = [
     { 
@@ -27,7 +49,7 @@ export default function AdvisorLayout({ children }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
         </svg>
       ),
-      badge: 5 // Número de notificaciones no leídas
+      badge: unreadNotifications // Número dinámico de notificaciones no leídas
     },
     { 
       name: 'Solicitudes', 
@@ -80,6 +102,15 @@ export default function AdvisorLayout({ children }) {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    },
+    { 
+      name: 'Configuración IA', 
+      href: '/asesor/configuracion-ia',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
         </svg>
       )
     },

@@ -38,6 +38,8 @@ class EsAsesorOAdmin(permissions.BasePermission):
     """Solo permite acceso a asesores y admins."""
     
     def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
         return request.user.rol in ['asesor', 'admin']
 
 

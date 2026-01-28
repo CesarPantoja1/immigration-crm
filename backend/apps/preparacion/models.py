@@ -86,6 +86,12 @@ class Simulacro(TimeStampedModel, SoftDeleteModel):
     url_grabacion = models.URLField('URL Grabación', blank=True)
     transcripcion = models.JSONField('Transcripción', default=list)
     
+    # Transcripción en texto para análisis de IA
+    transcripcion_texto = models.TextField('Transcripción Texto', blank=True, help_text='Transcripción en texto plano para análisis de IA')
+    transcripcion_archivo = models.FileField('Archivo Transcripción', upload_to='simulacros/transcripciones/', null=True, blank=True)
+    analisis_ia_completado = models.BooleanField('Análisis IA Completado', default=False)
+    analisis_ia_fecha = models.DateTimeField('Fecha Análisis IA', null=True, blank=True)
+    
     # Ubicación para presenciales
     ubicacion = models.CharField('Ubicación', max_length=200, blank=True)
     
@@ -134,6 +140,7 @@ class Simulacro(TimeStampedModel, SoftDeleteModel):
 class Recomendacion(TimeStampedModel):
     """
     Modelo de Recomendaciones generadas por IA.
+    Según feature: generacion_recomendaciones.feature
     """
     
     NIVELES_PREPARACION = [
@@ -148,6 +155,13 @@ class Recomendacion(TimeStampedModel):
         ('alto', 'Alto'),
     ]
     
+    ESTADOS_FEEDBACK = [
+        ('pendiente', 'Pendiente'),
+        ('generando', 'Generando'),
+        ('generado', 'Feedback generado'),
+        ('error', 'Error en generación'),
+    ]
+    
     simulacro = models.OneToOneField(
         Simulacro,
         on_delete=models.CASCADE,
@@ -155,13 +169,21 @@ class Recomendacion(TimeStampedModel):
         verbose_name='Simulacro'
     )
     
-    # Indicadores de desempeño
-    claridad = models.CharField('Claridad', max_length=20, default='medio')
-    coherencia = models.CharField('Coherencia', max_length=20, default='medio')
-    seguridad = models.CharField('Seguridad', max_length=20, default='medio')
-    pertinencia = models.CharField('Pertinencia', max_length=20, default='medio')
+    # Estado del feedback
+    estado_feedback = models.CharField(
+        'Estado Feedback',
+        max_length=20,
+        choices=ESTADOS_FEEDBACK,
+        default='pendiente'
+    )
     
-    # Nivel global
+    # Indicadores de desempeño (según feature escenario 1 y 3)
+    claridad = models.CharField('Claridad en respuestas', max_length=20, default='medio')
+    coherencia = models.CharField('Coherencia del discurso', max_length=20, default='medio')
+    seguridad = models.CharField('Seguridad al responder', max_length=20, default='medio')
+    pertinencia = models.CharField('Pertinencia de la información', max_length=20, default='medio')
+    
+    # Nivel global (según feature escenario 3)
     nivel_preparacion = models.CharField(
         'Nivel de Preparación',
         max_length=20,
@@ -169,15 +191,33 @@ class Recomendacion(TimeStampedModel):
         default='medio'
     )
     
-    # Contenido
+    # Contenido estructurado (según feature escenarios 1, 2, 4, 5)
+    # Fortalezas: [{categoria, descripcion, pregunta_relacionada, impacto}]
     fortalezas = models.JSONField('Fortalezas', default=list)
+    
+    # Puntos de mejora: [{categoria, descripcion, pregunta_relacionada, impacto}]
     puntos_mejora = models.JSONField('Puntos de Mejora', default=list)
+    
+    # Recomendaciones accionables: [{categoria, titulo, descripcion, pregunta_relacionada, impacto, accion_concreta}]
     recomendaciones = models.JSONField('Recomendaciones', default=list)
+    
+    # Acción sugerida según nivel (según feature escenario 6)
     accion_sugerida = models.TextField('Acción Sugerida', blank=True)
     
-    # Estado
+    # Resumen ejecutivo generado por IA
+    resumen_ejecutivo = models.TextField('Resumen Ejecutivo', blank=True)
+    
+    # Estado de publicación
     publicada = models.BooleanField('Publicada', default=False)
     fecha_generacion = models.DateTimeField('Fecha de Generación', auto_now_add=True)
+    fecha_publicacion = models.DateTimeField('Fecha de Publicación', null=True, blank=True)
+    
+    # Documento generado (para descarga PDF - según feature escenario 7)
+    documento_pdf = models.FileField('Documento PDF', upload_to='recomendaciones/pdf/', null=True, blank=True)
+    
+    # Metadata del análisis
+    analisis_raw = models.JSONField('Análisis Raw IA', default=dict, help_text='Respuesta completa de la IA')
+    error_mensaje = models.TextField('Mensaje de Error', blank=True)
     
     class Meta:
         db_table = 'recomendaciones'
@@ -188,16 +228,46 @@ class Recomendacion(TimeStampedModel):
         return f"Recomendación - Simulacro #{self.simulacro_id}"
     
     def calcular_nivel_preparacion(self):
-        """Calcula el nivel de preparación basado en los indicadores."""
+        """
+        Calcula el nivel de preparación basado en los indicadores.
+        Según feature escenario 3:
+        - Alto: mayoría de indicadores altos
+        - Medio: indicadores mixtos
+        - Bajo: mayoría de indicadores bajos
+        """
         niveles = {'bajo': 1, 'medio': 2, 'alto': 3}
         indicadores = [self.claridad, self.coherencia, self.seguridad, self.pertinencia]
-        promedio = sum(niveles.get(i, 2) for i in indicadores) / len(indicadores)
+        promedio = sum(niveles.get(i.lower(), 2) for i in indicadores) / len(indicadores)
         
         if promedio >= 2.5:
             return 'alto'
         elif promedio >= 1.5:
             return 'medio'
         return 'bajo'
+    
+    def obtener_accion_sugerida(self):
+        """
+        Obtiene la acción sugerida según el nivel de preparación.
+        Según feature escenario 6.
+        """
+        acciones = {
+            'bajo': 'Realizar un nuevo simulacro con asesor',
+            'medio': 'Reforzar los puntos de mejora identificados',
+            'alto': 'Mantener el plan actual de preparación'
+        }
+        return acciones.get(self.nivel_preparacion, acciones['medio'])
+    
+    def organizar_por_impacto(self):
+        """
+        Organiza las recomendaciones por nivel de impacto.
+        Según feature escenario 5.
+        """
+        resultado = {'alto': [], 'medio': [], 'bajo': []}
+        for rec in self.recomendaciones:
+            impacto = rec.get('impacto', 'medio').lower()
+            if impacto in resultado:
+                resultado[impacto].append(rec)
+        return resultado
 
 
 class Practica(TimeStampedModel):
@@ -271,3 +341,67 @@ class Practica(TimeStampedModel):
             self.calificacion = 'insuficiente'
         
         self.save()
+
+
+class ConfiguracionIA(TimeStampedModel):
+    """
+    Configuración de IA para cada asesor.
+    Permite a cada asesor usar su propia API key y modelo de Gemini.
+    """
+    
+    MODELOS_GEMINI = [
+        ('gemini-2.5-pro', 'Gemini 2.5 Pro (Mayor precisión)'),
+        ('gemini-2.5-flash', 'Gemini 2.5 Flash (Más rápido)'),
+        ('gemini-2.0-flash', 'Gemini 2.0 Flash'),
+        ('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite (Económico)'),
+    ]
+    
+    asesor = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='configuracion_ia',
+        limit_choices_to={'rol__in': ['asesor', 'admin']},
+        verbose_name='Asesor'
+    )
+    
+    api_key = models.CharField(
+        'API Key de Gemini',
+        max_length=100,
+        help_text='Tu API key de Google AI Studio'
+    )
+    
+    modelo = models.CharField(
+        'Modelo de IA',
+        max_length=50,
+        choices=MODELOS_GEMINI,
+        default='gemini-2.5-flash',
+        help_text='Modelo de Gemini a utilizar'
+    )
+    
+    activo = models.BooleanField(
+        'Configuración Activa',
+        default=True
+    )
+    
+    # Estadísticas de uso
+    total_analisis = models.PositiveIntegerField('Total Análisis Realizados', default=0)
+    ultimo_uso = models.DateTimeField('Último Uso', null=True, blank=True)
+    
+    class Meta:
+        db_table = 'configuracion_ia'
+        verbose_name = 'Configuración de IA'
+        verbose_name_plural = 'Configuraciones de IA'
+    
+    def __str__(self):
+        return f"Config IA - {self.asesor} ({self.modelo})"
+    
+    def incrementar_uso(self):
+        """Incrementa el contador de uso y actualiza fecha."""
+        from django.utils import timezone
+        self.total_analisis += 1
+        self.ultimo_uso = timezone.now()
+        self.save(update_fields=['total_analisis', 'ultimo_uso'])
+    
+    def get_api_url(self):
+        """Obtiene la URL de la API según el modelo seleccionado."""
+        return f"https://generativelanguage.googleapis.com/v1beta/models/{self.modelo}:generateContent"

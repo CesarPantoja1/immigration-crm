@@ -101,20 +101,39 @@ class MarcarLeidaView(APIView):
     """
     POST /api/notificaciones/<id>/leer/
     Marca una notificación como leída.
+    Asesores pueden marcar notificaciones de sus clientes asignados.
     """
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request, pk):
+        user = request.user
+        
         try:
-            notificacion = Notificacion.objects.get(
-                pk=pk,
-                usuario=request.user
-            )
+            # Primero intentar encontrar notificación propia
+            notificacion = Notificacion.objects.get(pk=pk, usuario=user)
         except Notificacion.DoesNotExist:
-            return Response(
-                {'error': 'Notificación no encontrada'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            # Si es asesor, puede marcar notificaciones de sus clientes
+            if user.rol in ['asesor', 'admin']:
+                from apps.solicitudes.models import Solicitud
+                clientes_ids = Solicitud.objects.filter(
+                    asesor=user
+                ).values_list('cliente_id', flat=True).distinct()
+                
+                try:
+                    notificacion = Notificacion.objects.get(
+                        pk=pk,
+                        usuario_id__in=clientes_ids
+                    )
+                except Notificacion.DoesNotExist:
+                    return Response(
+                        {'error': 'Notificación no encontrada'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                return Response(
+                    {'error': 'Notificación no encontrada'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
         
         notificacion.marcar_como_leida()
         
