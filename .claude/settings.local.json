@@ -8,7 +8,10 @@
       "Bash(.venvScriptspython.exe:*)",
       "Bash(\"venv/Scripts/python.exe\" -c \"import sys; sys.path.insert\\(0, ''.''\\); from features.solicitudes.recepcion.steps.recepcion_solicitud import *\")",
       "Bash(\"venv/Scripts/python.exe\" -m behave features/solicitudes/recepcion/recepcion_solicitud.feature --no-capture -v)",
-      "Bash(\"venv/Scripts/python.exe\":*)"
+      "Bash(\"venv/Scripts/python.exe\":*)",
+      "Bash(\"venv/Scripts/python.exe\" -c:*)",
+      "Bash(\"venv/Scripts/python.exe\" -m behave:*)",
+      "Bash(\"venv/Scripts/python.exe\" -m behave features/solicitudes/recepcion/)"
     ]
   }
 }

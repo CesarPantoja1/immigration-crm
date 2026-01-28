@@ -26,7 +26,7 @@ use_step_matcher("parse")
 # ANTECEDENTES - SETUP DE CHECKLISTS Y EMBAJADAS
 # =====================================================
 
-@step("que existen los siguientes checklists de documentos por tipo de visa:")
+@step("que existen los siguientes checklists de documentos por tipo de visa")
 def step_impl(context):
     """Configura los checklists de documentos por tipo de visa."""
     context.checklists = {}
@@ -41,7 +41,7 @@ def step_impl(context):
     assert len(context.checklists) == 3, f"Se esperaban 3 checklists, se encontraron {len(context.checklists)}"
 
 
-@step("que existen las embajadas:")
+@step("que existen las embajadas")
 def step_impl(context):
     """Configura las embajadas disponibles."""
     context.embajadas = []
@@ -71,7 +71,7 @@ def step_impl(context, tipo_visa, embajada):
     assert context.solicitud.obtener_embajada() == embajada
 
 
-@step("carga todos los documentos obligatorios:")
+@step("carga todos los documentos obligatorios")
 def step_impl(context):
     """El migrante carga todos los documentos obligatorios."""
     documentos = []
@@ -129,6 +129,11 @@ def step_impl(context, tipo_visa, embajada, id_solicitud):
 
     solicitud.asignar_checklist(context.checklist)
     solicitud.inicializar_documentos_desde_checklist()
+
+    # Marcar documentos como EN_REVISION (simulando que el migrante ya los cargó)
+    for doc in solicitud.obtener_documentos():
+        doc.marcar_en_revision()
+    solicitud.estado = "EN_REVISION"
 
     context.solicitud = solicitud
     context.agencia.registrar_solicitud(context.solicitud)
@@ -331,7 +336,7 @@ def step_impl(context):
 # ASIGNACIÓN DE SOLICITUDES A ASESORES
 # =====================================================
 
-@step("que existen los siguientes asesores con solicitudes asignadas hoy:")
+@step("que existen los siguientes asesores con solicitudes asignadas hoy")
 def step_impl(context):
     """Configura los asesores con sus cargas de trabajo actuales."""
     from apps.solicitudes.recepcion.domain import AsignadorSolicitudes
