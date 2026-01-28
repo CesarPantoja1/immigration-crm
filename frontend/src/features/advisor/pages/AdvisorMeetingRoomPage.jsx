@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button, Card, Modal } from '../../../components/common'
 import { simulacrosService } from '../../../services/simulacrosService'
+import { useAuth } from '../../../contexts/AuthContext'
 
 // Default simulation data
 const defaultSimulationData = {
@@ -18,6 +19,10 @@ const defaultSimulationData = {
 export default function AdvisorMeetingRoomPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const jitsiContainerRef = useRef(null)
+  const jitsiApiRef = useRef(null)
+  
   const [simulationData, setSimulationData] = useState(defaultSimulationData)
   const [loading, setLoading] = useState(true)
   const [isInSession, setIsInSession] = useState(false)
@@ -26,31 +31,62 @@ export default function AdvisorMeetingRoomPage() {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [rating, setRating] = useState(0)
+  const [salaInfo, setSalaInfo] = useState(null)
+  const [estadoSala, setEstadoSala] = useState(null)
+  const [notes, setNotes] = useState('')
 
+  // Cargar datos del simulacro y sala
   useEffect(() => {
-    const fetchSimulationData = async () => {
+    const fetchData = async () => {
       try {
-        const data = await simulacrosService.getSimulacro(id)
-        const clientName = data.cliente_nombre || data.cliente?.nombre || 'Cliente'
+        const [simData, salaData] = await Promise.all([
+          simulacrosService.getSimulacro(id),
+          simulacrosService.getInfoSala(id)
+        ])
+        
+        const clientName = simData.data?.cliente_nombre || simData.cliente_nombre || 'Cliente'
         setSimulationData({
-          id: data.id,
+          id: simData.data?.id || simData.id,
           client: {
             name: clientName,
-            visaType: data.tipo_visa || 'Visa',
+            visaType: simData.data?.tipo_visa || simData.tipo_visa || 'Visa',
             avatar: clientName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
           },
-          scheduledTime: data.hora_propuesta || data.hora || '',
-          date: data.fecha_propuesta ? new Date(data.fecha_propuesta + 'T00:00').toLocaleDateString('es-ES', {
+          scheduledTime: simData.data?.hora_propuesta || simData.hora_propuesta || simData.data?.hora || simData.hora || '',
+          date: (simData.data?.fecha_propuesta || simData.fecha_propuesta) ? new Date((simData.data?.fecha_propuesta || simData.fecha_propuesta) + 'T00:00').toLocaleDateString('es-ES', {
             day: 'numeric', month: 'long', year: 'numeric'
           }) : ''
         })
+        
+        setSalaInfo(salaData.data)
+        
+        // Si ya está en progreso, mostrar Jitsi
+        if (salaData.data?.en_progreso) {
+          setIsInSession(true)
+        }
       } catch (error) {
-        console.error('Error fetching simulation:', error)
+        console.error('Error fetching data:', error)
       } finally {
         setLoading(false)
       }
     }
-    fetchSimulationData()
+    fetchData()
+  }, [id])
+
+  // Polling del estado de la sala
+  useEffect(() => {
+    const pollEstado = async () => {
+      try {
+        const response = await simulacrosService.getEstadoSala(id)
+        setEstadoSala(response.data)
+      } catch (err) {
+        console.error('Error polling estado:', err)
+      }
+    }
+
+    pollEstado()
+    const interval = setInterval(pollEstado, 5000)
+    return () => clearInterval(interval)
   }, [id])
 
   // Session timer
@@ -70,16 +106,149 @@ export default function AdvisorMeetingRoomPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handleStartSession = () => {
-    setIsInSession(true)
+  // Inicializar Jitsi Meet
+  const initJitsi = useCallback(() => {
+    if (!salaInfo || !jitsiContainerRef.current) return
+
+    // Limpiar instancia anterior
+    if (jitsiApiRef.current) {
+      jitsiApiRef.current.dispose()
+    }
+
+    const domain = salaInfo.jitsi_domain || 'meet.jit.si'
+    const roomName = salaInfo.room_name
+
+    const options = {
+      roomName: roomName,
+      width: '100%',
+      height: '100%',
+      parentNode: jitsiContainerRef.current,
+      userInfo: {
+        displayName: user?.nombre || user?.email || 'Asesor'
+      },
+      configOverwrite: {
+        startWithAudioMuted: false,
+        startWithVideoMuted: false,
+        prejoinPageEnabled: false,
+        disableDeepLinking: true,
+        enableClosePage: false,
+        enableWelcomePage: false,
+        toolbarButtons: [
+          'microphone',
+          'camera',
+          'closedcaptions',
+          'desktop',
+          'fullscreen',
+          'fodeviceselection',
+          'hangup',
+          'chat',
+          'recording',
+          'settings',
+          'videoquality',
+          'tileview'
+        ]
+      },
+      interfaceConfigOverwrite: {
+        SHOW_JITSI_WATERMARK: false,
+        SHOW_WATERMARK_FOR_GUESTS: false,
+        SHOW_BRAND_WATERMARK: false,
+        TOOLBAR_ALWAYS_VISIBLE: true,
+        MOBILE_APP_PROMO: false,
+        DISABLE_JOIN_LEAVE_NOTIFICATIONS: false
+      }
+    }
+
+    // Cargar el script de Jitsi si no está cargado
+    if (!window.JitsiMeetExternalAPI) {
+      const script = document.createElement('script')
+      script.src = `https://${domain}/external_api.js`
+      script.async = true
+      script.onload = () => {
+        jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options)
+        setupJitsiEvents()
+      }
+      document.body.appendChild(script)
+    } else {
+      jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options)
+      setupJitsiEvents()
+    }
+  }, [salaInfo, user])
+
+  const setupJitsiEvents = () => {
+    if (!jitsiApiRef.current) return
+
+    jitsiApiRef.current.addEventListener('videoConferenceJoined', () => {
+      console.log('Asesor unido a la conferencia')
+    })
+
+    jitsiApiRef.current.addEventListener('videoConferenceLeft', () => {
+      console.log('Asesor salió de la conferencia')
+    })
+
+    jitsiApiRef.current.addEventListener('participantJoined', (participant) => {
+      console.log('Participante unido:', participant)
+    })
+  }
+
+  // Inicializar Jitsi cuando inicia la sesión
+  useEffect(() => {
+    if (isInSession && salaInfo) {
+      initJitsi()
+    }
+
+    return () => {
+      if (jitsiApiRef.current) {
+        jitsiApiRef.current.dispose()
+        jitsiApiRef.current = null
+      }
+    }
+  }, [isInSession, salaInfo, initJitsi])
+
+  const handleStartSession = async () => {
+    try {
+      // Llamar al backend para iniciar el simulacro
+      await simulacrosService.iniciarSimulacro(id)
+      setIsInSession(true)
+    } catch (error) {
+      console.error('Error iniciando sesión:', error)
+      // Aún así iniciar localmente para pruebas
+      setIsInSession(true)
+    }
   }
 
   const handleEndSession = () => {
     setShowEndModal(true)
   }
 
-  const handleSubmitFeedback = () => {
-    // Submit feedback and navigate
+  const handleConfirmEndSession = async () => {
+    try {
+      // Llamar al backend para finalizar
+      await simulacrosService.finalizarSimulacro(id, {
+        duracion_minutos: Math.ceil(sessionTime / 60),
+        notas: notes
+      })
+    } catch (error) {
+      console.error('Error finalizando sesión:', error)
+    }
+    
+    if (jitsiApiRef.current) {
+      jitsiApiRef.current.executeCommand('hangup')
+    }
+    
+    setShowEndModal(false)
+    setIsInSession(false)
+    setShowUploadModal(true)
+  }
+
+  const handleSubmitFeedback = async () => {
+    try {
+      await simulacrosService.submitFeedback(id, {
+        calificacion: rating,
+        comentarios: feedback
+      })
+    } catch (error) {
+      console.error('Error enviando feedback:', error)
+    }
     setShowUploadModal(false)
     navigate('/asesor/simulacros')
   }
@@ -150,49 +319,11 @@ export default function AdvisorMeetingRoomPage() {
             </div>
           ) : (
             <>
-              {/* Jitsi iframe placeholder */}
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-medium text-white mb-2">Sesión en curso</h3>
-                  <p className="text-gray-400">Jitsi Meet se integraría aquí</p>
-                  <p className="text-gray-500 text-sm mt-2">
-                    Room ID: migrafacil-sim-{id}
-                  </p>
-                </div>
-              </div>
-
-              {/* Video Controls */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-gray-800/90 px-4 py-2 rounded-full">
-                <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-full transition-colors">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </svg>
-                </button>
-                <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-full transition-colors">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </button>
-                <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-full transition-colors">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </button>
-                <div className="w-px h-8 bg-gray-600" />
-                <button 
-                  onClick={handleEndSession}
-                  className="p-3 bg-red-600 hover:bg-red-700 rounded-full transition-colors"
-                >
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
-                  </svg>
-                </button>
-              </div>
+              {/* Jitsi Container Real */}
+              <div 
+                ref={jitsiContainerRef}
+                className="w-full h-full"
+              />
             </>
           )}
         </div>
@@ -215,6 +346,18 @@ export default function AdvisorMeetingRoomPage() {
                 <span className="text-gray-500">Hora agendada</span>
                 <span className="text-gray-900">{simulationData.scheduledTime}</span>
               </div>
+              {salaInfo?.room_name && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Sala</span>
+                  <span className="text-gray-900 text-xs">{salaInfo.room_name}</span>
+                </div>
+              )}
+              {estadoSala?.cliente_en_sala && (
+                <div className="flex items-center gap-2 mt-2 p-2 bg-green-50 rounded-lg">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-green-700 text-sm">Cliente en sala de espera</span>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -222,6 +365,8 @@ export default function AdvisorMeetingRoomPage() {
           <Card className="flex-1">
             <h3 className="font-semibold text-gray-900 mb-3">Notas Rápidas</h3>
             <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
               placeholder="Escribe notas durante la sesión..."
             />
@@ -276,11 +421,7 @@ export default function AdvisorMeetingRoomPage() {
             <Button 
               variant="danger"
               className="flex-1"
-              onClick={() => {
-                setShowEndModal(false)
-                setIsInSession(false)
-                setShowUploadModal(true)
-              }}
+              onClick={handleConfirmEndSession}
             >
               Finalizar
             </Button>

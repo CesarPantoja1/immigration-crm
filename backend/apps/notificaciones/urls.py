@@ -13,6 +13,8 @@ from .views import (
     EliminarLeidasView,
     TiposNotificacionView,
     PreferenciasView,
+    CrearNotificacionView,
+    NotificacionesAsesorView,
 )
 
 app_name = 'notificaciones'
@@ -33,4 +35,10 @@ urlpatterns = [
     # Tipos y preferencias
     path('notificaciones/tipos/', TiposNotificacionView.as_view(), name='tipos'),
     path('notificaciones/preferencias/', PreferenciasView.as_view(), name='preferencias'),
+    
+    # Crear notificación (asesor/admin)
+    path('notificaciones/crear/', CrearNotificacionView.as_view(), name='crear'),
+    
+    # Vista especial para asesores (notificaciones de sus clientes)
+    path('notificaciones/asesor/', NotificacionesAsesorView.as_view(), name='asesor_list'),
 ]

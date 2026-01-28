@@ -17,6 +17,8 @@ from .views import (
     IniciarSimulacroView,
     FinalizarSimulacroView,
     PropuestasPendientesView,
+    InfoSalaView,
+    EstadoSalaView,
     
     # Recomendaciones
     RecomendacionesListView,
@@ -46,6 +48,8 @@ urlpatterns = [
     path('simulacros/<int:pk>/contrapropuesta/', ContrapropuestaView.as_view(), name='contrapropuesta'),
     path('simulacros/<int:pk>/cancelar/', CancelarSimulacroView.as_view(), name='cancelar_simulacro'),
     path('simulacros/<int:pk>/sala-espera/', IngresarSalaView.as_view(), name='sala_espera'),
+    path('simulacros/<int:pk>/sala/', InfoSalaView.as_view(), name='info_sala'),
+    path('simulacros/<int:pk>/estado-sala/', EstadoSalaView.as_view(), name='estado_sala'),
     path('simulacros/<int:pk>/iniciar/', IniciarSimulacroView.as_view(), name='iniciar_simulacro'),
     path('simulacros/<int:pk>/finalizar/', FinalizarSimulacroView.as_view(), name='finalizar_simulacro'),
     

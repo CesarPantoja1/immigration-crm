@@ -136,31 +136,75 @@ export default function ApplicationReviewPage() {
   }
 
   const handleSplitViewApprove = async (docId, reviewData) => {
-    setDocuments(prev => prev.map(doc =>
-      doc.id === docId ? { ...doc, status: 'approved', reviewData } : doc
-    ))
+    try {
+      await solicitudesService.aprobarDocumento(docId)
+      setDocuments(prev => prev.map(doc =>
+        doc.id === docId ? { ...doc, status: 'approved', reviewData } : doc
+      ))
+    } catch (error) {
+      console.error('Error aprobando documento:', error)
+    }
   }
 
   const handleSplitViewReject = async (docId, reviewData) => {
-    setDocuments(prev => prev.map(doc =>
-      doc.id === docId ? { ...doc, status: 'rejected', reviewData } : doc
-    ))
+    try {
+      const motivo = reviewData?.observations || 'Documento rechazado'
+      await solicitudesService.rechazarDocumento(docId, motivo)
+      setDocuments(prev => prev.map(doc =>
+        doc.id === docId ? { ...doc, status: 'rejected', reviewData } : doc
+      ))
+    } catch (error) {
+      console.error('Error rechazando documento:', error)
+    }
   }
 
-  const handleDocumentAction = (docId, action) => {
-    setDocuments(prev => prev.map(doc =>
-      doc.id === docId ? { ...doc, status: action } : doc
-    ))
-    // Auto navigate to next pending in viewer
-    if (showViewer && action === 'approved') {
-      const nextPending = documents.findIndex((d, i) => i > currentDocIndex && d.status === 'pending')
-      if (nextPending !== -1) {
-        setCurrentDocIndex(nextPending)
+  const handleDocumentAction = async (docId, action) => {
+    try {
+      if (action === 'approved') {
+        await solicitudesService.aprobarDocumento(docId)
+      } else if (action === 'rejected') {
+        // No hacer nada aquí, se maneja en el modal de rechazo
+        return
       }
+      
+      setDocuments(prev => prev.map(doc =>
+        doc.id === docId ? { ...doc, status: action } : doc
+      ))
+      
+      // Auto navigate to next pending in viewer
+      if (showViewer && action === 'approved') {
+        const nextPending = documents.findIndex((d, i) => i > currentDocIndex && d.status === 'pending')
+        if (nextPending !== -1) {
+          setCurrentDocIndex(nextPending)
+        }
+      }
+    } catch (error) {
+      console.error('Error actualizando documento:', error)
     }
-    setShowRejectModal(false)
-    setRejectReason('')
-    setRejectingDocId(null)
+  }
+
+  const handleRejectWithReason = async () => {
+    if (!rejectingDocId || !rejectReason.trim()) return
+    
+    try {
+      await solicitudesService.rechazarDocumento(rejectingDocId, rejectReason)
+      setDocuments(prev => prev.map(doc =>
+        doc.id === rejectingDocId ? { ...doc, status: 'rejected', rejectReason } : doc
+      ))
+      setShowRejectModal(false)
+      setRejectReason('')
+      setRejectingDocId(null)
+      
+      // Auto navigate to next pending in viewer
+      if (showViewer) {
+        const nextPending = documents.findIndex((d, i) => i > currentDocIndex && d.status === 'pending')
+        if (nextPending !== -1) {
+          setCurrentDocIndex(nextPending)
+        }
+      }
+    } catch (error) {
+      console.error('Error rechazando documento:', error)
+    }
   }
 
   const openRejectModal = (docId) => {
@@ -609,7 +653,7 @@ export default function ApplicationReviewPage() {
             <Button
               variant="danger"
               className="flex-1"
-              onClick={() => handleDocumentAction(rejectingDocId, 'rejected')}
+              onClick={handleRejectWithReason}
               disabled={!rejectReason.trim()}
             >
               Confirmar Rechazo

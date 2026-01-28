@@ -134,7 +134,7 @@ export default function AdvisorSimulationsPage() {
         </Card>
         <Card className="bg-green-50 border-green-200">
           <div className="text-center">
-            <div className="text-3xl font-bold text-green-700">18</div>
+            <div className="text-3xl font-bold text-green-700">{simulations.length}</div>
             <div className="text-sm text-green-600">Este Mes</div>
           </div>
         </Card>

@@ -11,23 +11,25 @@ export default function SimulationSummaryPage() {
   useEffect(() => {
     const fetchSimulacro = async () => {
       try {
-        const data = await simulacrosService.getSimulacro(id)
+        const response = await simulacrosService.getSimulacro(id)
+        const data = response?.data || response
         // Transform data to match component format
-        const formattedDate = new Date(data.fecha).toLocaleDateString('es-ES', {
+        const formattedDate = data.fecha ? new Date(data.fecha).toLocaleDateString('es-ES', {
           day: 'numeric',
           month: 'long',
           year: 'numeric'
-        })
+        }) : ''
         setSummary({
           id: data.id,
           date: formattedDate,
-          startTime: data.hora_inicio || data.hora,
+          startTime: data.hora_inicio || data.hora || data.hora_propuesta || '',
           endTime: data.hora_fin || '',
-          duration: data.duracion || '30 minutos',
+          duration: data.duracion_minutos ? `${data.duracion_minutos} minutos` : (data.duracion || '30 minutos'),
           advisor: data.asesor?.nombre || data.asesor_nombre || 'Por asignar',
-          visaType: data.tipo_visa || 'Visa General',
+          visaType: data.tipo_visa || data.solicitud_tipo || 'Visa General',
           modality: data.modalidad === 'virtual' ? 'Virtual' : 'Presencial',
-          status: data.estado
+          status: data.estado,
+          hasFeedback: data.tiene_recomendaciones || data.tiene_feedback || false
         })
       } catch (error) {
         console.error('Error fetching simulacro:', error)
@@ -41,7 +43,8 @@ export default function SimulationSummaryPage() {
           advisor: 'Asesor',
           visaType: 'Visa de Estudio',
           modality: 'Virtual',
-          status: 'pending_feedback'
+          status: 'completado',
+          hasFeedback: false
         })
       } finally {
         setLoading(false)
@@ -116,32 +119,62 @@ export default function SimulationSummaryPage() {
               </div>
             </div>
 
-            {/* Feedback Status */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8">
-              <div className="flex items-center justify-center gap-3">
-                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div className="text-left">
-                  <p className="font-medium text-amber-800">Pendiente de Feedback</p>
-                  <p className="text-sm text-amber-700">
-                    Recibirás el feedback de tu asesor en las próximas 24 horas
-                  </p>
+            {/* Feedback Status - Conditional */}
+            {summary.status === 'completado' && summary.hasFeedback ? (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-8">
+                <div className="flex items-center justify-center gap-3">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-left">
+                    <p className="font-medium text-green-800">Feedback Disponible</p>
+                    <p className="text-sm text-green-700">
+                      Tu asesor ha enviado las recomendaciones de tu simulacro
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8">
+                <div className="flex items-center justify-center gap-3">
+                  <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-left">
+                    <p className="font-medium text-amber-800">Pendiente de Feedback</p>
+                    <p className="text-sm text-amber-700">
+                      Recibirás el feedback de tu asesor en las próximas 24 horas
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button variant="secondary" className="flex-1">
+              {summary.hasFeedback && (
+                <Link to={`/recomendaciones?simulacro=${id}`} className="flex-1">
+                  <Button variant="secondary" className="w-full">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    Ver Recomendaciones
+                  </Button>
+                </Link>
+              )}
+              <Button 
+                variant="secondary" 
+                className="flex-1"
+                onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/simulacros/${id}/resumen/pdf/`, '_blank')}
+              >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
                 Descargar Resumen
               </Button>
-              <Link to="/dashboard" className="flex-1">
+              <Link to="/simulacros" className="flex-1">
                 <Button className="w-full">
-                  Volver al Dashboard
+                  Volver a Mis Simulacros
                 </Button>
               </Link>
             </div>
