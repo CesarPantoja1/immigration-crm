@@ -9,12 +9,12 @@
   #  MIGRANTE
   #=====================================
     Antecedentes:
-      Dado que existen los siguientes checklists de documentos por tipo de visa:
+      Dado que existen los siguientes checklists de documentos por tipo de visa
         | tipo_visa | documentos_obligatorios                                         |
         | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
         | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
         | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
-      Y que existen las embajadas:
+      Y que existen las embajadas
         | nombre         |
         | ESTADOUNIDENSE |
         | BRASILEÑA      |
@@ -22,7 +22,7 @@
 
     Esquema del escenario: Migrante ingresa solicitud completa correctamente
       Dado que un migrante solicita visa <tipo_visa> para embajada <embajada>
-      Cuando carga todos los documentos obligatorios:
+      Cuando carga todos los documentos obligatorios
         | documentos            |
         | <documentos_cargados> |
       Entonces todos los documentos tienen estado "EN_REVISION"
@@ -108,7 +108,7 @@
   #=====================================
 
     Escenario: Asignación automática de solicitud a asesor con disponibilidad
-      Dado que existen los siguientes asesores con solicitudes asignadas hoy:
+      Dado que existen los siguientes asesores con solicitudes asignadas hoy
         | asesor       | solicitudes_hoy |
         | Juan Pérez   | 8               |
         | María García | 3               |
