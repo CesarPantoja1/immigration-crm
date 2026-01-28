@@ -171,17 +171,54 @@ class Migrante:
         return f"{self.nombre} {self.apellido}"
 
 
-@dataclass  
+@dataclass
 class Asesor:
     """Entidad Asesor - Persona que revisa solicitudes."""
-    id: str
-    nombre: str
-    email: str
+    id: str = ""
+    nombre: str = ""
+    email: str = ""
     solicitudes_asignadas: List[str] = field(default_factory=list)
     limite_diario: int = 10
-    
+
     def puede_recibir_solicitud(self, solicitudes_hoy: int) -> bool:
         return solicitudes_hoy < self.limite_diario
+
+    def revisar_solicitud(self, solicitud: 'SolicitudVisa',
+                          resultados: Dict[str, str]) -> None:
+        """
+        Revisa los documentos de una solicitud y actualiza sus estados.
+
+        Args:
+            solicitud: La solicitud a revisar
+            resultados: Diccionario con nombre_documento -> resultado ('Correcto' o 'Incorrecto')
+        """
+        for doc in solicitud.obtener_documentos():
+            nombre = doc.obtener_nombre()
+            if nombre in resultados:
+                resultado = resultados[nombre]
+                if resultado == "Correcto":
+                    doc.aprobar(self.id)
+                else:
+                    doc.rechazar("Documento incorrecto", self.id)
+
+        solicitud.actualizar_estado()
+
+    def enviar_solicitud(self, solicitud: 'SolicitudVisa',
+                         enviada: str = "SI") -> str:
+        """
+        Envía una solicitud a la embajada.
+
+        Args:
+            solicitud: La solicitud a enviar
+            enviada: "SI" para confirmar el envío
+
+        Returns:
+            Mensaje de confirmación
+        """
+        if enviada == "SI" and solicitud.puede_ser_enviada():
+            solicitud.marcar_como_enviada()
+            return "SOLICITUD ENVIADA A EMBAJADA"
+        return "No se pudo enviar la solicitud"
 
 
 @dataclass
@@ -189,18 +226,45 @@ class AgenciaMigracion:
     """Agregado para gestionar la agencia."""
     nombre: str = "MigraFácil"
     solicitudes: List[SolicitudVisa] = field(default_factory=list)
-    
+    migrantes: Dict[str, 'Migrante'] = field(default_factory=dict)
+
     def agregar_solicitud(self, solicitud: SolicitudVisa) -> None:
         self.solicitudes.append(solicitud)
-    
+
+    def registrar_solicitud(self, solicitud: SolicitudVisa) -> None:
+        """Alias para agregar_solicitud - registra una nueva solicitud."""
+        self.agregar_solicitud(solicitud)
+
+    def total_solicitudes(self) -> int:
+        """Retorna el total de solicitudes registradas."""
+        return len(self.solicitudes)
+
     def obtener_solicitud(self, id_solicitud: str) -> Optional[SolicitudVisa]:
         for s in self.solicitudes:
             if s.id_solicitud == id_solicitud:
                 return s
         return None
-    
+
     def solicitudes_por_estado(self, estado: str) -> List[SolicitudVisa]:
         return [s for s in self.solicitudes if s.obtener_estado() == estado]
+
+    def registrar_migrante(self, solicitud: SolicitudVisa) -> None:
+        """Registra un migrante basado en una solicitud."""
+        migrante = Migrante(
+            id=solicitud.id_migrante,
+            nombre="Migrante",
+            apellido=solicitud.id_migrante,
+            email=f"{solicitud.id_migrante}@email.com"
+        )
+        self.migrantes[solicitud.id_migrante] = migrante
+
+    def obtener_migrante_por_id(self, id_migrante: str) -> Optional['Migrante']:
+        """Obtiene un migrante por su ID."""
+        return self.migrantes.get(id_migrante)
+
+    def total_migrantes(self) -> int:
+        """Retorna el total de migrantes registrados."""
+        return len(self.migrantes)
 
 
 @dataclass

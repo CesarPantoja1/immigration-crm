@@ -59,14 +59,26 @@ class ChecklistDocumentos:
     """Lista de documentos requeridos por tipo de visa."""
     tipo_visa: TipoVisa
     documentos_requeridos: tuple
-    
+
+    def __init__(self, tipo_visa: TipoVisa, documentos_requeridos):
+        """Inicializa el checklist convirtiendo listas a tuplas si es necesario."""
+        object.__setattr__(self, 'tipo_visa', tipo_visa)
+        if isinstance(documentos_requeridos, list):
+            object.__setattr__(self, 'documentos_requeridos', tuple(documentos_requeridos))
+        else:
+            object.__setattr__(self, 'documentos_requeridos', documentos_requeridos)
+
     def obtener_documentos(self) -> List[str]:
         """Retorna la lista de documentos requeridos."""
         return list(self.documentos_requeridos)
-    
+
     def documento_es_requerido(self, nombre: str) -> bool:
         """Verifica si un documento es requerido."""
         return nombre in self.documentos_requeridos
+
+    def total_documentos(self) -> int:
+        """Retorna el total de documentos requeridos."""
+        return len(self.documentos_requeridos)
 
 
 @dataclass(frozen=True)

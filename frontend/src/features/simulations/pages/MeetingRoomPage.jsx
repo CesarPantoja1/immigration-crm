@@ -1,11 +1,17 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Card } from '../../../components/common'
+import { Button } from '../../../components/common'
+import simulacrosService from '../../../services/simulacrosService'
+import { useAuth } from '../../../contexts/AuthContext'
 
 export default function MeetingRoomPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const videoRef = useRef(null)
+  const jitsiContainerRef = useRef(null)
+  const jitsiApiRef = useRef(null)
+  
   const [deviceCheck, setDeviceCheck] = useState({
     camera: false,
     microphone: false,
@@ -16,9 +22,59 @@ export default function MeetingRoomPage() {
   const [isReady, setIsReady] = useState(false)
   const [hasJoined, setHasJoined] = useState(false)
   const [micLevel, setMicLevel] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [salaInfo, setSalaInfo] = useState(null)
+  const [estadoSala, setEstadoSala] = useState(null)
+  const [duracion, setDuracion] = useState(0)
 
-  // Simular detección de cámara
+  // Cargar información de la sala
   useEffect(() => {
+    const cargarInfoSala = async () => {
+      try {
+        const response = await simulacrosService.getInfoSala(id)
+        setSalaInfo(response.data)
+      } catch (err) {
+        console.error('Error cargando info sala:', err)
+        setError('No se pudo cargar la información de la sala')
+      }
+    }
+    cargarInfoSala()
+  }, [id])
+
+  // Polling del estado de la sala
+  useEffect(() => {
+    if (!hasJoined) return
+
+    const pollEstado = async () => {
+      try {
+        const response = await simulacrosService.getEstadoSala(id)
+        setEstadoSala(response.data)
+      } catch (err) {
+        console.error('Error polling estado:', err)
+      }
+    }
+
+    pollEstado()
+    const interval = setInterval(pollEstado, 5000)
+    return () => clearInterval(interval)
+  }, [id, hasJoined])
+
+  // Timer de duración
+  useEffect(() => {
+    if (!hasJoined || estadoSala?.estado !== 'en_progreso') return
+    
+    const interval = setInterval(() => {
+      setDuracion(prev => prev + 1)
+    }, 1000)
+    
+    return () => clearInterval(interval)
+  }, [hasJoined, estadoSala?.estado])
+
+  // Simular detección de cámara en pre-sala
+  useEffect(() => {
+    if (hasJoined) return
+
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
@@ -41,16 +97,168 @@ export default function MeetingRoomPage() {
       }
     }
 
-    startCamera()
-  }, [])
+    const cleanup = startCamera()
+    return () => {
+      cleanup?.then(fn => fn?.())
+    }
+  }, [hasJoined])
+
+  // Detener cámara local cuando se une a Jitsi
+  useEffect(() => {
+    if (hasJoined && videoRef.current?.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach(track => track.stop())
+      videoRef.current.srcObject = null
+    }
+  }, [hasJoined])
 
   useEffect(() => {
     const allChecked = Object.values(deviceCheck).every(v => v)
     setIsReady(allChecked)
   }, [deviceCheck])
 
-  const handleJoinMeeting = () => {
-    setHasJoined(true)
+  // Inicializar Jitsi Meet
+  const initJitsi = useCallback(() => {
+    if (!salaInfo || !jitsiContainerRef.current) return
+
+    // Limpiar instancia anterior
+    if (jitsiApiRef.current) {
+      jitsiApiRef.current.dispose()
+    }
+
+    const domain = salaInfo.jitsi_domain || 'meet.jit.si'
+    const roomName = salaInfo.room_name
+
+    const options = {
+      roomName: roomName,
+      width: '100%',
+      height: '100%',
+      parentNode: jitsiContainerRef.current,
+      userInfo: {
+        displayName: user?.nombre || user?.email || 'Cliente'
+      },
+      configOverwrite: {
+        startWithAudioMuted: false,
+        startWithVideoMuted: false,
+        prejoinPageEnabled: false,
+        disableDeepLinking: true,
+        enableClosePage: false,
+        enableWelcomePage: false,
+        toolbarButtons: [
+          'microphone',
+          'camera',
+          'closedcaptions',
+          'desktop',
+          'fullscreen',
+          'fodeviceselection',
+          'hangup',
+          'chat',
+          'settings',
+          'videoquality',
+          'tileview'
+        ]
+      },
+      interfaceConfigOverwrite: {
+        SHOW_JITSI_WATERMARK: false,
+        SHOW_WATERMARK_FOR_GUESTS: false,
+        SHOW_BRAND_WATERMARK: false,
+        TOOLBAR_ALWAYS_VISIBLE: true,
+        MOBILE_APP_PROMO: false,
+        DISABLE_JOIN_LEAVE_NOTIFICATIONS: false
+      }
+    }
+
+    // Cargar el script de Jitsi si no está cargado
+    if (!window.JitsiMeetExternalAPI) {
+      const script = document.createElement('script')
+      script.src = `https://${domain}/external_api.js`
+      script.async = true
+      script.onload = () => {
+        jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options)
+        setupJitsiEvents()
+      }
+      document.body.appendChild(script)
+    } else {
+      jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options)
+      setupJitsiEvents()
+    }
+  }, [salaInfo, user])
+
+  const setupJitsiEvents = () => {
+    if (!jitsiApiRef.current) return
+
+    jitsiApiRef.current.addEventListener('videoConferenceJoined', () => {
+      console.log('Unido a la conferencia')
+    })
+
+    jitsiApiRef.current.addEventListener('videoConferenceLeft', () => {
+      console.log('Salió de la conferencia')
+      navigate(`/simulacros/${id}/resumen`)
+    })
+
+    jitsiApiRef.current.addEventListener('participantJoined', (participant) => {
+      console.log('Participante unido:', participant)
+    })
+  }
+
+  // Inicializar Jitsi cuando se une
+  useEffect(() => {
+    if (hasJoined && salaInfo) {
+      initJitsi()
+    }
+
+    return () => {
+      if (jitsiApiRef.current) {
+        jitsiApiRef.current.dispose()
+        jitsiApiRef.current = null
+      }
+    }
+  }, [hasJoined, salaInfo, initJitsi])
+
+  const handleJoinMeeting = async () => {
+    setLoading(true)
+    try {
+      // Ingresar a la sala de espera
+      await simulacrosService.ingresarSalaEspera(id)
+      setHasJoined(true)
+    } catch (err) {
+      console.error('Error al unirse:', err)
+      setError(err.response?.data?.error || 'No se pudo unir al simulacro')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatDuration = (seconds) => {
+    const hrs = Math.floor(seconds / 3600)
+    const mins = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const handleLeave = () => {
+    if (jitsiApiRef.current) {
+      jitsiApiRef.current.executeCommand('hangup')
+    }
+    navigate(`/simulacros/${id}/resumen`)
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">Error</h2>
+          <p className="text-gray-400 mb-4">{error}</p>
+          <Button onClick={() => navigate('/simulacros')}>
+            Volver a mis simulacros
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   // Pre-sala de verificación
@@ -164,8 +372,14 @@ export default function MeetingRoomPage() {
                   <div>
                     <p className="text-sm text-blue-300 font-medium">Información del Simulacro</p>
                     <p className="text-xs text-blue-400 mt-1">
-                      Simulacro #{id} • Visa de Estudio • Con María González
+                      Simulacro #{id}
+                      {salaInfo?.otro_participante && ` • Con ${salaInfo.otro_participante}`}
                     </p>
+                    {salaInfo?.room_name && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Sala: {salaInfo.room_name}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -173,14 +387,26 @@ export default function MeetingRoomPage() {
               {/* Join Button */}
               <Button
                 onClick={handleJoinMeeting}
-                disabled={!isReady}
+                disabled={!isReady || loading}
                 className="w-full py-4 text-lg"
                 size="lg"
               >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                Unirse al Simulacro
+                {loading ? (
+                  <>
+                    <svg className="w-5 h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Conectando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Unirse al Simulacro
+                  </>
+                )}
               </Button>
 
               {!isReady && (
@@ -202,7 +428,7 @@ export default function MeetingRoomPage() {
     )
   }
 
-  // Sala de reunión (Jitsi placeholder)
+  // Sala de reunión con Jitsi Meet
   return (
     <div className="h-screen bg-gray-900 flex flex-col">
       {/* Meeting Header */}
@@ -214,71 +440,54 @@ export default function MeetingRoomPage() {
             </svg>
           </div>
           <span className="text-white font-medium">Simulacro #{id}</span>
+          {salaInfo?.otro_participante && (
+            <span className="text-gray-400 text-sm">• Con {salaInfo.otro_participante}</span>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-green-400">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-sm">En vivo</span>
+            <span className="text-sm">
+              {estadoSala?.estado === 'en_progreso' ? 'En vivo' : 'Sala de espera'}
+            </span>
           </div>
           <div className="px-3 py-1 bg-gray-700 rounded-lg text-white text-sm font-mono">
-            00:15:32
+            {formatDuration(duracion)}
           </div>
         </div>
 
         <button
-          onClick={() => navigate('/simulacros/2/resumen')}
+          onClick={handleLeave}
           className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
         >
-          Finalizar
+          Salir
         </button>
       </div>
 
-      {/* Meeting Area (Jitsi Placeholder) */}
-      <div className="flex-1 flex items-center justify-center bg-gray-900">
-        <div className="text-center text-gray-400">
-          <div className="w-32 h-32 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
+      {/* Jitsi Meeting Area */}
+      <div className="flex-1 relative">
+        <div 
+          ref={jitsiContainerRef} 
+          className="absolute inset-0"
+        />
+        
+        {/* Mensaje de espera si el asesor no ha iniciado */}
+        {estadoSala?.estado === 'en_sala_espera' && (
+          <div className="absolute inset-0 bg-gray-900/80 flex items-center justify-center z-10">
+            <div className="text-center">
+              <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg className="w-10 h-10 text-primary-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Esperando al asesor</h2>
+              <p className="text-gray-400 max-w-md mx-auto">
+                El asesor iniciará la sesión en breve. Por favor mantente en esta pantalla.
+              </p>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Sala de Simulacro</h2>
-          <p className="text-gray-500 max-w-md mx-auto">
-            Aquí se integrará Jitsi Meet. La videollamada ocupará toda esta área.
-          </p>
-        </div>
-      </div>
-
-      {/* Meeting Controls */}
-      <div className="h-20 bg-gray-800 border-t border-gray-700 flex items-center justify-center gap-4">
-        <button className="w-14 h-14 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-white transition-colors">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-          </svg>
-        </button>
-        <button className="w-14 h-14 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-white transition-colors">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-        </button>
-        <button className="w-14 h-14 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-white transition-colors">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-        </button>
-        <button className="w-14 h-14 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-white transition-colors">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
-        </button>
-        <button 
-          onClick={() => navigate('/simulacros/2/resumen')}
-          className="w-14 h-14 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center text-white transition-colors"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
-          </svg>
-        </button>
+        )}
       </div>
     </div>
   )
