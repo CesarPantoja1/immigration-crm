@@ -1022,13 +1022,12 @@ class SimulacrosCompletadosAsesorView(generics.ListAPIView):
 
 class RecomendacionClienteView(APIView):
     """
-    GET /api/mis-recomendaciones/
-    Lista recomendaciones del cliente (sección "Mis recomendaciones").
-    Según feature escenario 7.
+    GET /api/mis-recomendaciones/ - Lista todas las recomendaciones del cliente
+    GET /api/simulacros/<pk>/mi-recomendacion/ - Obtiene recomendación de un simulacro específico
     """
     permission_classes = [permissions.IsAuthenticated]
     
-    def get(self, request):
+    def get(self, request, pk=None):
         user = request.user
         
         if user.rol != 'cliente':
@@ -1037,7 +1036,49 @@ class RecomendacionClienteView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Obtener simulacros completados del cliente con recomendaciones publicadas
+        # Si se especifica pk, obtener recomendación de un simulacro específico
+        if pk:
+            try:
+                simulacro = Simulacro.objects.select_related('asesor', 'solicitud').get(
+                    pk=pk,
+                    cliente=user,
+                    is_deleted=False
+                )
+            except Simulacro.DoesNotExist:
+                return Response(
+                    {'error': 'Simulacro no encontrado'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            if not hasattr(simulacro, 'recomendacion'):
+                return Response(
+                    {'error': 'Este simulacro aún no tiene recomendaciones generadas'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            rec = simulacro.recomendacion
+            
+            return Response({
+                'id': rec.id,
+                'simulacro_id': simulacro.id,
+                'simulacro_fecha': simulacro.fecha,
+                'asesor_nombre': simulacro.asesor.get_full_name() if simulacro.asesor else None,
+                'fecha_generacion': rec.fecha_generacion,
+                'estado_feedback': rec.estado_feedback,
+                'nivel_preparacion': rec.nivel_preparacion,
+                'claridad': rec.claridad,
+                'coherencia': rec.coherencia,
+                'seguridad': rec.seguridad,
+                'pertinencia': rec.pertinencia,
+                'fortalezas': rec.fortalezas,
+                'puntos_mejora': rec.puntos_mejora,
+                'recomendaciones': rec.recomendaciones,
+                'accion_sugerida': rec.accion_sugerida or rec.obtener_accion_sugerida(),
+                'resumen_ejecutivo': rec.resumen_ejecutivo,
+                'publicada': rec.publicada
+            })
+        
+        # Sin pk: listar todas las recomendaciones del cliente
         simulacros = Simulacro.objects.filter(
             cliente=user,
             estado='completado',

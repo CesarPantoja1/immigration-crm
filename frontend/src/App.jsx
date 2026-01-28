@@ -7,11 +7,12 @@ import { useAuth } from './contexts/AuthContext'
 // Layouts
 import ClientLayout from './layouts/ClientLayout'
 import AdvisorLayout from './layouts/AdvisorLayout'
+import AdminLayout from './layouts/AdminLayout'
 
 // Paginas cliente
 import { ClientDashboard } from './features/client'
 import { NewApplicationPage, ApplicationsListPage, ApplicationDetailPage } from './features/applications'
-import { SimulationsPage, MeetingRoomPage, SimulationSummaryPage, PresentialInfoPage } from './features/simulations'
+import { SimulationsPage, MeetingRoomPage, SimulationSummaryPage, PresentialInfoPage, RecomendacionesPage } from './features/simulations'
 import { PracticePage, QuizPage } from './features/practice'
 
 // Nuevas páginas cliente
@@ -28,11 +29,12 @@ import {
   AdvisorMeetingRoomPage,
   InterviewScheduling,
   AdvisorInboxPage,
-  IAConfigPage
+  IAConfigPage,
+  AdvisorFeedbackViewPage
 } from './features/advisor'
 
 // Pagina admin
-import { AdminDashboard } from './features/admin'
+import { AdminDashboard, AdminAsesoresPage } from './features/admin'
 
 // Pagina asesor - Presencial Feedback
 import { PresentialFeedbackPage } from './features/simulations'
@@ -112,6 +114,15 @@ function App() {
         <Route path="/simulacros/:id/resumen" element={
           <ProtectedRoute allowedRoles={['client']}>
             <SimulationSummaryPage />
+          </ProtectedRoute>
+        } />
+
+        {/* Client Recomendaciones */}
+        <Route path="/recomendaciones" element={
+          <ProtectedRoute allowedRoles={['client']}>
+            <ClientLayout>
+              <RecomendacionesPage />
+            </ClientLayout>
           </ProtectedRoute>
         } />
 
@@ -213,6 +224,15 @@ function App() {
           </ProtectedRoute>
         } />
 
+        {/* Advisor View Feedback */}
+        <Route path="/asesor/simulacros/:id/feedback" element={
+          <ProtectedRoute allowedRoles={['advisor']}>
+            <AdvisorLayout>
+              <AdvisorFeedbackViewPage />
+            </AdvisorLayout>
+          </ProtectedRoute>
+        } />
+
         {/* Advisor Presential Feedback */}
         <Route path="/asesor/simulacros/:id/presencial" element={
           <ProtectedRoute allowedRoles={['advisor']}>
@@ -250,13 +270,25 @@ function App() {
         {/* Admin Routes */}
         <Route path="/admin" element={
           <ProtectedRoute allowedRoles={['admin']}>
-            <AdminDashboard />
+            <AdminLayout>
+              <AdminDashboard />
+            </AdminLayout>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/asesores" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminLayout>
+              <AdminAsesoresPage />
+            </AdminLayout>
           </ProtectedRoute>
         } />
 
         <Route path="/admin/*" element={
           <ProtectedRoute allowedRoles={['admin']}>
-            <AdminDashboard />
+            <AdminLayout>
+              <AdminDashboard />
+            </AdminLayout>
           </ProtectedRoute>
         } />
 

@@ -7,6 +7,8 @@ export default function AdvisorSimulationsPage() {
   const [activeTab, setActiveTab] = useState('upcoming')
   const [showProposalModal, setShowProposalModal] = useState(false)
   const [showTranscriptionModal, setShowTranscriptionModal] = useState(false)
+  const [showIAProgressModal, setShowIAProgressModal] = useState(false)
+  const [iaProgress, setIAProgress] = useState({ step: 0, message: '', error: null })
   const [selectedProposal, setSelectedProposal] = useState(null)
   const [selectedSimulacro, setSelectedSimulacro] = useState(null)
   const [selectedTime, setSelectedTime] = useState('')
@@ -150,12 +152,35 @@ export default function AdvisorSimulationsPage() {
   const handleGenerateIA = async (simulacroId) => {
     try {
       setGeneratingIA(true)
-      await simulacrosService.generarRecomendacionIA(simulacroId)
+      setShowIAProgressModal(true)
+      setIAProgress({ step: 1, message: 'Preparando análisis...', error: null })
+      
+      // Simular pasos del proceso (el backend hace todo en una llamada)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      setIAProgress({ step: 2, message: 'Enviando transcripción a Gemini AI...', error: null })
+      
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setIAProgress({ step: 3, message: 'Analizando claridad y coherencia...', error: null })
+      
+      // Llamada real al backend
+      const result = await simulacrosService.generarRecomendacionIA(simulacroId)
+      
+      setIAProgress({ step: 4, message: 'Generando recomendaciones personalizadas...', error: null })
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      setIAProgress({ step: 5, message: '¡Análisis completado!', error: null })
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
       fetchSimulationsData()
-      alert('Recomendaciones generadas exitosamente con IA')
+      setShowIAProgressModal(false)
+      setIAProgress({ step: 0, message: '', error: null })
     } catch (error) {
       console.error('Error generating recommendations:', error)
-      alert(error.response?.data?.error || 'Error al generar recomendaciones con IA')
+      setIAProgress({ 
+        step: 0, 
+        message: '', 
+        error: error.data?.error || error.message || 'Error al generar recomendaciones con IA' 
+      })
     } finally {
       setGeneratingIA(false)
     }
@@ -678,6 +703,110 @@ export default function AdvisorSimulationsPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal de Progreso de IA */}
+      <Modal 
+        isOpen={showIAProgressModal} 
+        onClose={() => {}} 
+        title="Generando Análisis con IA"
+        size="md"
+      >
+        <div className="p-6 text-center">
+          <div className="mb-6">
+            <div className="w-20 h-20 mx-auto mb-4 relative">
+              <svg className="animate-spin w-20 h-20 text-primary-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-sm font-bold text-primary-600">{iaProgress.step * 20}%</span>
+              </div>
+            </div>
+            
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              {iaProgress.message || 'Procesando...'}
+            </h3>
+            <p className="text-sm text-gray-500">
+              Por favor espera mientras la inteligencia artificial procesa el simulacro
+            </p>
+          </div>
+
+          {/* Barra de progreso */}
+          <div className="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+            <div 
+              className="bg-gradient-to-r from-primary-500 to-primary-600 h-3 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${iaProgress.step * 20}%` }}
+            ></div>
+          </div>
+
+          {/* Pasos del proceso */}
+          <div className="text-left space-y-2 mt-6">
+            <div className={`flex items-center gap-2 text-sm ${iaProgress.step >= 1 ? 'text-green-600' : 'text-gray-400'}`}>
+              {iaProgress.step >= 1 ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <div className="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
+              )}
+              Preparando análisis
+            </div>
+            <div className={`flex items-center gap-2 text-sm ${iaProgress.step >= 2 ? 'text-green-600' : 'text-gray-400'}`}>
+              {iaProgress.step >= 2 ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <div className="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
+              )}
+              Enviando a Gemini AI
+            </div>
+            <div className={`flex items-center gap-2 text-sm ${iaProgress.step >= 3 ? 'text-green-600' : 'text-gray-400'}`}>
+              {iaProgress.step >= 3 ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <div className="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
+              )}
+              Analizando claridad y coherencia
+            </div>
+            <div className={`flex items-center gap-2 text-sm ${iaProgress.step >= 4 ? 'text-green-600' : 'text-gray-400'}`}>
+              {iaProgress.step >= 4 ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <div className="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
+              )}
+              Generando recomendaciones
+            </div>
+            <div className={`flex items-center gap-2 text-sm ${iaProgress.step >= 5 ? 'text-green-600' : 'text-gray-400'}`}>
+              {iaProgress.step >= 5 ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <div className="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
+              )}
+              ¡Completado!
+            </div>
+          </div>
+
+          {/* Error message */}
+          {iaProgress.error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{iaProgress.error}</p>
+              <button 
+                onClick={() => setShowIAProgressModal(false)}
+                className="mt-2 text-sm text-red-700 underline"
+              >
+                Cerrar
+              </button>
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   )

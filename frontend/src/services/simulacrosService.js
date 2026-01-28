@@ -269,11 +269,8 @@ export const simulacrosService = {
   async subirTranscripcion(simulacroId, archivo) {
     const formData = new FormData()
     formData.append('archivo', archivo)
-    return apiClient.post(`/simulacros/${simulacroId}/subir-transcripcion/`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
+    // No pasar headers, el apiClient detecta FormData y maneja el Content-Type automáticamente
+    return apiClient.post(`/simulacros/${simulacroId}/subir-transcripcion/`, formData)
   },
 
   /**

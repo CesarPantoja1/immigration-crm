@@ -21,6 +21,29 @@ export default function ClientDashboard() {
   const [disponibilidad, setDisponibilidad] = useState({ disponibles: 2, usados: 0 })
   const [recentApplications, setRecentApplications] = useState([])
   const [upcomingSimulations, setUpcomingSimulations] = useState([])
+  const [nextSimulacroSubtitle, setNextSimulacroSubtitle] = useState('Sin programar')
+
+  // Función para calcular el texto del próximo simulacro
+  const calcularProximoSimulacro = (simulacros) => {
+    if (!simulacros || simulacros.length === 0) {
+      return 'Sin programar'
+    }
+    const proximo = simulacros[0]
+    const fechaStr = proximo.fecha_propuesta || proximo.fecha
+    if (!fechaStr) return 'Sin programar'
+    
+    const fecha = new Date(fechaStr + 'T00:00:00')
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+    
+    const diffTime = fecha.getTime() - hoy.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 0) return 'Hoy'
+    if (diffDays === 1) return 'Mañana'
+    if (diffDays < 0) return 'Pasado'
+    return `En ${diffDays} días`
+  }
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -29,31 +52,33 @@ export default function ClientDashboard() {
         
         // Fetch all data in parallel
         const [solicitudesResponse, simulacrosResponse, disponibilidadData, practicaResponse] = await Promise.all([
-          solicitudesService.getAll({ limit: 5 }).catch(() => ({ results: [] })),
-          simulacrosService.getMisSimulacros().catch(() => []),
-          simulacrosService.getDisponibilidad().catch(() => ({ disponibles: 2, usados: 0 })),
-          practicaService.getHistorial({ limit: 1 }).catch(() => [])
+          solicitudesService.getAll({ limit: 5 }).catch((e) => { console.error('Error solicitudes:', e); return { results: [] } }),
+          simulacrosService.getMisSimulacros().catch((e) => { console.error('Error simulacros:', e); return [] }),
+          simulacrosService.getDisponibilidad().catch((e) => { console.error('Error disponibilidad:', e); return { disponibles: 2, usados: 0 } }),
+          practicaService.getHistorial({ limit: 1 }).catch((e) => { console.error('Error practica:', e); return [] })
         ])
+
+        console.log('Dashboard data:', { solicitudesResponse, simulacrosResponse, disponibilidadData, practicaResponse })
 
         // Handle both array and object with results
         const solicitudes = Array.isArray(solicitudesResponse) 
           ? solicitudesResponse 
-          : (solicitudesResponse?.results || [])
+          : (solicitudesResponse?.results || solicitudesResponse || [])
         
         const simulacrosData = Array.isArray(simulacrosResponse) 
           ? simulacrosResponse 
-          : (simulacrosResponse?.results || [])
+          : (simulacrosResponse?.results || simulacrosResponse || [])
         
         const practicaData = Array.isArray(practicaResponse) 
           ? practicaResponse 
-          : (practicaResponse?.results || [])
+          : (practicaResponse?.results || practicaResponse || [])
 
         // Process solicitudes
         setRecentApplications(solicitudes.slice(0, 2).map(s => ({
           id: `SOL-${s.id}`,
           rawId: s.id,
-          type: s.tipo_visa,
-          embassy: s.embajada,
+          type: s.tipo_visa || s.tipo_visa_display,
+          embassy: s.embajada || s.embajada_display,
           status: s.estado,
           date: s.created_at?.split('T')[0]
         })))
@@ -63,8 +88,13 @@ export default function ClientDashboard() {
           ['borrador', 'pendiente', 'en_revision'].includes(s.estado)
         ).length
 
-        // Count approved documents
+        // Count approved documents - use backend field if available
         const approvedDocs = solicitudes.reduce((acc, s) => {
+          // El backend ya provee documentos_aprobados
+          if (typeof s.documentos_aprobados === 'number') {
+            return acc + s.documentos_aprobados
+          }
+          // Fallback: contar manualmente si hay documentos_adjuntos
           const docs = s.documentos_adjuntos || []
           return acc + docs.filter(d => d.estado === 'aprobado').length
         }, 0)
@@ -75,12 +105,15 @@ export default function ClientDashboard() {
         )
         setUpcomingSimulations(proximos.slice(0, 1).map(s => ({
           id: s.id,
-          date: s.fecha_propuesta,
-          time: s.hora_propuesta,
+          date: s.fecha_propuesta || s.fecha,
+          time: s.hora_propuesta || s.hora,
           advisor: s.asesor_nombre || 'Asesor asignado',
-          modality: 'Virtual',
-          visaType: s.solicitud_tipo || 'Entrevista'
+          modality: s.modalidad === 'virtual' ? 'Virtual' : 'Presencial',
+          visaType: s.solicitud_tipo || s.tipo_visa || 'Entrevista'
         })))
+
+        // Calcular subtítulo del próximo simulacro
+        setNextSimulacroSubtitle(calcularProximoSimulacro(proximos))
 
         // Get disponibilidad - normalizar respuesta
         const disponibilidadNormalizada = {
@@ -90,8 +123,8 @@ export default function ClientDashboard() {
         setDisponibilidad(disponibilidadNormalizada)
 
         // Get last practice score
-        const lastPractice = practicaData[0]
-        const practiceScore = lastPractice?.porcentaje_aciertos || 0
+        const lastPractice = Array.isArray(practicaData) ? practicaData[0] : practicaData
+        const practiceScore = lastPractice?.porcentaje_aciertos || lastPractice?.score || 0
 
         setStats({
           pendingApplications: pending,
@@ -174,7 +207,7 @@ export default function ClientDashboard() {
         <StatCard
           title="Próximo Simulacro"
           value={stats.upcomingSimulations}
-          subtitle="En 2 días"
+          subtitle={nextSimulacroSubtitle}
           icon={
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />

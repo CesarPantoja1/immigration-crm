@@ -65,8 +65,13 @@ export default function SplitViewModal({
     setIsSubmitting(true)
     try {
       await onApprove?.(currentDoc.id, { checklist, observations })
-      // Auto-navigate to next pending document
-      const nextPending = documents.findIndex((d, i) => i > currentIndex && d.status === 'pending')
+      // Auto-navigate to next pending document (search all documents, not just after current)
+      // First look after current index
+      let nextPending = documents.findIndex((d, i) => i > currentIndex && d.status === 'pending')
+      // If not found, look from the beginning
+      if (nextPending === -1) {
+        nextPending = documents.findIndex((d, i) => i !== currentIndex && d.status === 'pending')
+      }
       if (nextPending !== -1) {
         setCurrentIndex(nextPending)
       } else {
@@ -85,10 +90,18 @@ export default function SplitViewModal({
     setIsSubmitting(true)
     try {
       await onReject?.(currentDoc.id, { checklist, observations })
-      // Auto-navigate to next pending document
-      const nextPending = documents.findIndex((d, i) => i > currentIndex && d.status === 'pending')
+      // Auto-navigate to next pending document (search all documents, not just after current)
+      // First look after current index
+      let nextPending = documents.findIndex((d, i) => i > currentIndex && d.status === 'pending')
+      // If not found, look from the beginning
+      if (nextPending === -1) {
+        nextPending = documents.findIndex((d, i) => i !== currentIndex && d.status === 'pending')
+      }
       if (nextPending !== -1) {
         setCurrentIndex(nextPending)
+      } else {
+        // All documents reviewed, close modal
+        onClose()
       }
     } finally {
       setIsSubmitting(false)

@@ -54,6 +54,17 @@ export default function AdvisorInboxPage() {
   const [expandedId, setExpandedId] = useState(null)
   const [actionLoading, setActionLoading] = useState(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  // Obtener conteo de no leídas desde la API
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const response = await notificacionesService.getConteoNoLeidas()
+      setUnreadCount(response?.count || 0)
+    } catch (error) {
+      console.warn('Error fetching unread count:', error)
+    }
+  }, [])
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -76,9 +87,9 @@ export default function AdvisorInboxPage() {
 
   useEffect(() => {
     fetchNotifications()
-  }, [fetchNotifications])
+    fetchUnreadCount()
+  }, [fetchNotifications, fetchUnreadCount])
 
-  const unreadCount = notifications.filter(n => !n.leida).length
   const myNotifications = notifications.filter(n => n.usuario_nombre === user?.nombre)
   const clientNotifications = notifications.filter(n => n.usuario_nombre !== user?.nombre)
 
@@ -90,6 +101,8 @@ export default function AdvisorInboxPage() {
       setNotifications(prev => 
         prev.map(n => n.id === id ? { ...n, leida: true } : n)
       )
+      // Actualizar contador
+      setUnreadCount(prev => Math.max(0, prev - 1))
     } catch (error) {
       console.error('Error marking notification as read:', error)
     } finally {
@@ -102,6 +115,8 @@ export default function AdvisorInboxPage() {
       setActionLoading('all')
       await notificacionesService.marcarTodasLeidas()
       setNotifications(prev => prev.map(n => ({ ...n, leida: true })))
+      // Resetear contador
+      setUnreadCount(0)
     } catch (error) {
       console.error('Error marking all as read:', error)
     } finally {
@@ -115,6 +130,11 @@ export default function AdvisorInboxPage() {
       setActionLoading(id)
       await notificacionesService.eliminar(id)
       setNotifications(prev => prev.filter(n => n.id !== id))
+      // Si la notificación no estaba leída, decrementar contador
+      const notification = notifications.find(n => n.id === id)
+      if (notification && !notification.leida) {
+        setUnreadCount(prev => Math.max(0, prev - 1))
+      }
     } catch (error) {
       console.error('Error deleting notification:', error)
     } finally {

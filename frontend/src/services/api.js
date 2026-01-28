@@ -125,11 +125,11 @@ class ApiClient {
     }
 
     if (body) {
-      if (contentType === 'application/json') {
-        fetchOptions.body = JSON.stringify(body)
-      } else if (body instanceof FormData) {
+      if (body instanceof FormData) {
         delete fetchOptions.headers['Content-Type'] // FormData maneja su propio Content-Type
         fetchOptions.body = body
+      } else if (contentType === 'application/json') {
+        fetchOptions.body = JSON.stringify(body)
       } else {
         fetchOptions.body = body
       }

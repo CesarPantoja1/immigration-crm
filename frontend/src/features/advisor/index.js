@@ -7,3 +7,4 @@ export { default as AdvisorMeetingRoomPage } from './pages/AdvisorMeetingRoomPag
 export { default as InterviewScheduling } from './pages/InterviewScheduling'
 export { default as AdvisorInboxPage } from './pages/AdvisorInboxPage'
 export { default as IAConfigPage } from './pages/IAConfigPage'
+export { default as AdvisorFeedbackViewPage } from './pages/AdvisorFeedbackViewPage'

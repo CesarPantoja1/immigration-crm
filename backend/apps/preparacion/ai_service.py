@@ -184,7 +184,8 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni markdown."""
                     "temperature": 0.7,
                     "topK": 40,
                     "topP": 0.95,
-                    "maxOutputTokens": 4096,
+                    "maxOutputTokens": 8192,
+                    "responseMimeType": "application/json"
                 }
             }
             
@@ -224,7 +225,7 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni markdown."""
             return None
     
     def _parse_response(self, response_text: str) -> Optional[Dict]:
-        """Parsea la respuesta JSON de Gemini."""
+        """Parsea la respuesta JSON de Gemini con manejo robusto de errores."""
         try:
             # Limpiar la respuesta (a veces viene con markdown)
             cleaned = response_text.strip()
@@ -236,8 +237,53 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni markdown."""
                 cleaned = cleaned[:-3]
             cleaned = cleaned.strip()
             
-            return json.loads(cleaned)
-        except json.JSONDecodeError as e:
+            # Intentar parsear directamente primero
+            try:
+                return json.loads(cleaned)
+            except json.JSONDecodeError:
+                pass
+            
+            # Si falla, intentar reparar JSON truncado
+            # Contar llaves y corchetes para detectar JSON incompleto
+            open_braces = cleaned.count('{')
+            close_braces = cleaned.count('}')
+            open_brackets = cleaned.count('[')
+            close_brackets = cleaned.count(']')
+            
+            # Añadir llaves/corchetes faltantes al final
+            repair = cleaned
+            
+            # Cerrar arrays abiertos primero
+            while open_brackets > close_brackets:
+                repair += ']'
+                close_brackets += 1
+            
+            # Cerrar objetos abiertos
+            while open_braces > close_braces:
+                repair += '}'
+                close_braces += 1
+            
+            # Intentar parsear reparado
+            try:
+                return json.loads(repair)
+            except json.JSONDecodeError:
+                pass
+            
+            # Si aún falla, buscar el último objeto completo válido
+            # Encontrar la última llave de cierre que forma JSON válido
+            for i in range(len(cleaned) - 1, 0, -1):
+                if cleaned[i] == '}':
+                    try:
+                        partial = cleaned[:i+1]
+                        return json.loads(partial)
+                    except json.JSONDecodeError:
+                        continue
+            
+            logger.error(f"No se pudo reparar JSON de Gemini")
+            logger.error(f"Respuesta recibida: {response_text[:500]}...")
+            return None
+            
+        except Exception as e:
             logger.error(f"Error parseando JSON de Gemini: {e}")
             logger.error(f"Respuesta recibida: {response_text[:500]}...")
             return None

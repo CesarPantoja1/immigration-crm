@@ -1,0 +1,94 @@
+TRANSCRIPCIÓN DE SIMULACRO - VISA DE TRABAJO
+============================================================
+Tipo: Solicitante SEGURO
+Fecha del ejemplo: Enero 2026
+============================================================
+
+[INICIO DE LA ENTREVISTA]
+
+OFICIAL CONSULAR: Buenos días, tome asiento por favor.
+
+SOLICITANTE: Buenos días, muchas gracias. [se sienta con calma y mantiene contacto visual]
+
+OFICIAL CONSULAR: ¿Cuál es el propósito de su viaje?
+
+SOLICITANTE: Viajo para incorporarme como Senior Software Engineer en TechSolutions Inc., una empresa de desarrollo de software con sede en San Francisco, California. Me han extendido una oferta de trabajo con visa H-1B patrocinada por la compañía.
+
+OFICIAL CONSULAR: ¿Cuál es el nombre de la empresa que lo contrató?
+
+SOLICITANTE: TechSolutions Inc., fundada en 2015, especializada en desarrollo de software empresarial y soluciones cloud. Tienen aproximadamente 500 empleados y oficinas en San Francisco, Austin y Nueva York. Su CEO es Michael Richardson.
+
+OFICIAL CONSULAR: ¿Qué puesto va a desempeñar?
+
+SOLICITANTE: Seré Senior Software Engineer en el equipo de Backend Development. Mis funciones específicas incluyen diseñar e implementar APIs RESTful, optimizar bases de datos PostgreSQL, y liderar el desarrollo de microservicios usando Python y Go. Reportaré directamente al Director de Ingeniería, David Chen.
+
+OFICIAL CONSULAR: ¿Puede ser más específico sobre sus funciones?
+
+SOLICITANTE: Por supuesto. Trabajaré principalmente en su plataforma de gestión empresarial SaaS. Mis responsabilidades incluyen: arquitectura de sistemas distribuidos, code reviews del equipo junior, implementación de CI/CD pipelines, y colaboración con el equipo de producto para definir especificaciones técnicas. Aquí tengo la descripción detallada del puesto si desea revisarla.
+
+OFICIAL CONSULAR: ¿Cuál es su formación académica?
+
+SOLICITANTE: Soy Ingeniero en Sistemas Computacionales, graduado con honores de la Universidad Tecnológica en 2018. Adicionalmente, tengo certificaciones de AWS Solutions Architect y Google Cloud Professional. Completé un diplomado en Machine Learning en 2022 en el Instituto Tecnológico. Aquí están mis títulos debidamente apostillados.
+
+OFICIAL CONSULAR: ¿Tiene experiencia laboral en esta área?
+
+SOLICITANTE: Sí, tengo siete años de experiencia profesional. Trabajé tres años en GlobalTech como desarrollador junior, luego cuatro años en InnovateSoft donde ascendí a Tech Lead, gestionando un equipo de cinco desarrolladores. Lideré el desarrollo de una aplicación de banca móvil con más de 200,000 usuarios activos. Aquí están mis cartas de referencia de ambos empleadores.
+
+OFICIAL CONSULAR: ¿Por qué lo eligió esta empresa específicamente a usted?
+
+SOLICITANTE: TechSolutions me contactó a través de LinkedIn después de ver mi portafolio de proyectos open source en GitHub, donde tengo contribuciones activas. Pasé por un riguroso proceso de cinco entrevistas técnicas, incluyendo system design y coding challenges. Según su feedback, mi experiencia en sistemas distribuidos y mi liderazgo técnico fueron factores decisivos.
+
+OFICIAL CONSULAR: ¿Cuál será su salario?
+
+SOLICITANTE: Mi salario base será de 145,000 dólares anuales, más un bono de firma de 15,000 dólares y opciones sobre acciones equivalentes a 40,000 dólares que se vesting en cuatro años. También incluye seguro médico completo y 401k con matching. El salario está por encima del prevailing wage requerido para la visa H-1B en esa área.
+
+OFICIAL CONSULAR: ¿Dónde estará ubicado su lugar de trabajo?
+
+SOLICITANTE: La oficina principal está en 500 Howard Street, San Francisco, California 94105. Trabajaré de manera híbrida: tres días en oficina y dos días remotos, según la política de la empresa. Ya tengo apartamento rentado en el área de SOMA, a 15 minutos caminando de la oficina.
+
+OFICIAL CONSULAR: ¿Tiene familiares en Estados Unidos?
+
+SOLICITANTE: No tengo familiares directos en Estados Unidos. Mi familia completa está en mi país: mis padres, mi hermana y su familia. Mantenemos lazos muy cercanos y planeo visitarlos cada seis meses durante mis vacaciones.
+
+OFICIAL CONSULAR: ¿Por qué dejó su trabajo anterior?
+
+SOLICITANTE: Continúo empleado en InnovateSoft hasta el 28 de febrero. Mi renuncia ya fue aceptada y estoy en período de transición, entrenando a mi reemplazo. Dejo el puesto específicamente para aprovechar esta oportunidad de crecimiento profesional internacional, no por problemas con mi empleador actual. Aquí está mi carta de renuncia y la referencia de mi jefe.
+
+OFICIAL CONSULAR: ¿Tiene propiedades o vínculos en su país de origen?
+
+SOLICITANTE: Sí, soy propietario de un departamento valorado en aproximadamente 180,000 dólares, con hipoteca casi pagada. También tengo inversiones en un fondo de retiro y acciones en la bolsa local. Mi hermana administrará mis propiedades durante mi ausencia. Mis padres viven aquí y son otro fuerte vínculo familiar.
+
+OFICIAL CONSULAR: ¿Ha viajado internacionalmente antes?
+
+SOLICITANTE: Sí, he viajado a Estados Unidos dos veces con visa de turista: en 2021 visité San Francisco para una conferencia tech y en 2023 fui a Las Vegas para AWS re:Invent. También he viajado a Canadá, España y Alemania por trabajo y turismo. Siempre he cumplido con los términos de mis visas y regresado a tiempo.
+
+OFICIAL CONSULAR: ¿Cuánto tiempo planea quedarse?
+
+SOLICITANTE: La visa H-1B es por tres años inicialmente, renovable por otros tres años. Mi contrato con TechSolutions es indefinido. Mi plan es trabajar allá mientras dure esta oportunidad profesional, desarrollarme en el sector tech estadounidense, y eventualmente regresar a mi país con la experiencia adquirida para emprender mi propia startup.
+
+OFICIAL CONSULAR: ¿Qué hará cuando termine su contrato?
+
+SOLICITANTE: Mi plan a largo plazo es acumular experiencia y capital durante 5-7 años, luego regresar a mi país para fundar una empresa de tecnología. Ya tengo contactos en el ecosistema emprendedor local y mis padres están envejeciendo, por lo que eventualmente querré estar más cerca de ellos.
+
+OFICIAL CONSULAR: ¿Dónde vivirá mientras trabaja allá?
+
+SOLICITANTE: Ya firmé contrato de arrendamiento de un apartamento de un dormitorio en 1188 Mission Street, San Francisco, por $3,200 mensuales. La empresa cubrió los gastos de reubicación y el depósito de seguridad. Aquí tengo copia del contrato.
+
+OFICIAL CONSULAR: ¿Tiene alguna pregunta?
+
+SOLICITANTE: Solo quisiera confirmar el proceso de pickup del pasaporte. Entiendo que puedo rastrearlo en línea una vez procesada la visa. ¿Es correcto?
+
+[FIN DE LA ENTREVISTA]
+
+============================================================
+NOTAS DEL SIMULACRO:
+- Excelente dominio de todos los detalles del empleo
+- Respuestas precisas con nombres, fechas y montos específicos
+- Documentación completa y organizada
+- Trayectoria profesional sólida y coherente
+- Razones claras para la selección por parte de la empresa
+- Fuertes vínculos con país de origen (propiedades, familia)
+- Historial de viajes limpio con cumplimiento de visas previas
+- Plan de carrera bien articulado con intención de retorno
+- Actitud profesional y confiada durante toda la entrevista
+============================================================
