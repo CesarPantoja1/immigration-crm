@@ -73,7 +73,7 @@ def step_impl(context):
 # AGENDAMIENTO DE ENTREVISTA
 # ============================================================
 
-@step('que existe una fecha de entrevista "(?P<fecha_entrevista>.+)" con los siguientes horarios disponibles:')
+@step('que existe una fecha de entrevista "(?P<fecha_entrevista>.+)" con los siguientes horarios disponibles')
 def step_impl(context, fecha_entrevista):
     """Setup de horarios disponibles para una fecha."""
     # Parsear fecha
