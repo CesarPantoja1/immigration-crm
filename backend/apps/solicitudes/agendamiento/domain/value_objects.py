@@ -45,6 +45,10 @@ class HorarioEntrevista:
         """Retorna el datetime de inicio."""
         return datetime.combine(self.fecha, self.hora)
     
+    def a_datetime(self) -> datetime:
+        """Alias de datetime_inicio() para compatibilidad."""
+        return self.datetime_inicio()
+
     def datetime_fin(self) -> datetime:
         """Retorna el datetime de fin."""
         return self.datetime_inicio() + timedelta(minutes=self.duracion_minutos)
@@ -73,13 +77,35 @@ class HorarioEntrevista:
         return f"{self.fecha.day} de {meses[self.fecha.month]} de {self.fecha.year}"
 
 
-@dataclass(frozen=True)
+@dataclass
 class OpcionHorario:
     """Value Object para una opción de horario ofrecida por la embajada."""
     id: str
     horario: HorarioEntrevista
     disponible: bool = True
-    
+    capacidad_maxima: int = 1
+    entrevistas_asignadas: int = 0
+
+    def esta_disponible(self) -> bool:
+        """Verifica si la opción está disponible."""
+        return self.disponible and self.entrevistas_asignadas < self.capacidad_maxima
+
+    def ocupar(self) -> bool:
+        """Marca la opción como ocupada."""
+        if self.esta_disponible():
+            self.entrevistas_asignadas += 1
+            if self.entrevistas_asignadas >= self.capacidad_maxima:
+                self.disponible = False
+            return True
+        return False
+
+    def liberar(self) -> None:
+        """Libera un espacio en la opción."""
+        if self.entrevistas_asignadas > 0:
+            self.entrevistas_asignadas -= 1
+            if self.entrevistas_asignadas < self.capacidad_maxima:
+                self.disponible = True
+
     def __str__(self) -> str:
         estado = "Disponible" if self.disponible else "No disponible"
         return f"{self.horario.formato_legible()} a las {self.horario.hora} - {estado}"

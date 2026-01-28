@@ -167,14 +167,31 @@ class Entrevista:
         self.fecha_confirmacion = datetime.now()
         return True
     
+    def confirmar(self) -> None:
+        """Confirma la asistencia a la entrevista (versión simple)."""
+        self.estado = EstadoEntrevista.CONFIRMADA
+        self.fecha_confirmacion = datetime.now()
+
     # =====================================================
     # Métodos de reprogramación
     # =====================================================
     
-    def puede_reprogramar(self) -> tuple[bool, str]:
+    def puede_reprogramarse(self) -> bool:
         """
         Verifica si la entrevista puede ser reprogramada.
         
+        Returns:
+            bool: True si puede reprogramarse, False si no.
+        """
+        return (
+            self.estado in [EstadoEntrevista.AGENDADA, EstadoEntrevista.REPROGRAMADA]
+            and self.veces_reprogramada < self.regla.max_reprogramaciones
+        )
+
+    def puede_reprogramar(self) -> tuple[bool, str]:
+        """
+        Verifica si la entrevista puede ser reprogramada (versión con mensaje).
+
         Returns:
             Tupla (puede_reprogramar, mensaje)
         """
@@ -215,42 +232,41 @@ class Entrevista:
     # Métodos de cancelación
     # =====================================================
     
-    def puede_cancelar(self) -> tuple[bool, str]:
+    def puede_cancelarse(self, horas_anticipacion: int = None) -> bool:
         """
         Verifica si la entrevista puede ser cancelada.
         
+        Args:
+            horas_anticipacion: Horas de anticipación disponibles. Si es None, se calcula automáticamente.
+
         Returns:
-            Tupla (puede_cancelar, mensaje)
+            bool: True si puede cancelarse, False si no.
         """
+        if self.estado == EstadoEntrevista.CANCELADA:
+            return False
+
         if not self.horario:
-            return True, "No hay fecha asignada, puede cancelarse"
-        
-        horas_restantes = self.horario.horas_restantes()
-        
-        if horas_restantes < self.regla.horas_minimas_cancelacion:
-            return False, (f"Error: no es posible cancelar la entrevista debido a que "
-                          f"no se cumple el tiempo mínimo de anticipación")
-        
-        return True, "Cancelación permitida"
-    
-    def cancelar(self, motivo: MotivoCancelacion, detalle: str = "") -> tuple[bool, str]:
+            return True  # Sin horario asignado, puede cancelarse
+
+        # Calcular horas de anticipación si no se proporciona
+        if horas_anticipacion is None:
+            horas_anticipacion = int(self.horario.horas_restantes())
+
+        return horas_anticipacion >= self.regla.horas_minimas_cancelacion
+
+    def cancelar(self, motivo: MotivoCancelacion, observaciones: str = "") -> None:
         """
         Cancela la entrevista.
         
-        Returns:
-            Tupla (exito, mensaje)
+        Args:
+            motivo: Motivo de la cancelación
+            observaciones: Detalles adicionales sobre la cancelación
         """
-        puede, mensaje = self.puede_cancelar()
-        if not puede:
-            return False, mensaje
-        
         self.cancelada = True
         self.motivo_cancelacion = motivo
-        self.detalle_cancelacion = detalle
+        self.detalle_cancelacion = observaciones
         self.estado = EstadoEntrevista.CANCELADA
-        
-        return True, "Cancelación confirmada exitosamente"
-    
+
     # =====================================================
     # Métodos de finalización
     # =====================================================

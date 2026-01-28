@@ -120,6 +120,12 @@ class ReprogramacionService:
         """
         Reprograma una entrevista a una nueva fecha.
         """
+        # Verificar si puede reprogramarse
+        if not entrevista.puede_reprogramarse():
+            raise ReprogramacionNoPermitidaException(
+                f"Error: ha alcanzado el límite máximo de reprogramaciones permitidas"
+            )
+
         # Validar fecha futura
         horario_propuesto = HorarioEntrevista(fecha=nueva_fecha, hora=nueva_hora)
         if not horario_propuesto.es_futuro():
@@ -132,11 +138,33 @@ class ReprogramacionService:
                 f"Se requieren al menos {regla.dias_minimos_anticipacion} días de anticipación"
             )
         
-        exito, mensaje = entrevista.reprogramar(nueva_fecha, nueva_hora)
-        
-        if not exito:
-            raise ReprogramacionNoPermitidaException(mensaje)
-        
+        # Guardar horario anterior en historial
+        if entrevista.horario:
+            if not hasattr(entrevista, 'historial_horarios'):
+                entrevista.historial_horarios = []
+            entrevista.historial_horarios.append(entrevista.horario)
+
+        # Asignar nuevo horario
+        entrevista.horario = HorarioEntrevista(fecha=nueva_fecha, hora=nueva_hora)
+        entrevista.veces_reprogramada += 1
+        entrevista.estado = EstadoEntrevista.REPROGRAMADA
+
+        # Generar mensaje apropiado
+        if entrevista.veces_reprogramada >= entrevista.regla.max_reprogramaciones:
+            mensaje = (
+                f"Entrevista reprogramada exitosamente. "
+                f"Esta es tu última reprogramación permitida."
+            )
+        else:
+            reprogramaciones_restantes = (
+                entrevista.regla.max_reprogramaciones - entrevista.veces_reprogramada
+            )
+            mensaje = (
+                f"Entrevista reprogramada exitosamente para el "
+                f"{nueva_fecha.strftime('%Y-%m-%d')} a las {nueva_hora.strftime('%H:%M')}. "
+                f"Te quedan {reprogramaciones_restantes} reprogramaciones."
+            )
+
         return ResultadoOperacion(
             exito=True,
             mensaje=mensaje,
@@ -160,27 +188,45 @@ class CancelacionService:
         """
         Valida si una entrevista puede ser cancelada.
         """
-        return entrevista.puede_cancelar()
-    
+        if not entrevista.horario:
+            return True, "No hay fecha asignada, puede cancelarse"
+
+        horas_restantes = entrevista.horario.horas_restantes()
+
+        if horas_restantes < entrevista.regla.horas_minimas_cancelacion:
+            return False, (f"Error: no es posible cancelar la entrevista debido a que "
+                          f"no se cumple el tiempo mínimo de anticipación")
+
+        return True, "Cancelación permitida"
+
     def cancelar(
         self,
         entrevista: Entrevista,
         motivo: MotivoCancelacion,
-        detalle: str = ""
+        observaciones: str = ""
     ) -> ResultadoOperacion:
         """
         Cancela una entrevista.
         """
-        puede, mensaje = self.validar_cancelacion(entrevista)
-        
-        if not puede:
-            raise CancelacionNoPermitidaException(entrevista.regla.horas_minimas_cancelacion)
-        
-        exito, mensaje_resultado = entrevista.cancelar(motivo, detalle)
-        
+        if not entrevista.horario:
+            raise CancelacionNoPermitidaException(
+                entrevista.regla.horas_minimas_cancelacion
+            )
+
+        # Calcular horas de anticipación
+        horas_restantes = int(entrevista.horario.horas_restantes())
+
+        if not entrevista.puede_cancelarse(horas_restantes):
+            raise CancelacionNoPermitidaException(
+                entrevista.regla.horas_minimas_cancelacion
+            )
+
+        # Realizar la cancelación
+        entrevista.cancelar(motivo, observaciones)
+
         return ResultadoOperacion(
             exito=True,
-            mensaje=mensaje_resultado,
+            mensaje="Entrevista cancelada exitosamente",
             datos={'entrevista': entrevista}
         )
 
@@ -190,10 +236,7 @@ class ConfirmacionService:
     Servicio para gestionar confirmaciones de asistencia.
     """
     
-    def confirmar_asistencia(
-        self,
-        entrevista: Entrevista
-    ) -> ResultadoOperacion:
+    def confirmar(self, entrevista: Entrevista) -> ResultadoOperacion:
         """
         Confirma la asistencia a una entrevista.
         """
@@ -203,14 +246,23 @@ class ConfirmacionService:
                 mensaje="No hay fecha asignada para confirmar"
             )
         
-        if entrevista.confirmar_asistencia():
-            return ResultadoOperacion(
-                exito=True,
-                mensaje="Asistencia confirmada exitosamente",
-                datos={'entrevista': entrevista}
-            )
-        
-        raise EntrevistaNoConfirmableException(entrevista.estado.value)
+        # Usar el método confirmar() directamente
+        entrevista.confirmar()
+
+        return ResultadoOperacion(
+            exito=True,
+            mensaje="Asistencia confirmada exitosamente",
+            datos={'entrevista': entrevista}
+        )
+
+    def confirmar_asistencia(
+        self,
+        entrevista: Entrevista
+    ) -> ResultadoOperacion:
+        """
+        Confirma la asistencia a una entrevista (alias para compatibilidad).
+        """
+        return self.confirmar(entrevista)
 
 
 class NotificacionEntrevistaService:
