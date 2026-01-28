@@ -1,135 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Card, Badge, Button, Modal } from '../../../components/common'
 import { PhaseProgressBarCompact } from '../../../components/common'
+import { solicitudesService } from '../../../services'
 
 // Estados de solicitud con sus fases
 const APPLICATION_STATES = {
+  pendiente: { label: 'Pendiente de Revisión', variant: 'warning', phase: 'approval' },
   pending_review: { label: 'Pendiente de Revisión', variant: 'warning', phase: 'approval' },
+  en_revision: { label: 'En Revisión', variant: 'info', phase: 'approval' },
   in_review: { label: 'En Revisión', variant: 'info', phase: 'approval' },
+  aprobada: { label: 'Aprobada por Asesor', variant: 'success', phase: 'approval' },
   approved: { label: 'Aprobada por Asesor', variant: 'success', phase: 'approval' },
+  enviada_embajada: { label: 'Enviada a Embajada', variant: 'info', phase: 'approval' },
   sent_to_embassy: { label: 'Enviada a Embajada', variant: 'info', phase: 'approval' },
   embassy_approved: { label: 'Aprobada por Embajada', variant: 'success', phase: 'scheduling' },
   embassy_rejected: { label: 'Rechazada por Embajada', variant: 'danger', phase: 'approval' },
+  entrevista_agendada: { label: 'Entrevista Agendada', variant: 'success', phase: 'preparation' },
   interview_scheduled: { label: 'Entrevista Agendada', variant: 'success', phase: 'preparation' },
-  rejected: { label: 'Rechazada', variant: 'danger', phase: 'approval' }
+  rechazada: { label: 'Rechazada', variant: 'danger', phase: 'approval' },
+  rejected: { label: 'Rechazada', variant: 'danger', phase: 'approval' },
+  completada: { label: 'Completada', variant: 'success', phase: 'completed' }
 }
-
-// Mock data - Solicitudes asignadas al asesor
-const MOCK_ASSIGNED_APPLICATIONS = [
-  {
-    id: 'SOL-2024-001',
-    client: {
-      name: 'Ana Martínez',
-      email: 'ana.martinez@email.com',
-      phone: '+57 300 123 4567'
-    },
-    visaType: 'work',
-    visaTypeName: 'Visa de Trabajo',
-    embassy: 'Estados Unidos',
-    status: 'pending_review',
-    submittedAt: '2024-01-25',
-    documentsCount: 5,
-    documentsApproved: 0,
-    priority: 'high',
-    currentPhase: 'approval'
-  },
-  {
-    id: 'SOL-2024-002',
-    client: {
-      name: 'Pedro Sánchez',
-      email: 'pedro.sanchez@email.com',
-      phone: '+57 301 456 7890'
-    },
-    visaType: 'study',
-    visaTypeName: 'Visa de Estudio',
-    embassy: 'Canadá',
-    status: 'in_review',
-    submittedAt: '2024-01-24',
-    documentsCount: 4,
-    documentsApproved: 2,
-    priority: 'medium',
-    currentPhase: 'approval'
-  },
-  {
-    id: 'SOL-2024-003',
-    client: {
-      name: 'Laura Díaz',
-      email: 'laura.diaz@email.com',
-      phone: '+57 302 789 0123'
-    },
-    visaType: 'residence',
-    visaTypeName: 'Visa de Vivienda',
-    embassy: 'España',
-    status: 'approved',
-    submittedAt: '2024-01-20',
-    documentsCount: 6,
-    documentsApproved: 6,
-    priority: 'low',
-    currentPhase: 'approval'
-  },
-  {
-    id: 'SOL-2024-004',
-    client: {
-      name: 'Carlos Rodríguez',
-      email: 'carlos.rodriguez@email.com',
-      phone: '+57 303 111 2222'
-    },
-    visaType: 'work',
-    visaTypeName: 'Visa de Trabajo',
-    embassy: 'Estados Unidos',
-    status: 'sent_to_embassy',
-    submittedAt: '2024-01-15',
-    documentsCount: 5,
-    documentsApproved: 5,
-    priority: 'medium',
-    currentPhase: 'approval'
-  },
-  {
-    id: 'SOL-2024-005',
-    client: {
-      name: 'María González',
-      email: 'maria.gonzalez@email.com',
-      phone: '+57 304 333 4444'
-    },
-    visaType: 'study',
-    visaTypeName: 'Visa de Estudio',
-    embassy: 'Estados Unidos',
-    status: 'embassy_approved',
-    submittedAt: '2024-01-10',
-    documentsCount: 4,
-    documentsApproved: 4,
-    priority: 'high',
-    currentPhase: 'scheduling',
-    embassyResponse: {
-      approvedAt: '2024-01-22',
-      interviewOptions: [
-        { date: '2024-02-15', time: '09:00 AM' },
-        { date: '2024-02-16', time: '10:30 AM' },
-        { date: '2024-02-20', time: '02:00 PM' }
-      ]
-    }
-  },
-  {
-    id: 'SOL-2024-006',
-    client: {
-      name: 'Roberto Méndez',
-      email: 'roberto.mendez@email.com',
-      phone: '+57 305 555 6666'
-    },
-    visaType: 'work',
-    visaTypeName: 'Visa de Trabajo',
-    embassy: 'Canadá',
-    status: 'interview_scheduled',
-    submittedAt: '2024-01-05',
-    documentsCount: 5,
-    documentsApproved: 5,
-    priority: 'low',
-    currentPhase: 'preparation',
-    interviewDate: '2024-02-25',
-    interviewTime: '11:00 AM'
-  }
-]
 
 export default function AdvisorApplicationsListPage() {
   const navigate = useNavigate()
@@ -139,8 +31,67 @@ export default function AdvisorApplicationsListPage() {
   const [showEmbassyModal, setShowEmbassyModal] = useState(false)
   const [selectedApplication, setSelectedApplication] = useState(null)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [applications, setApplications] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    pendientes: 0,
+    enEmbajada: 0,
+    aprobadas: 0,
+    total: 0
+  })
 
-  const filteredApplications = MOCK_ASSIGNED_APPLICATIONS.filter(app => {
+  useEffect(() => {
+    const fetchApplications = async () => {
+      try {
+        setLoading(true)
+        const response = await solicitudesService.getSolicitudesAsignadas()
+        const data = Array.isArray(response) ? response : (response?.results || [])
+        
+        // Transform API data to component format
+        const transformedApps = data.map(app => {
+          const docs = app.documentos_adjuntos || []
+          const docsAprobados = docs.filter(d => d.estado === 'aprobado').length
+          
+          return {
+            id: `SOL-${app.id}`,
+            originalId: app.id,
+            client: {
+              name: app.cliente_nombre || 'Cliente',
+              email: app.cliente_email || '',
+              phone: app.cliente_telefono || ''
+            },
+            visaType: app.tipo_visa,
+            visaTypeName: app.tipo_visa_display || app.tipo_visa,
+            embassy: app.embajada_display || app.embajada,
+            status: app.estado,
+            submittedAt: app.created_at?.split('T')[0] || '',
+            documentsCount: docs.length,
+            documentsApproved: docsAprobados,
+            priority: app.prioridad || 'medium',
+            currentPhase: APPLICATION_STATES[app.estado]?.phase || 'approval'
+          }
+        })
+        
+        setApplications(transformedApps)
+        
+        // Calculate stats
+        setStats({
+          pendientes: transformedApps.filter(a => ['pendiente', 'pending_review'].includes(a.status)).length,
+          enEmbajada: transformedApps.filter(a => ['enviada_embajada', 'sent_to_embassy'].includes(a.status)).length,
+          aprobadas: transformedApps.filter(a => ['aprobada', 'approved', 'embassy_approved', 'entrevista_agendada', 'interview_scheduled'].includes(a.status)).length,
+          total: transformedApps.length
+        })
+      } catch (error) {
+        console.error('Error fetching applications:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchApplications()
+  }, [])
+
+  const filteredApplications = applications.filter(app => {
     const matchesSearch = 
       app.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       app.client.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -151,11 +102,12 @@ export default function AdvisorApplicationsListPage() {
 
   const getVisaTypeIcon = (type) => {
     const icons = {
-      work: { bg: 'bg-purple-100', text: 'text-purple-600', icon: '💼' },
-      study: { bg: 'bg-blue-100', text: 'text-blue-600', icon: '🎓' },
-      residence: { bg: 'bg-green-100', text: 'text-green-600', icon: '🏠' }
+      // Solo 3 tipos de visa: vivienda, trabajo, estudio
+      vivienda: { bg: 'bg-purple-100', text: 'text-purple-600', icon: '🏠' },
+      trabajo: { bg: 'bg-green-100', text: 'text-green-600', icon: '💼' },
+      estudio: { bg: 'bg-blue-100', text: 'text-blue-600', icon: '🎓' }
     }
-    return icons[type] || icons.work
+    return icons[type] || { bg: 'bg-gray-100', text: 'text-gray-600', icon: '📄' }
   }
 
   const getPriorityBadge = (priority) => {
@@ -191,10 +143,12 @@ export default function AdvisorApplicationsListPage() {
 
   const getActionButton = (app) => {
     switch (app.status) {
+      case 'pendiente':
       case 'pending_review':
+      case 'en_revision':
       case 'in_review':
         return (
-          <Link to={`/asesor/solicitudes/${app.id}`}>
+          <Link to={`/asesor/solicitudes/${app.originalId}`}>
             <Button size="sm">
               <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -203,6 +157,7 @@ export default function AdvisorApplicationsListPage() {
             </Button>
           </Link>
         )
+      case 'aprobada':
       case 'approved':
         return (
           <Button size="sm" onClick={() => handleSendToEmbassy(app)}>
@@ -230,9 +185,10 @@ export default function AdvisorApplicationsListPage() {
             Agendar Entrevista
           </Button>
         )
+      case 'entrevista_agendada':
       case 'interview_scheduled':
         return (
-          <Link to={`/asesor/solicitudes/${app.id}`}>
+          <Link to={`/asesor/solicitudes/${app.originalId}`}>
             <Button size="sm" variant="secondary">
               <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -244,7 +200,7 @@ export default function AdvisorApplicationsListPage() {
         )
       default:
         return (
-          <Link to={`/asesor/solicitudes/${app.id}`}>
+          <Link to={`/asesor/solicitudes/${app.originalId}`}>
             <Button size="sm" variant="secondary">Ver Detalles</Button>
           </Link>
         )
@@ -270,7 +226,7 @@ export default function AdvisorApplicationsListPage() {
             </div>
             <div>
               <div className="text-2xl font-bold text-amber-700">
-                {MOCK_ASSIGNED_APPLICATIONS.filter(a => a.status === 'pending_review').length}
+                {stats.pendientes}
               </div>
               <div className="text-sm text-amber-600">Pendientes</div>
             </div>
@@ -285,7 +241,7 @@ export default function AdvisorApplicationsListPage() {
             </div>
             <div>
               <div className="text-2xl font-bold text-blue-700">
-                {MOCK_ASSIGNED_APPLICATIONS.filter(a => a.status === 'sent_to_embassy').length}
+                {stats.enEmbajada}
               </div>
               <div className="text-sm text-blue-600">En Embajada</div>
             </div>
@@ -300,7 +256,7 @@ export default function AdvisorApplicationsListPage() {
             </div>
             <div>
               <div className="text-2xl font-bold text-green-700">
-                {MOCK_ASSIGNED_APPLICATIONS.filter(a => ['embassy_approved', 'interview_scheduled'].includes(a.status)).length}
+                {stats.aprobadas}
               </div>
               <div className="text-sm text-green-600">Aprobadas</div>
             </div>
@@ -315,7 +271,7 @@ export default function AdvisorApplicationsListPage() {
             </div>
             <div>
               <div className="text-2xl font-bold text-purple-700">
-                {MOCK_ASSIGNED_APPLICATIONS.length}
+                {stats.total}
               </div>
               <div className="text-sm text-purple-600">Total Asignadas</div>
             </div>
@@ -357,20 +313,26 @@ export default function AdvisorApplicationsListPage() {
               className="px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 bg-white"
             >
               <option value="all">Todos los estados</option>
-              <option value="pending_review">Pendiente de Revisión</option>
-              <option value="in_review">En Revisión</option>
-              <option value="approved">Aprobada por Asesor</option>
-              <option value="sent_to_embassy">Enviada a Embajada</option>
-              <option value="embassy_approved">Aprobada por Embajada</option>
-              <option value="interview_scheduled">Entrevista Agendada</option>
+              <option value="pendiente">Pendiente de Revisión</option>
+              <option value="en_revision">En Revisión</option>
+              <option value="aprobada">Aprobada por Asesor</option>
+              <option value="enviada_embajada">Enviada a Embajada</option>
+              <option value="entrevista_agendada">Entrevista Agendada</option>
+              <option value="completada">Completada</option>
+              <option value="rechazada">Rechazada</option>
             </select>
           </div>
         </div>
       </Card>
 
       {/* Applications List */}
-      <div className="space-y-4">
-        {filteredApplications.length === 0 ? (
+      <div className="space-y-6">
+        {loading ? (
+          <Card className="text-center py-12">
+            <div className="animate-spin w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-500">Cargando solicitudes...</p>
+          </Card>
+        ) : filteredApplications.length === 0 ? (
           <Card className="text-center py-12">
             <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -423,8 +385,12 @@ export default function AdvisorApplicationsListPage() {
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-green-500 rounded-full transition-all"
-                            style={{ width: `${(app.documentsApproved / app.documentsCount) * 100}%` }}
+                            className={`h-full rounded-full transition-all ${
+                              app.documentsCount === 0 ? 'bg-gray-300' :
+                              app.documentsApproved === app.documentsCount ? 'bg-green-500' :
+                              app.documentsApproved > 0 ? 'bg-yellow-500' : 'bg-gray-300'
+                            }`}
+                            style={{ width: app.documentsCount > 0 ? `${(app.documentsApproved / app.documentsCount) * 100}%` : '0%' }}
                           />
                         </div>
                         <span className="text-sm font-medium text-gray-700">

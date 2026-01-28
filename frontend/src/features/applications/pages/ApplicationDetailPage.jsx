@@ -1,46 +1,168 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Card, Badge, Button, Modal } from '../../../components/common'
+import { solicitudesService } from '../../../services/solicitudesService'
 
-// Mock data for a single application
-const MOCK_APPLICATION = {
-  id: 'SOL-2026-001',
-  type: 'study',
-  typeName: 'Visa de Estudio',
-  embassy: 'USA',
-  embassyName: 'Estados Unidos',
-  status: 'reviewing',
-  statusName: 'En Revisión',
-  date: '2026-01-20',
-  applicantName: 'Juan Pérez García',
-  email: 'juan.perez@email.com',
-  phone: '+593 99 123 4567',
-  documents: [
-    { id: 1, name: 'Pasaporte', status: 'approved', uploadDate: '2026-01-20', size: '2.4 MB' },
-    { id: 2, name: 'Foto', status: 'approved', uploadDate: '2026-01-20', size: '1.1 MB' },
-    { id: 3, name: 'Antecedentes Penales', status: 'reviewing', uploadDate: '2026-01-20', size: '0.8 MB' },
-    { id: 4, name: 'Certificado de Matrícula', status: 'pending', uploadDate: '2026-01-20', size: '1.5 MB' }
-  ],
-  timeline: [
-    { id: 1, action: 'Solicitud creada', date: '2026-01-20 10:30', user: 'Juan Pérez', type: 'created' },
-    { id: 2, action: 'Documentos subidos', date: '2026-01-20 10:35', user: 'Juan Pérez', type: 'upload' },
-    { id: 3, action: 'Pasaporte aprobado', date: '2026-01-21 14:20', user: 'María González', type: 'approved' },
-    { id: 4, action: 'Foto aprobada', date: '2026-01-21 14:25', user: 'María González', type: 'approved' },
-    { id: 5, action: 'Antecedentes en revisión', date: '2026-01-22 09:00', user: 'María González', type: 'reviewing' }
-  ]
+// Default fallback data structure
+const DEFAULT_APPLICATION = {
+  id: '',
+  type: '',
+  typeName: 'Visa',
+  embassy: '',
+  embassyName: 'Embajada',
+  status: 'pending',
+  statusName: 'Pendiente',
+  date: new Date().toISOString().split('T')[0],
+  applicantName: 'Solicitante',
+  email: '',
+  phone: '',
+  documents: [],
+  timeline: []
 }
 
 export default function ApplicationDetailPage() {
-  const { id } = useParams()
+  const { id: rawId } = useParams()
+  // Extraer el ID numérico si viene en formato SOL-X
+  const id = rawId?.startsWith('SOL-') ? rawId.replace('SOL-', '') : rawId
   const [previewDoc, setPreviewDoc] = useState(null)
-  const app = MOCK_APPLICATION // En producción: fetch por id
+  const [app, setApp] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchApplication = async () => {
+      try {
+        const data = await solicitudesService.getSolicitud(id)
+        
+        // Map status to display name
+        const statusMap = {
+          'pendiente': 'Pendiente',
+          'en_revision': 'En Revisión',
+          'aprobada': 'Aprobada',
+          'rechazada': 'Rechazada',
+          'completada': 'Completada',
+          'enviada_embajada': 'Enviada a Embajada',
+          'entrevista_agendada': 'Entrevista Agendada',
+          'borrador': 'Borrador'
+        }
+        
+        // Map visa type to display name (solo 3 tipos)
+        const visaTypeMap = {
+          'estudio': 'Visa de Estudio',
+          'trabajo': 'Visa de Trabajo',
+          'vivienda': 'Visa de Vivienda'
+        }
+
+        // Helper para construir URL absoluta
+        const buildAbsoluteUrl = (url) => {
+          if (!url) return null
+          if (url.startsWith('http')) return url
+          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'
+          return `${baseUrl}${url}`
+        }
+
+        // Transform documentos
+        const docs = (data.documentos_adjuntos || []).map(doc => ({
+          id: doc.id,
+          name: doc.nombre,
+          status: doc.estado,
+          statusName: doc.estado === 'aprobado' ? 'Aprobado' : doc.estado === 'rechazado' ? 'Rechazado' : 'Pendiente',
+          url: buildAbsoluteUrl(doc.archivo_url || doc.archivo),
+          motivo_rechazo: doc.motivo_rechazo,
+          fecha_revision: doc.fecha_revision,
+          size: doc.tamanio || 'PDF',
+          uploadDate: doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString('es-ES') : 'Desconocido'
+        }))
+
+        // Generate timeline from data
+        const timeline = []
+        let timelineId = 1
+        if (data.created_at) {
+          timeline.push({
+            id: timelineId++,
+            type: 'created',
+            action: 'Solicitud creada',
+            user: 'Sistema',
+            date: new Date(data.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+          })
+        }
+        if (data.fecha_asignacion) {
+          timeline.push({
+            id: timelineId++,
+            type: 'reviewing',
+            action: `Asignada a ${data.asesor_nombre || 'un asesor'}`,
+            user: 'Sistema',
+            date: new Date(data.fecha_asignacion).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+          })
+        }
+        if (data.fecha_revision) {
+          timeline.push({
+            id: timelineId++,
+            type: data.estado === 'aprobada' ? 'approved' : 'reviewing',
+            action: `Solicitud ${statusMap[data.estado] || data.estado}`,
+            user: data.asesor_nombre || 'Asesor',
+            date: new Date(data.fecha_revision).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+          })
+        }
+        if (docs.length > 0) {
+          timeline.push({
+            id: timelineId++,
+            type: 'upload',
+            action: `${docs.length} documento(s) adjuntado(s)`,
+            user: 'Cliente',
+            date: ''
+          })
+        }
+        
+        setApp({
+          id: data.id,
+          displayId: `SOL-${data.id}`,
+          type: data.tipo_visa || 'general',
+          typeName: data.tipo_visa_display || visaTypeMap[data.tipo_visa] || 'Visa',
+          embassy: data.embajada || '',
+          embassyName: data.embajada_display || data.embajada || 'Embajada',
+          status: data.estado || 'pendiente',
+          statusName: data.estado_display || statusMap[data.estado] || 'Pendiente',
+          date: data.created_at ? data.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+          applicantName: data.cliente_nombre || 'Solicitante',
+          email: data.datos_personales?.email || '',
+          phone: data.datos_personales?.telefono || '',
+          documents: docs,
+          timeline: timeline,
+          observaciones: data.observaciones,
+          notas_asesor: data.notas_asesor,
+          asesor_nombre: data.asesor_nombre,
+          entrevista: data.entrevista
+        })
+      } catch (error) {
+        console.error('Error fetching application:', error)
+        setApp({ ...DEFAULT_APPLICATION, id, displayId: `SOL-${id}` })
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchApplication()
+  }, [id])
 
   const getStatusVariant = (status) => {
     switch (status) {
-      case 'approved': return 'success'
-      case 'pending': return 'warning'
-      case 'reviewing': return 'info'
-      case 'rejected': return 'danger'
+      case 'aprobada':
+      case 'aprobado':
+      case 'approved': 
+      case 'completada':
+        return 'success'
+      case 'pendiente':
+      case 'borrador':
+      case 'pending': 
+        return 'warning'
+      case 'en_revision':
+      case 'enviada_embajada':
+      case 'entrevista_agendada':
+      case 'reviewing': 
+        return 'info'
+      case 'rechazada':
+      case 'rechazado':
+      case 'rejected': 
+        return 'danger'
       default: return 'default'
     }
   }
@@ -83,6 +205,16 @@ export default function ApplicationDetailPage() {
         return null
     }
   }
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  if (!app) return null
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -302,25 +434,37 @@ export default function ApplicationDetailPage() {
               </Badge>
             </div>
             
-            <div className="aspect-[3/4] bg-gray-100 rounded-xl flex items-center justify-center">
-              <div className="text-center text-gray-400">
-                <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p>Vista previa del documento PDF</p>
-              </div>
+            <div className="aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden">
+              {previewDoc.url ? (
+                <iframe
+                  src={`${previewDoc.url}#toolbar=1`}
+                  className="w-full h-full"
+                  title={previewDoc.name}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <div className="text-center">
+                    <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p>Vista previa no disponible</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-3">
               <Button variant="secondary" onClick={() => setPreviewDoc(null)}>
                 Cerrar
               </Button>
-              <Button>
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Descargar
-              </Button>
+              {previewDoc.url && (
+                <Button onClick={() => window.open(previewDoc.url, '_blank')}>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Descargar
+                </Button>
+              )}
             </div>
           </div>
         )}

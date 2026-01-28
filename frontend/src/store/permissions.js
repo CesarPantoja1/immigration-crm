@@ -80,6 +80,15 @@ export const ROUTES_BY_ROLE = {
     simulations: '/asesor/simulacros',
     calendar: '/asesor/calendario',
     profile: '/asesor/perfil'
+  },
+  [ROLES.ADMIN]: {
+    dashboard: '/admin',
+    users: '/admin/usuarios',
+    advisors: '/admin/asesores',
+    applications: '/admin/solicitudes',
+    reports: '/admin/reportes',
+    settings: '/admin/configuracion',
+    profile: '/admin/perfil'
   }
 }
 

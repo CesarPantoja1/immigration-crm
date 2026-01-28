@@ -1,63 +1,79 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Badge } from '../../../components/common'
 import { useAuth } from '../../../contexts/AuthContext'
-
-// Mock events data
-const MOCK_EVENTS = [
-  {
-    id: 1,
-    type: 'interview',
-    title: 'Entrevista Real - Embajada',
-    date: '2026-02-15',
-    time: '09:00',
-    location: 'Embajada de Estados Unidos',
-    address: 'Av. Principal #456',
-    critical: true,
-    visaType: 'Trabajo',
-    applicationId: 'SOL-2024-001'
-  },
-  {
-    id: 2,
-    type: 'simulation_virtual',
-    title: 'Simulacro Virtual',
-    date: '2026-01-30',
-    time: '15:00',
-    advisor: 'María González',
-    duration: '30 min',
-    visaType: 'Trabajo',
-    applicationId: 'SOL-2024-001'
-  },
-  {
-    id: 3,
-    type: 'simulation_presential',
-    title: 'Simulacro Presencial',
-    date: '2026-02-05',
-    time: '10:00',
-    location: 'Oficina MigraFácil',
-    address: 'Calle Principal #123',
-    advisor: 'María González',
-    duration: '45 min',
-    visaType: 'Trabajo',
-    applicationId: 'SOL-2024-001'
-  }
-]
-
-const MOCK_TIMELINE = [
-  { date: '2026-01-20', event: 'Solicitud enviada a embajada', type: 'milestone' },
-  { date: '2026-01-22', event: 'Embajada aprobó solicitud', type: 'milestone' },
-  { date: '2026-01-23', event: 'Fecha de entrevista asignada: 15/02/2026', type: 'milestone' },
-  { date: '2026-01-24', event: 'Simulacro virtual programado', type: 'event' },
-  { date: '2026-01-25', event: 'Simulacro presencial programado', type: 'event' }
-]
+import { entrevistasService, simulacrosService } from '../../../services'
 
 export default function CalendarPage() {
   const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [events, setEvents] = useState([])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(null)
   const [view, setView] = useState('month') // month, list
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
+
+  useEffect(() => {
+    fetchCalendarEvents()
+  }, [month, year])
+
+  const fetchCalendarEvents = async () => {
+    try {
+      setLoading(true)
+      const mesStr = `${year}-${String(month + 1).padStart(2, '0')}`
+      
+      const [entrevistasResponse, simulacrosResponse] = await Promise.all([
+        entrevistasService.getCalendario(mesStr).catch(() => []),
+        simulacrosService.getMisSimulacros().catch(() => [])
+      ])
+
+      // Handle both array and object with results
+      const entrevistasData = Array.isArray(entrevistasResponse) 
+        ? entrevistasResponse 
+        : (entrevistasResponse?.results || [])
+      
+      const simulacrosData = Array.isArray(simulacrosResponse) 
+        ? simulacrosResponse 
+        : (simulacrosResponse?.results || [])
+
+      // Transform entrevistas - EVENTO CRÍTICO (Entrevista real en embajada)
+      const entrevistas = (entrevistasData || []).map(e => ({
+        id: e.id,
+        type: 'interview',
+        title: e.titulo || `Entrevista - ${e.embajada || 'Embajada'}`,
+        date: e.fecha,
+        time: e.hora,
+        location: e.ubicacion || e.embajada || 'Embajada',
+        critical: true,
+        visaType: e.tipo_visa || 'Visa',
+        applicationId: e.solicitud_id,
+        status: e.estado
+      }))
+
+      // Transform simulacros - Mostrar confirmados, propuestos y solicitados
+      const simulacros = (simulacrosData || [])
+        .filter(s => ['confirmado', 'propuesto', 'solicitado', 'en_progreso'].includes(s.estado))
+        .map(s => ({
+          id: `sim-${s.id}`,
+          type: s.modalidad === 'presencial' ? 'simulation_presential' : 'simulation_virtual',
+          title: s.modalidad === 'presencial' ? 'Simulacro Presencial' : 'Simulacro Virtual',
+          date: s.fecha_propuesta,
+          time: s.hora_propuesta,
+          advisor: s.asesor_nombre || 'Asesor asignado',
+          duration: '30-45 min',
+          visaType: s.solicitud_tipo || 'Visa',
+          location: s.ubicacion || (s.modalidad === 'virtual' ? 'Virtual' : 'Por confirmar'),
+          status: s.estado
+        }))
+
+      setEvents([...entrevistas, ...simulacros])
+    } catch (error) {
+      console.error('Error fetching calendar events:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Get days in month
   const firstDayOfMonth = new Date(year, month, 1)
@@ -72,7 +88,7 @@ export default function CalendarPage() {
 
   // Get events for a specific date
   const getEventsForDate = (dateStr) => {
-    return MOCK_EVENTS.filter(e => e.date === dateStr)
+    return events.filter(e => e.date === dateStr)
   }
 
   // Format date to string
@@ -108,8 +124,8 @@ export default function CalendarPage() {
            today.getFullYear() === year
   }
 
-  // Upcoming events sorted by date
-  const upcomingEvents = [...MOCK_EVENTS]
+  // Upcoming events sorted by date from API data
+  const upcomingEvents = [...events]
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .filter(e => new Date(e.date) >= new Date(today.toISOString().split('T')[0]))
 
@@ -307,7 +323,15 @@ export default function CalendarPage() {
           <Card>
             <h3 className="font-semibold text-gray-900 mb-4">Próximos Eventos</h3>
             <div className="space-y-4">
-              {upcomingEvents.map(event => {
+              {upcomingEvents.length === 0 ? (
+                <div className="text-center py-6">
+                  <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-sm text-gray-500">No hay eventos próximos</p>
+                  <p className="text-xs text-gray-400 mt-1">Los simulacros y entrevistas aparecerán aquí</p>
+                </div>
+              ) : upcomingEvents.map(event => {
                 const style = getEventTypeStyle(event.type)
                 const eventDate = new Date(event.date + 'T00:00')
                 return (
@@ -331,29 +355,33 @@ export default function CalendarPage() {
             </div>
           </Card>
 
-          {/* Timeline */}
+          {/* Timeline - Shows recent activity from events */}
           <Card>
-            <h3 className="font-semibold text-gray-900 mb-4">Historial de Cambios</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">Próximos Eventos</h3>
             <div className="relative">
               <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-gray-200" />
               <div className="space-y-4">
-                {MOCK_TIMELINE.map((item, index) => (
+                {upcomingEvents.slice(0, 5).map((item, index) => (
                   <div key={index} className="flex gap-3 relative">
                     <div className={`w-4 h-4 rounded-full border-2 border-white z-10 flex-shrink-0 ${
-                      item.type === 'milestone' ? 'bg-green-500' : 'bg-blue-500'
+                      item.type === 'interview' ? 'bg-red-500' : 
+                      item.type === 'simulation_presential' ? 'bg-amber-500' : 'bg-purple-500'
                     }`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-700">{item.event}</p>
+                      <p className="text-sm text-gray-700">{item.title}</p>
                       <p className="text-xs text-gray-400 mt-0.5">
                         {new Date(item.date + 'T00:00').toLocaleDateString('es-ES', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric'
-                        })}
+                        })} - {item.time}
                       </p>
                     </div>
                   </div>
                 ))}
+                {upcomingEvents.length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-4">No hay eventos próximos</p>
+                )}
               </div>
             </div>
           </Card>

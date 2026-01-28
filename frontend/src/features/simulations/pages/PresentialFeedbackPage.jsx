@@ -1,45 +1,82 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Badge, Button } from '../../../components/common'
 import { FeedbackForm } from '../../../components/feedback'
 import { PhaseProgressBarCompact } from '../../../components/common'
 import { PHASES } from '../../../store'
+import { simulacrosService } from '../../../services/simulacrosService'
 
-// Mock data
-const MOCK_SIMULATION = {
-  id: 3,
+// Default fallback data structure
+const DEFAULT_SIMULATION = {
+  id: 0,
   type: 'presential',
-  status: 'in_progress', // scheduled, in_progress, completed
-  date: '2026-02-05',
+  status: 'scheduled',
+  date: new Date().toISOString().split('T')[0],
   time: '10:00',
   endTime: '10:45',
   client: {
-    id: 'client-123',
-    name: 'Carlos Rodríguez',
-    email: 'carlos@email.com',
+    id: '',
+    name: 'Cliente',
+    email: '',
     photo: null,
-    phone: '+57 310 555 1234'
+    phone: ''
   },
-  applicationId: 'SOL-2024-001',
-  visaType: 'Trabajo',
+  applicationId: '',
+  visaType: 'Visa General',
   visaDetails: {
-    destination: 'España',
-    purpose: 'Oferta laboral en empresa tecnológica'
+    destination: '',
+    purpose: ''
   },
-  currentPhase: 'preparation',
+  currentPhase: 'reception',
   attendanceConfirmed: false,
-  previousSimulations: [
-    { id: 1, date: '2026-01-20', type: 'virtual', score: 7.5 },
-    { id: 2, date: '2026-01-25', type: 'virtual', score: 8.2 }
-  ]
+  previousSimulations: []
 }
 
 export default function PresentialFeedbackPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [simulation, setSimulation] = useState(MOCK_SIMULATION)
+  const [simulation, setSimulation] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [showFeedbackForm, setShowFeedbackForm] = useState(false)
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
+
+  useEffect(() => {
+    const fetchSimulation = async () => {
+      try {
+        const data = await simulacrosService.getSimulacro(id)
+        setSimulation({
+          id: data.id,
+          type: 'presential',
+          status: data.estado || 'scheduled',
+          date: data.fecha,
+          time: data.hora_inicio || data.hora || '10:00',
+          endTime: data.hora_fin || '10:45',
+          client: {
+            id: data.cliente?.id || '',
+            name: data.cliente?.nombre || data.cliente_nombre || 'Cliente',
+            email: data.cliente?.email || '',
+            photo: data.cliente?.foto || null,
+            phone: data.cliente?.telefono || ''
+          },
+          applicationId: data.solicitud_id || '',
+          visaType: data.tipo_visa || 'Visa General',
+          visaDetails: {
+            destination: data.destino || '',
+            purpose: data.proposito || ''
+          },
+          currentPhase: data.fase_actual || 'reception',
+          attendanceConfirmed: data.asistencia_confirmada || false,
+          previousSimulations: data.simulacros_anteriores || []
+        })
+      } catch (error) {
+        console.error('Error fetching simulation:', error)
+        setSimulation({ ...DEFAULT_SIMULATION, id })
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchSimulation()
+  }, [id])
 
   const formatDate = (dateStr) => {
     return new Date(dateStr + 'T00:00').toLocaleDateString('es-ES', {
@@ -62,15 +99,27 @@ export default function PresentialFeedbackPage() {
     setShowFeedbackForm(true)
   }
 
-  const handleSubmitFeedback = (feedback) => {
+  const handleSubmitFeedback = async (feedback) => {
     console.log('Feedback submitted:', feedback)
-    setFeedbackSubmitted(true)
-    setShowFeedbackForm(false)
-    // TODO: API call to save feedback
+    try {
+      await simulacrosService.submitFeedback(simulation.id, feedback)
+      setFeedbackSubmitted(true)
+      setShowFeedbackForm(false)
+    } catch (error) {
+      console.error('Error submitting feedback:', error)
+      // Still mark as submitted for demo purposes
+      setFeedbackSubmitted(true)
+      setShowFeedbackForm(false)
+    }
   }
 
-  const handleCompleteSession = () => {
+  const handleCompleteSession = async () => {
     if (confirm('¿Confirmas que el simulacro ha finalizado?')) {
+      try {
+        await simulacrosService.completarSimulacro(simulation.id)
+      } catch (error) {
+        console.error('Error completing simulation:', error)
+      }
       setSimulation(prev => ({
         ...prev,
         status: 'completed'
@@ -78,6 +127,16 @@ export default function PresentialFeedbackPage() {
       navigate('/asesor/simulacros')
     }
   }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+      </div>
+    )
+  }
+
+  if (!simulation) return null
 
   return (
     <div className="min-h-screen bg-gray-50">

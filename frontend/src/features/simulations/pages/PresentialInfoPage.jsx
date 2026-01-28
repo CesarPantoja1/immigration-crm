@@ -1,48 +1,78 @@
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Badge, Button } from '../../../components/common'
+import { simulacrosService } from '../../../services/simulacrosService'
 
-// Mock simulation data
-const MOCK_SIMULATION = {
-  id: 3,
+// Default fallback data structure
+const DEFAULT_SIMULATION = {
+  id: 0,
   type: 'presential',
   status: 'confirmed',
-  date: '2026-02-05',
+  date: new Date().toISOString().split('T')[0],
   time: '10:00',
   endTime: '10:45',
   advisor: {
-    name: 'María González',
+    name: 'Asesor',
     photo: null,
-    phone: '+57 300 123 4567'
+    phone: ''
   },
   location: {
-    name: 'Oficina MigraFácil - Sede Norte',
-    address: 'Calle Principal #123, Piso 4, Oficina 401',
-    city: 'Bogotá',
-    mapUrl: 'https://maps.google.com/?q=4.6097,-74.0817',
-    lat: 4.6097,
-    lng: -74.0817
+    name: 'Oficina MigraFácil',
+    address: 'Dirección por confirmar',
+    city: 'Ciudad',
+    mapUrl: '#',
+    lat: 0,
+    lng: 0
   },
   instructions: [
     'Llegar 15 minutos antes de la hora programada',
     'Traer documento de identidad original',
-    'Traer todos los documentos de tu solicitud de visa (originales y copias)',
-    'Vestir de forma formal, similar a como asistirás a la entrevista real',
+    'Traer todos los documentos de tu solicitud de visa',
+    'Vestir de forma formal',
     'El simulacro durará aproximadamente 45 minutos'
   ],
-  documents: [
-    { name: 'Pasaporte', required: true },
-    { name: 'Carta de oferta laboral', required: true },
-    { name: 'Currículum vitae', required: true },
-    { name: 'Certificado de antecedentes', required: true }
-  ],
-  visaType: 'Trabajo',
-  applicationId: 'SOL-2024-001'
+  documents: [],
+  visaType: 'Visa General',
+  applicationId: ''
 }
 
 export default function PresentialInfoPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const simulation = MOCK_SIMULATION
+  const [simulation, setSimulation] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchSimulation = async () => {
+      try {
+        const data = await simulacrosService.getSimulacro(id)
+        setSimulation({
+          id: data.id,
+          type: 'presential',
+          status: data.estado || 'confirmed',
+          date: data.fecha,
+          time: data.hora_inicio || data.hora || '10:00',
+          endTime: data.hora_fin || '10:45',
+          advisor: {
+            name: data.asesor?.nombre || data.asesor_nombre || 'Por asignar',
+            photo: data.asesor?.foto || null,
+            phone: data.asesor?.telefono || ''
+          },
+          location: data.ubicacion || DEFAULT_SIMULATION.location,
+          instructions: data.instrucciones || DEFAULT_SIMULATION.instructions,
+          documents: data.documentos || [],
+          visaType: data.tipo_visa || 'Visa General',
+          applicationId: data.solicitud_id || ''
+        })
+      } catch (error) {
+        console.error('Error fetching simulation:', error)
+        setSimulation({ ...DEFAULT_SIMULATION, id })
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchSimulation()
+  }, [id])
 
   const formatDate = (dateStr) => {
     return new Date(dateStr + 'T00:00').toLocaleDateString('es-ES', {
@@ -53,7 +83,7 @@ export default function PresentialInfoPage() {
     })
   }
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     // Verificar reglas de cancelación
     const simulationDate = new Date(`${simulation.date}T${simulation.time}`)
     const now = new Date()
@@ -65,10 +95,25 @@ export default function PresentialInfoPage() {
     }
 
     if (confirm('¿Estás seguro de que deseas cancelar este simulacro?')) {
-      // TODO: API call
-      navigate('/simulacros')
+      try {
+        await simulacrosService.cancelarSimulacro(simulation.id)
+        navigate('/simulacros')
+      } catch (error) {
+        console.error('Error cancelling simulation:', error)
+        alert('Error al cancelar el simulacro. Inténtalo de nuevo.')
+      }
     }
   }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+      </div>
+    )
+  }
+
+  if (!simulation) return null
 
   return (
     <div className="min-h-screen bg-gray-50">

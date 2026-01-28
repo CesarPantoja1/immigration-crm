@@ -72,6 +72,11 @@ class CrearSolicitudView(generics.CreateAPIView):
     serializer_class = SolicitudCreateSerializer
     permission_classes = [permissions.IsAuthenticated]
     
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
     def perform_create(self, serializer):
         serializer.save()
 
@@ -105,14 +110,14 @@ class SolicitudDetailView(generics.RetrieveAPIView):
 class SolicitudesAsignadasView(generics.ListAPIView):
     """
     GET /api/solicitudes/asignadas/
-    Lista las solicitudes asignadas al asesor.
+    Lista las solicitudes asignadas al asesor con documentos.
     """
-    serializer_class = SolicitudListSerializer
+    serializer_class = SolicitudDetailSerializer
     permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
     
     def get_queryset(self):
         user = self.request.user
-        queryset = Solicitud.objects.filter(is_deleted=False)
+        queryset = Solicitud.objects.filter(is_deleted=False).prefetch_related('documentos_adjuntos')
         
         if user.rol == 'asesor':
             queryset = queryset.filter(asesor=user)
@@ -166,6 +171,75 @@ class ActualizarSolicitudView(generics.UpdateAPIView):
         if instance.estado in ['aprobada', 'rechazada']:
             instance.fecha_revision = timezone.now()
             instance.save()
+
+
+class EnviarSolicitudView(APIView):
+    """
+    POST /api/solicitudes/<id>/enviar/
+    Envía/confirma una solicitud (cambia de borrador a pendiente).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, pk):
+        try:
+            solicitud = Solicitud.objects.get(pk=pk, cliente=request.user, is_deleted=False)
+        except Solicitud.DoesNotExist:
+            return Response(
+                {'error': 'Solicitud no encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if solicitud.estado not in ['borrador', 'pendiente']:
+            return Response(
+                {'error': 'La solicitud ya ha sido enviada'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        solicitud.estado = 'pendiente'
+        solicitud.save()
+        
+        return Response({
+            'mensaje': 'Solicitud enviada exitosamente',
+            'solicitud': SolicitudDetailSerializer(solicitud).data
+        })
+
+
+class SubirDocumentoView(APIView):
+    """
+    POST /api/solicitudes/<id>/documentos/
+    Sube un documento a una solicitud.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, pk):
+        try:
+            solicitud = Solicitud.objects.get(pk=pk, cliente=request.user, is_deleted=False)
+        except Solicitud.DoesNotExist:
+            return Response(
+                {'error': 'Solicitud no encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        archivo = request.FILES.get('archivo')
+        nombre = request.data.get('nombre', 'Documento')
+        
+        if not archivo:
+            return Response(
+                {'error': 'No se ha enviado ningún archivo'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        documento = Documento.objects.create(
+            solicitud=solicitud,
+            nombre=nombre,
+            archivo=archivo,
+            estado='pendiente'
+        )
+        
+        return Response({
+            'mensaje': 'Documento subido exitosamente',
+            'documento': DocumentoSerializer(documento, context={'request': request}).data
+        }, status=status.HTTP_201_CREATED)
 
 
 class AsignarAsesorView(APIView):
@@ -266,3 +340,125 @@ class EstadisticasAsesorView(APIView):
                 fecha_asignacion__date=hoy
             ).count() if user.rol == 'asesor' else None,
         })
+
+
+# =====================================================
+# VISTAS DE DOCUMENTOS
+# =====================================================
+
+class DocumentoDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/documentos/<id>/
+    Obtiene el detalle de un documento.
+    """
+    serializer_class = DocumentoSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.rol == 'cliente':
+            return Documento.objects.filter(solicitud__cliente=user)
+        elif user.rol == 'asesor':
+            return Documento.objects.filter(solicitud__asesor=user)
+        return Documento.objects.all()
+
+
+class AprobarDocumentoView(APIView):
+    """
+    PATCH /api/documentos/<id>/aprobar/
+    Aprueba un documento (asesor).
+    """
+    permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
+    
+    def patch(self, request, pk):
+        try:
+            documento = Documento.objects.get(pk=pk)
+            
+            # Verificar que el asesor tenga permiso
+            user = request.user
+            if user.rol == 'asesor' and documento.solicitud.asesor != user:
+                return Response(
+                    {'error': 'No tienes permiso para aprobar este documento'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            documento.estado = 'aprobado'
+            documento.revisado_por = user
+            documento.fecha_revision = timezone.now()
+            documento.motivo_rechazo = ''
+            documento.save()
+            
+            return Response({
+                'mensaje': 'Documento aprobado exitosamente',
+                'documento': DocumentoSerializer(documento, context={'request': request}).data
+            })
+        except Documento.DoesNotExist:
+            return Response(
+                {'error': 'Documento no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class RechazarDocumentoView(APIView):
+    """
+    PATCH /api/documentos/<id>/rechazar/
+    Rechaza un documento (asesor).
+    """
+    permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
+    
+    def patch(self, request, pk):
+        try:
+            documento = Documento.objects.get(pk=pk)
+            
+            # Verificar que el asesor tenga permiso
+            user = request.user
+            if user.rol == 'asesor' and documento.solicitud.asesor != user:
+                return Response(
+                    {'error': 'No tienes permiso para rechazar este documento'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            motivo = request.data.get('motivo_rechazo', '')
+            if not motivo:
+                return Response(
+                    {'error': 'Debe proporcionar un motivo de rechazo'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            documento.estado = 'rechazado'
+            documento.revisado_por = user
+            documento.fecha_revision = timezone.now()
+            documento.motivo_rechazo = motivo
+            documento.save()
+            
+            return Response({
+                'mensaje': 'Documento rechazado',
+                'documento': DocumentoSerializer(documento, context={'request': request}).data
+            })
+        except Documento.DoesNotExist:
+            return Response(
+                {'error': 'Documento no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class ListarDocumentosSolicitudView(generics.ListAPIView):
+    """
+    GET /api/solicitudes/<id>/documentos/
+    Lista todos los documentos de una solicitud.
+    """
+    serializer_class = DocumentoSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        solicitud_id = self.kwargs.get('pk')
+        user = self.request.user
+        
+        queryset = Documento.objects.filter(solicitud_id=solicitud_id)
+        
+        if user.rol == 'cliente':
+            queryset = queryset.filter(solicitud__cliente=user)
+        elif user.rol == 'asesor':
+            queryset = queryset.filter(solicitud__asesor=user)
+        
+        return queryset

@@ -1,28 +1,57 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button, Card, Modal } from '../../../components/common'
+import { simulacrosService } from '../../../services/simulacrosService'
 
-// Mock data
-const simulationData = {
-  id: '1',
+// Default simulation data
+const defaultSimulationData = {
+  id: '',
   client: {
-    name: 'Juan Pérez',
-    visaType: 'Visa de Estudio',
-    avatar: 'JP'
+    name: 'Cliente',
+    visaType: 'Visa',
+    avatar: 'C'
   },
-  scheduledTime: '10:00 AM',
-  date: '27 de enero de 2024'
+  scheduledTime: '',
+  date: ''
 }
 
 export default function AdvisorMeetingRoomPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [simulationData, setSimulationData] = useState(defaultSimulationData)
+  const [loading, setLoading] = useState(true)
   const [isInSession, setIsInSession] = useState(false)
   const [sessionTime, setSessionTime] = useState(0)
   const [showEndModal, setShowEndModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [rating, setRating] = useState(0)
+
+  useEffect(() => {
+    const fetchSimulationData = async () => {
+      try {
+        const data = await simulacrosService.getSimulacro(id)
+        const clientName = data.cliente_nombre || data.cliente?.nombre || 'Cliente'
+        setSimulationData({
+          id: data.id,
+          client: {
+            name: clientName,
+            visaType: data.tipo_visa || 'Visa',
+            avatar: clientName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+          },
+          scheduledTime: data.hora_propuesta || data.hora || '',
+          date: data.fecha_propuesta ? new Date(data.fecha_propuesta + 'T00:00').toLocaleDateString('es-ES', {
+            day: 'numeric', month: 'long', year: 'numeric'
+          }) : ''
+        })
+      } catch (error) {
+        console.error('Error fetching simulation:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchSimulationData()
+  }, [id])
 
   // Session timer
   useEffect(() => {

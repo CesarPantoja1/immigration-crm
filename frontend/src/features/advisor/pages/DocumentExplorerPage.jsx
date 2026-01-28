@@ -1,184 +1,115 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Card, Badge, Button, SplitViewModal } from '../../../components/common'
-import { VISA_TYPES, DOCUMENT_CHECKLIST } from '../../../store'
+import { useState, useEffect } from 'react'
+import { Card, SplitViewModal } from '../../../components/common'
+import { solicitudesService } from '../../../services'
 
-// Nueva estructura: Tipo de Visa → Clientes → Categoría de Documentos → Documentos
-const folderStructure = [
-  {
-    id: 'visa-trabajo',
-    name: 'Visa de Trabajo',
-    icon: '💼',
-    type: 'visa-type',
-    color: 'purple',
-    expanded: true,
-    children: [
-      {
-        id: 'trabajo-client-1',
-        name: 'Ana Martínez',
-        type: 'client-folder',
-        applicationId: 'SOL-2024-001',
-        status: 'pending_review',
-        expanded: false,
-        children: [
-          { id: 't-c1-personal', name: 'Documentos Personales', type: 'folder', docCount: 2, status: 'complete' },
-          { id: 't-c1-legal', name: 'Documentos Legales', type: 'folder', docCount: 2, status: 'complete' },
-          { id: 't-c1-work', name: 'Documentos Laborales', type: 'folder', docCount: 1, status: 'pending' }
-        ]
-      },
-      {
-        id: 'trabajo-client-5',
-        name: 'Roberto Méndez',
-        type: 'client-folder',
-        applicationId: 'SOL-2024-005',
-        status: 'approved',
-        expanded: false,
-        children: [
-          { id: 't-c5-personal', name: 'Documentos Personales', type: 'folder', docCount: 2, status: 'complete' },
-          { id: 't-c5-legal', name: 'Documentos Legales', type: 'folder', docCount: 2, status: 'complete' },
-          { id: 't-c5-work', name: 'Documentos Laborales', type: 'folder', docCount: 2, status: 'complete' }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'visa-estudio',
-    name: 'Visa de Estudio',
-    icon: '🎓',
-    type: 'visa-type',
-    color: 'blue',
-    expanded: false,
-    children: [
-      {
-        id: 'estudio-client-2',
-        name: 'Pedro Sánchez',
-        type: 'client-folder',
-        applicationId: 'SOL-2024-002',
-        status: 'pending_review',
-        expanded: false,
-        children: [
-          { id: 'e-c2-personal', name: 'Documentos Personales', type: 'folder', docCount: 2, status: 'complete' },
-          { id: 'e-c2-academic', name: 'Documentos Académicos', type: 'folder', docCount: 1, status: 'pending' },
-          { id: 'e-c2-financial', name: 'Documentos Financieros', type: 'folder', docCount: 1, status: 'complete' }
-        ]
-      },
-      {
-        id: 'estudio-client-4',
-        name: 'Carlos López',
-        type: 'client-folder',
-        applicationId: 'SOL-2024-004',
-        status: 'draft',
-        expanded: false,
-        children: [
-          { id: 'e-c4-personal', name: 'Documentos Personales', type: 'folder', docCount: 2, status: 'incomplete' },
-          { id: 'e-c4-academic', name: 'Documentos Académicos', type: 'folder', docCount: 0, status: 'missing' },
-          { id: 'e-c4-financial', name: 'Documentos Financieros', type: 'folder', docCount: 1, status: 'pending' }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'visa-vivienda',
-    name: 'Visa de Vivienda',
-    icon: '🏠',
-    type: 'visa-type',
-    color: 'green',
-    expanded: false,
-    children: [
-      {
-        id: 'vivienda-client-3',
-        name: 'Laura Díaz',
-        type: 'client-folder',
-        applicationId: 'SOL-2024-003',
-        status: 'pending_review',
-        expanded: false,
-        children: [
-          { id: 'v-c3-personal', name: 'Documentos Personales', type: 'folder', docCount: 2, status: 'complete' },
-          { id: 'v-c3-property', name: 'Documentos de Propiedad', type: 'folder', docCount: 3, status: 'complete' },
-          { id: 'v-c3-financial', name: 'Documentos Financieros', type: 'folder', docCount: 1, status: 'pending' }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'templates',
-    name: 'Plantillas',
-    icon: '📋',
-    type: 'folder',
-    expanded: false,
-    children: [
-      { id: 'template-work', name: 'Visa de Trabajo', type: 'folder', docCount: 5 },
-      { id: 'template-study', name: 'Visa de Estudio', type: 'folder', docCount: 4 },
-      { id: 'template-housing', name: 'Visa de Vivienda', type: 'folder', docCount: 6 }
-    ]
-  }
-]
-
-const mockDocuments = {
-  't-c1-personal': [
-    { id: 1, name: 'Pasaporte', type: 'pdf', size: '2.4 MB', uploadedAt: '25/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1544965838-54ef8406f868?w=400' },
-    { id: 2, name: 'Foto 2x2', type: 'jpg', size: '1.1 MB', uploadedAt: '25/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400' }
-  ],
-  't-c1-legal': [
-    { id: 3, name: 'Antecedentes Judiciales', type: 'pdf', size: '1.3 MB', uploadedAt: '25/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400' },
-    { id: 4, name: 'Certificado de Conducta', type: 'pdf', size: '890 KB', uploadedAt: '25/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1586282391129-76a6df230234?w=400' }
-  ],
-  't-c1-work': [
-    { id: 5, name: 'Carta de Oferta Laboral', type: 'pdf', size: '856 KB', uploadedAt: '25/01/2024', status: 'pending', preview: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400' }
-  ],
-  'e-c2-personal': [
-    { id: 1, name: 'Pasaporte', type: 'pdf', size: '2.1 MB', uploadedAt: '24/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1544965838-54ef8406f868?w=400' },
-    { id: 2, name: 'Foto 2x2', type: 'jpg', size: '980 KB', uploadedAt: '24/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400' }
-  ],
-  'e-c2-academic': [
-    { id: 3, name: 'Carta de Aceptación', type: 'pdf', size: '1.2 MB', uploadedAt: '24/01/2024', status: 'pending', preview: 'https://images.unsplash.com/photo-1586282391129-76a6df230234?w=400' }
-  ],
-  'e-c2-financial': [
-    { id: 4, name: 'Estados Financieros', type: 'pdf', size: '2.8 MB', uploadedAt: '24/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400' }
-  ],
-  'v-c3-personal': [
-    { id: 1, name: 'Pasaporte', type: 'pdf', size: '2.3 MB', uploadedAt: '23/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1544965838-54ef8406f868?w=400' },
-    { id: 2, name: 'Foto 2x2', type: 'jpg', size: '1.0 MB', uploadedAt: '23/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400' }
-  ],
-  'v-c3-property': [
-    { id: 3, name: 'Título de Propiedad', type: 'pdf', size: '3.5 MB', uploadedAt: '23/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400' },
-    { id: 4, name: 'Contrato de Compra', type: 'pdf', size: '2.1 MB', uploadedAt: '23/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1586282391129-76a6df230234?w=400' },
-    { id: 5, name: 'Avalúo', type: 'pdf', size: '1.8 MB', uploadedAt: '23/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400' }
-  ],
-  'v-c3-financial': [
-    { id: 6, name: 'Extractos Bancarios', type: 'pdf', size: '4.2 MB', uploadedAt: '23/01/2024', status: 'pending', preview: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400' }
-  ],
-  'e-c4-personal': [
-    { id: 1, name: 'Pasaporte', type: 'pdf', size: '2.0 MB', uploadedAt: '22/01/2024', status: 'pending', preview: 'https://images.unsplash.com/photo-1544965838-54ef8406f868?w=400' },
-    { id: 2, name: 'Foto 2x2', type: 'jpg', size: '890 KB', uploadedAt: '22/01/2024', status: 'pending', preview: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400' }
-  ],
-  'e-c4-financial': [
-    { id: 4, name: 'Solvencia Económica', type: 'pdf', size: '2.5 MB', uploadedAt: '22/01/2024', status: 'pending', preview: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400' }
-  ],
-  't-c5-personal': [
-    { id: 1, name: 'Pasaporte', type: 'pdf', size: '2.4 MB', uploadedAt: '20/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1544965838-54ef8406f868?w=400' },
-    { id: 2, name: 'Foto 2x2', type: 'jpg', size: '1.2 MB', uploadedAt: '20/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400' }
-  ],
-  't-c5-legal': [
-    { id: 3, name: 'Antecedentes Judiciales', type: 'pdf', size: '1.1 MB', uploadedAt: '20/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400' },
-    { id: 4, name: 'Certificado de Conducta', type: 'pdf', size: '920 KB', uploadedAt: '20/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1586282391129-76a6df230234?w=400' }
-  ],
-  't-c5-work': [
-    { id: 5, name: 'Carta de Oferta Laboral', type: 'pdf', size: '780 KB', uploadedAt: '20/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400' },
-    { id: 6, name: 'Contrato de Trabajo', type: 'pdf', size: '1.3 MB', uploadedAt: '20/01/2024', status: 'approved', preview: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400' }
-  ]
+// Mapeo de tipos de visa a iconos y colores (solo 3 tipos: vivienda, trabajo, estudio)
+const visaTypeConfig = {
+  'vivienda': { icon: '🏠', color: 'purple', name: 'Visa de Vivienda' },
+  'trabajo': { icon: '💼', color: 'green', name: 'Visa de Trabajo' },
+  'estudio': { icon: '🎓', color: 'blue', name: 'Visa de Estudio' }
 }
 
 export default function DocumentExplorerPage() {
-  const [expandedFolders, setExpandedFolders] = useState(['visa-trabajo'])
+  const [loading, setLoading] = useState(true)
+  const [folderStructure, setFolderStructure] = useState([])
+  const [documentsMap, setDocumentsMap] = useState({})
+  const [selectedSolicitud, setSelectedSolicitud] = useState(null)
+  const [expandedFolders, setExpandedFolders] = useState([])
   const [selectedFolder, setSelectedFolder] = useState(null)
   const [selectedPath, setSelectedPath] = useState([])
   const [viewMode, setViewMode] = useState('grid')
   const [searchQuery, setSearchQuery] = useState('')
   const [reviewingDocument, setReviewingDocument] = useState(null)
   const [showSplitView, setShowSplitView] = useState(false)
+  const [error, setError] = useState(null)
 
-  const documents = selectedFolder ? mockDocuments[selectedFolder] || [] : []
+  // Cargar solicitudes desde la API y organizarlas por tipo de visa
+  useEffect(() => {
+    const fetchSolicitudes = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await solicitudesService.getSolicitudesAsignadas()
+        const solicitudes = Array.isArray(response) ? response : (response?.results || [])
+        
+        // Helper para construir URL absoluta
+        const buildAbsoluteUrl = (url) => {
+          if (!url) return null
+          if (url.startsWith('http')) return url
+          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'
+          return `${baseUrl}${url}`
+        }
+        
+        // Organizar solicitudes por tipo de visa
+        const solicitudesPorTipo = {}
+        const docsMap = {}
+        
+        solicitudes.forEach(sol => {
+          const tipoVisa = sol.tipo_visa || 'otro'
+          if (!solicitudesPorTipo[tipoVisa]) {
+            solicitudesPorTipo[tipoVisa] = []
+          }
+          solicitudesPorTipo[tipoVisa].push(sol)
+          
+          // Guardar documentos en el mapa
+          const clientFolderId = `client-${sol.id}`
+          const documentos = sol.documentos_adjuntos || []
+          docsMap[clientFolderId] = documentos.map(doc => ({
+            id: doc.id,
+            name: doc.nombre || 'Documento',
+            type: doc.archivo ? doc.archivo.split('.').pop() : 'pdf',
+            size: 'N/A',
+            uploadedAt: new Date(doc.created_at).toLocaleDateString('es-ES'),
+            status: doc.estado || 'pendiente',
+            preview: buildAbsoluteUrl(doc.archivo_url || doc.archivo),
+            archivo: buildAbsoluteUrl(doc.archivo_url || doc.archivo)
+          }))
+        })
+        
+        // Construir estructura de carpetas
+        const structure = Object.entries(solicitudesPorTipo).map(([tipoVisa, sols]) => {
+          const config = visaTypeConfig[tipoVisa] || { icon: '📄', color: 'gray', name: tipoVisa }
+          
+          return {
+            id: `visa-${tipoVisa}`,
+            name: config.name,
+            icon: config.icon,
+            type: 'visa-type',
+            color: config.color,
+            children: sols.map(sol => ({
+              id: `client-${sol.id}`,
+              name: sol.cliente_nombre || `Cliente #${sol.id}`,
+              type: 'client-folder',
+              applicationId: `SOL-${sol.id}`,
+              solicitudId: sol.id,
+              status: sol.estado || 'pendiente',
+              docCount: (sol.documentos_adjuntos || []).length
+            }))
+          }
+        })
+        
+        setFolderStructure(structure)
+        setDocumentsMap(docsMap)
+        
+        // Expandir el primer tipo de visa si existe
+        if (structure.length > 0) {
+          setExpandedFolders([structure[0].id])
+        }
+        
+      } catch (err) {
+        console.error('Error loading documents:', err)
+        setError('Error al cargar los documentos')
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchSolicitudes()
+  }, [])
+
+  // Obtener documentos del folder seleccionado
+  const documents = selectedFolder ? (documentsMap[selectedFolder] || []) : []
 
   const toggleFolder = (folderId) => {
     setExpandedFolders(prev => 
@@ -192,12 +123,16 @@ export default function DocumentExplorerPage() {
     switch (status) {
       case 'complete':
       case 'approved':
+      case 'aprobado':
         return 'bg-green-100 text-green-600'
       case 'pending':
       case 'pending_review':
+      case 'pendiente':
         return 'bg-yellow-100 text-yellow-600'
       case 'incomplete':
       case 'missing':
+      case 'rejected':
+      case 'rechazado':
         return 'bg-red-100 text-red-600'
       case 'draft':
         return 'bg-gray-100 text-gray-500'
@@ -225,16 +160,44 @@ export default function DocumentExplorerPage() {
     setReviewingDocument(null)
   }
 
-  const handleApprove = (checklist, observations) => {
-    console.log('Document approved:', { document: reviewingDocument, checklist, observations })
-    // TODO: API call
-    handleCloseReview()
+  const handleApprove = async (checklist, observations) => {
+    if (!reviewingDocument) return
+    try {
+      await solicitudesService.aprobarDocumento(reviewingDocument.id)
+      // Actualizar el estado local del documento
+      setDocumentsMap(prev => {
+        const newMap = { ...prev }
+        Object.keys(newMap).forEach(key => {
+          newMap[key] = newMap[key].map(doc => 
+            doc.id === reviewingDocument.id ? { ...doc, status: 'approved' } : doc
+          )
+        })
+        return newMap
+      })
+      handleCloseReview()
+    } catch (err) {
+      console.error('Error approving document:', err)
+    }
   }
 
-  const handleReject = (checklist, observations) => {
-    console.log('Document rejected:', { document: reviewingDocument, checklist, observations })
-    // TODO: API call
-    handleCloseReview()
+  const handleReject = async (checklist, observations) => {
+    if (!reviewingDocument) return
+    try {
+      await solicitudesService.rechazarDocumento(reviewingDocument.id, observations)
+      // Actualizar el estado local del documento
+      setDocumentsMap(prev => {
+        const newMap = { ...prev }
+        Object.keys(newMap).forEach(key => {
+          newMap[key] = newMap[key].map(doc => 
+            doc.id === reviewingDocument.id ? { ...doc, status: 'rejected' } : doc
+          )
+        })
+        return newMap
+      })
+      handleCloseReview()
+    } catch (err) {
+      console.error('Error rejecting document:', err)
+    }
   }
 
   const selectFolder = (folderId, path) => {
@@ -331,6 +294,35 @@ export default function DocumentExplorerPage() {
     )
   }
 
+  // Estado de carga
+  if (loading) {
+    return (
+      <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando documentos...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Estado de error
+  if (error) {
+    return (
+      <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-1">{error}</h3>
+          <p className="text-gray-500 text-sm">Intenta recargar la página</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-6">
       {/* Sidebar - Folder Tree */}
@@ -341,7 +333,13 @@ export default function DocumentExplorerPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
-            {folderStructure.map(item => renderFolderItem(item))}
+            {folderStructure.length > 0 ? (
+              folderStructure.map(item => renderFolderItem(item))
+            ) : (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                No hay solicitudes asignadas
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -426,16 +424,24 @@ export default function DocumentExplorerPage() {
                       >
                         {/* Preview Thumbnail */}
                         <div className="aspect-[4/3] bg-white rounded-lg overflow-hidden mb-3 border border-gray-200 group-hover:border-primary-300 transition-colors relative">
-                          <img 
-                            src={doc.preview} 
-                            alt={doc.name}
-                            className="w-full h-full object-cover"
-                          />
+                          {doc.type === 'pdf' ? (
+                            <div className="w-full h-full flex items-center justify-center bg-red-50">
+                              <svg className="w-16 h-16 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10.92,12.31C10.68,11.54 10.15,9.08 11.55,9.04C12.95,9 12.03,12.16 12.03,12.16C12.42,13.65 14.05,14.72 14.05,14.72C14.55,14.57 17.4,14.24 17,15.72C16.57,17.2 13.5,15.81 13.5,15.81C11.55,15.95 10.09,16.47 10.09,16.47C8.96,18.58 7.64,19.5 7.1,18.61C6.43,17.5 9.23,16.07 9.23,16.07C10.68,13.7 10.92,12.31 10.92,12.31Z" />
+                              </svg>
+                            </div>
+                          ) : (
+                            <img 
+                              src={doc.preview} 
+                              alt={doc.name}
+                              className="w-full h-full object-cover"
+                            />
+                          )}
                           {/* Status Badge */}
                           <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(doc.status)}`}>
-                            {doc.status === 'approved' ? 'Aprobado' :
-                             doc.status === 'pending' ? 'Pendiente' :
-                             doc.status === 'rejected' ? 'Rechazado' : doc.status}
+                            {doc.status === 'approved' || doc.status === 'aprobado' ? 'Aprobado' :
+                             doc.status === 'pending' || doc.status === 'pendiente' ? 'Pendiente' :
+                             doc.status === 'rejected' || doc.status === 'rechazado' ? 'Rechazado' : doc.status}
                           </div>
                         </div>
                         <p className="font-medium text-gray-900 text-sm truncate">{doc.name}</p>
@@ -448,7 +454,7 @@ export default function DocumentExplorerPage() {
                           </span>
                         </div>
                         {/* Realizar Revisión Button */}
-                        {doc.status === 'pending' && (
+                        {(doc.status === 'pending' || doc.status === 'pendiente') && (
                           <button
                             onClick={() => handleOpenReview(doc)}
                             className="w-full py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors"
@@ -476,21 +482,27 @@ export default function DocumentExplorerPage() {
                         <tr key={doc.id} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100">
-                                <img 
-                                  src={doc.preview} 
-                                  alt={doc.name}
-                                  className="w-full h-full object-cover"
-                                />
+                              <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                                {doc.type === 'pdf' ? (
+                                  <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10.92,12.31C10.68,11.54 10.15,9.08 11.55,9.04C12.95,9 12.03,12.16 12.03,12.16C12.42,13.65 14.05,14.72 14.05,14.72C14.55,14.57 17.4,14.24 17,15.72C16.57,17.2 13.5,15.81 13.5,15.81C11.55,15.95 10.09,16.47 10.09,16.47C8.96,18.58 7.64,19.5 7.1,18.61C6.43,17.5 9.23,16.07 9.23,16.07C10.68,13.7 10.92,12.31 10.92,12.31Z" />
+                                  </svg>
+                                ) : (
+                                  <img 
+                                    src={doc.preview} 
+                                    alt={doc.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                )}
                               </div>
                               <span className="font-medium text-gray-900">{doc.name}</span>
                             </div>
                           </td>
                           <td className="py-3 px-4">
                             <span className={`text-xs font-medium px-2 py-1 rounded ${getStatusColor(doc.status)}`}>
-                              {doc.status === 'approved' ? 'Aprobado' :
-                               doc.status === 'pending' ? 'Pendiente' :
-                               doc.status === 'rejected' ? 'Rechazado' : doc.status}
+                              {doc.status === 'approved' || doc.status === 'aprobado' ? 'Aprobado' :
+                               doc.status === 'pending' || doc.status === 'pendiente' ? 'Pendiente' :
+                               doc.status === 'rejected' || doc.status === 'rechazado' ? 'Rechazado' : doc.status}
                             </span>
                           </td>
                           <td className="py-3 px-4">
@@ -508,7 +520,7 @@ export default function DocumentExplorerPage() {
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex gap-2">
-                              {doc.status === 'pending' ? (
+                              {(doc.status === 'pending' || doc.status === 'pendiente') ? (
                                 <button 
                                   onClick={() => handleOpenReview(doc)}
                                   className="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium rounded-lg transition-colors"

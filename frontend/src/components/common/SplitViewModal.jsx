@@ -197,12 +197,20 @@ export default function SplitViewModal({
               {/* Document Preview */}
               <div className="flex-1 overflow-auto flex items-center justify-center p-4">
                 {currentDoc?.preview ? (
-                  <img
-                    src={currentDoc.preview}
-                    alt={currentDoc.name}
-                    className="max-w-full max-h-full object-contain rounded-lg shadow-lg transition-transform"
-                    style={{ transform: `scale(${zoom / 100})` }}
-                  />
+                  currentDoc.type === 'pdf' || currentDoc.preview?.endsWith('.pdf') ? (
+                    <iframe
+                      src={`${currentDoc.preview}#toolbar=1&view=FitH`}
+                      className="w-full h-full bg-white rounded-lg shadow-lg"
+                      title={currentDoc.name}
+                    />
+                  ) : (
+                    <img
+                      src={currentDoc.preview}
+                      alt={currentDoc.name}
+                      className="max-w-full max-h-full object-contain rounded-lg shadow-lg transition-transform"
+                      style={{ transform: `scale(${zoom / 100})` }}
+                    />
+                  )
                 ) : (
                   <div className="text-gray-400 text-center">
                     <svg className="w-24 h-24 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">

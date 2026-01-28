@@ -1,78 +1,71 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Badge, Button, Input, Modal } from '../../../components/common'
-
-// Mock data
-const MOCK_APPLICATIONS = [
-  {
-    id: 'SOL-2026-001',
-    type: 'study',
-    typeName: 'Visa de Estudio',
-    embassy: 'USA',
-    embassyName: 'Estados Unidos',
-    status: 'pending',
-    statusName: 'Pendiente',
-    date: '2026-01-20',
-    documents: [
-      { name: 'Pasaporte', status: 'approved' },
-      { name: 'Foto', status: 'approved' },
-      { name: 'Antecedentes Penales', status: 'pending' },
-      { name: 'Certificado de Matrícula', status: 'pending' }
-    ]
-  },
-  {
-    id: 'SOL-2026-002',
-    type: 'work',
-    typeName: 'Visa de Trabajo',
-    embassy: 'Brazil',
-    embassyName: 'Brasil',
-    status: 'reviewing',
-    statusName: 'En Revisión',
-    date: '2026-01-15',
-    documents: [
-      { name: 'Pasaporte', status: 'approved' },
-      { name: 'Foto', status: 'approved' },
-      { name: 'Antecedentes Penales', status: 'approved' },
-      { name: 'Contrato de Trabajo', status: 'reviewing' }
-    ]
-  },
-  {
-    id: 'SOL-2025-089',
-    type: 'residence',
-    typeName: 'Visa de Vivienda',
-    embassy: 'USA',
-    embassyName: 'Estados Unidos',
-    status: 'approved',
-    statusName: 'Aprobada',
-    date: '2025-12-01',
-    documents: [
-      { name: 'Pasaporte', status: 'approved' },
-      { name: 'Foto', status: 'approved' },
-      { name: 'Antecedentes Penales', status: 'approved' },
-      { name: 'Escrituras de Propiedad', status: 'approved' }
-    ]
-  }
-]
+import { solicitudesService } from '../../../services'
 
 export default function ApplicationsListPage() {
+  const [loading, setLoading] = useState(true)
+  const [applications, setApplications] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterType, setFilterType] = useState('all')
   const [previewDoc, setPreviewDoc] = useState(null)
 
-  const filteredApplications = MOCK_APPLICATIONS.filter(app => {
+  useEffect(() => {
+    const fetchApplications = async () => {
+      try {
+        setLoading(true)
+        const params = {}
+        if (filterStatus !== 'all') params.estado = filterStatus
+        if (filterType !== 'all') params.tipo_visa = filterType
+        if (searchTerm) params.search = searchTerm
+        
+        const data = await solicitudesService.getAll(params)
+        const results = data.results || data || []
+        
+        // Transform to component format
+        const transformed = results.map(s => ({
+          id: `SOL-${s.id}`,
+          rawId: s.id,
+          type: s.tipo_visa,
+          typeName: s.tipo_visa_display || s.tipo_visa,
+          embassy: s.embajada,
+          embassyName: s.embajada_display || s.embajada,
+          status: s.estado,
+          statusName: s.estado_display || s.estado,
+          date: s.created_at?.split('T')[0],
+          documents: (s.documentos_adjuntos || []).map(d => ({
+            name: d.nombre,
+            status: d.estado
+          }))
+        }))
+        
+        setApplications(transformed)
+      } catch (error) {
+        console.error('Error fetching applications:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchApplications()
+  }, [filterStatus, filterType, searchTerm])
+
+  const filteredApplications = applications.filter(app => {
     const matchesSearch = app.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          app.typeName.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = filterStatus === 'all' || app.status === filterStatus
-    const matchesType = filterType === 'all' || app.type === filterType
-    return matchesSearch && matchesStatus && matchesType
+    return matchesSearch
   })
 
   const getStatusVariant = (status) => {
     switch (status) {
+      case 'aprobada':
       case 'approved': return 'success'
+      case 'pendiente':
       case 'pending': return 'warning'
+      case 'en_revision':
       case 'reviewing': return 'info'
+      case 'rechazada':
       case 'rejected': return 'danger'
       default: return 'default'
     }
@@ -117,7 +110,7 @@ export default function ApplicationsListPage() {
           <h1 className="text-3xl font-bold text-gray-900">Mis Solicitudes</h1>
           <p className="text-gray-500 mt-1">Gestiona y monitorea tus solicitudes de visa</p>
         </div>
-        <Link to="/solicitudes/nueva">
+        <Link to="/nueva-solicitud">
           <Button>
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -179,7 +172,7 @@ export default function ApplicationsListPage() {
             </svg>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No hay solicitudes</h3>
             <p className="text-gray-500 mb-6">No tienes solicitudes que coincidan con los filtros</p>
-            <Link to="/solicitudes/nueva">
+            <Link to="/nueva-solicitud">
               <Button>Crear primera solicitud</Button>
             </Link>
           </Card>
@@ -244,7 +237,7 @@ export default function ApplicationsListPage() {
                     </svg>
                   </button>
                   <Link 
-                    to={`/solicitudes/${app.id}`}
+                    to={`/solicitudes/${app.rawId}`}
                     className="px-4 py-2 bg-primary-50 text-primary-600 font-medium rounded-lg hover:bg-primary-100 transition-colors"
                   >
                     Ver Detalle

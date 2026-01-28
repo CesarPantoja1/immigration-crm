@@ -46,8 +46,11 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Middleware personalizado para permitir iframes (desarrollo)
+    'apps.core.middleware.xframe.RemoveXFrameOptionsMiddleware',
 ]
+
+# X-Frame-Options deshabilitado mediante middleware personalizado
 
 ROOT_URLCONF = 'config.urls'
 

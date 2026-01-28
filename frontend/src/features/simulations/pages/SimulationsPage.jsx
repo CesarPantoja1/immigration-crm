@@ -1,82 +1,120 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Card, Badge, Button, Modal, ConfirmModal, ModalityFilter, ModalityBadge } from '../../../components/common'
 import { useAuth } from '../../../contexts/AuthContext'
-
-// Mock data - Ahora con presencial
-const MOCK_PROPOSALS = [
-  {
-    id: 1,
-    date: '2026-01-30',
-    time: '10:00 AM',
-    advisor: 'María González',
-    modality: 'virtual',
-    visaType: 'Estudio',
-    status: 'pending'
-  },
-  {
-    id: 4,
-    date: '2026-02-02',
-    time: '11:00 AM',
-    advisor: 'María González',
-    modality: 'presential',
-    visaType: 'Trabajo',
-    status: 'pending',
-    location: 'Oficina MigraFácil - Sede Norte'
-  }
-]
-
-const MOCK_UPCOMING = [
-  {
-    id: 2,
-    date: '2026-02-05',
-    time: '03:00 PM',
-    advisor: 'María González',
-    modality: 'virtual',
-    visaType: 'Estudio',
-    status: 'confirmed',
-    hoursUntil: 192
-  },
-  {
-    id: 3,
-    date: '2026-02-07',
-    time: '10:00 AM',
-    advisor: 'María González',
-    modality: 'presential',
-    visaType: 'Trabajo',
-    status: 'confirmed',
-    hoursUntil: 240,
-    location: 'Oficina MigraFácil - Sede Norte'
-  }
-]
-
-const MOCK_COMPLETED = [
-  {
-    id: 5,
-    date: '2026-01-15',
-    time: '11:00 AM',
-    advisor: 'María González',
-    modality: 'virtual',
-    visaType: 'Estudio',
-    duration: '28 min',
-    feedbackStatus: 'received'
-  }
-]
+import { simulacrosService, recomendacionesService, solicitudesService } from '../../../services'
 
 export default function SimulationsPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('proposals')
   const [showProposeModal, setShowProposeModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showRequestModal, setShowRequestModal] = useState(false)
   const [selectedSimulation, setSelectedSimulation] = useState(null)
   const [proposedDate, setProposedDate] = useState('')
   const [proposedTime, setProposedTime] = useState('')
   const [proposeReason, setProposeReason] = useState('')
   const [modalityFilter, setModalityFilter] = useState('all')
+  const [requestData, setRequestData] = useState({
+    solicitudId: '',
+    fechaPreferida: '',
+    horaPreferida: '',
+    modalidad: 'virtual',
+    observaciones: ''
+  })
+  const [solicitudesDisponibles, setSolicitudesDisponibles] = useState([])
+  const [submitting, setSubmitting] = useState(false)
 
-  const simulationsUsed = user?.simulationsUsed || 1
-  const simulationsTotal = user?.simulationsTotal || 2
+  // Data from API
+  const [proposals, setProposals] = useState([])
+  const [upcoming, setUpcoming] = useState([])
+  const [completed, setCompleted] = useState([])
+  const [disponibilidad, setDisponibilidad] = useState({ disponibles: 2, usados: 0 })
+
+  useEffect(() => {
+    fetchSimulacros()
+  }, [])
+
+  const fetchSimulacros = async () => {
+    try {
+      setLoading(true)
+      const [simulacrosResponse, disponibilidadData] = await Promise.all([
+        simulacrosService.getMisSimulacros(),
+        simulacrosService.getDisponibilidad()
+      ])
+
+      // Handle both array and object with results
+      const simulacrosData = Array.isArray(simulacrosResponse) 
+        ? simulacrosResponse 
+        : (simulacrosResponse?.results || [])
+
+      // Separate by status
+      // 'solicitado' y 'propuesto' van a proposals (pendientes de confirmación)
+      const propuestos = simulacrosData.filter(s => 
+        ['propuesto', 'solicitado', 'pendiente_respuesta'].includes(s.estado)
+      )
+      const confirmados = simulacrosData.filter(s => 
+        ['confirmado', 'en_progreso'].includes(s.estado)
+      )
+      const completados = simulacrosData.filter(s => s.estado === 'completado')
+
+      // Transform to component format
+      setProposals(propuestos.map(s => ({
+        id: s.id,
+        date: s.fecha_propuesta,
+        time: s.hora_propuesta,
+        advisor: s.asesor_nombre || 'Asesor asignado',
+        modality: s.modalidad || 'virtual',
+        visaType: s.solicitud_tipo || 'Entrevista',
+        status: 'pending',
+        location: s.ubicacion
+      })))
+
+      setUpcoming(confirmados.map(s => {
+        const fechaHora = new Date(`${s.fecha_propuesta}T${s.hora_propuesta}`)
+        const horasRestantes = (fechaHora - new Date()) / (1000 * 60 * 60)
+        return {
+          id: s.id,
+          date: s.fecha_propuesta,
+          time: s.hora_propuesta,
+          advisor: s.asesor_nombre || 'Asesor asignado',
+          modality: s.modalidad || 'virtual',
+          visaType: s.solicitud_tipo || 'Entrevista',
+          status: 'confirmed',
+          hoursUntil: Math.max(0, Math.round(horasRestantes)),
+          location: s.ubicacion
+        }
+      }))
+
+      setCompleted(completados.map(s => ({
+        id: s.id,
+        date: s.fecha_propuesta,
+        time: s.hora_propuesta,
+        advisor: s.asesor_nombre || 'Asesor asignado',
+        modality: s.modalidad || 'virtual',
+        visaType: s.solicitud_tipo || 'Entrevista',
+        duration: s.duracion_minutos ? `${s.duracion_minutos} min` : '-',
+        feedbackStatus: s.tiene_recomendaciones ? 'received' : 'pending'
+      })))
+
+      // Normalizar disponibilidad
+      const disponibilidadNormalizada = {
+        disponibles: disponibilidadData?.simulacros_disponibles ?? disponibilidadData?.disponibles ?? 2,
+        usados: disponibilidadData?.simulacros_realizados ?? disponibilidadData?.usados ?? 0
+      }
+      setDisponibilidad(disponibilidadNormalizada)
+
+    } catch (error) {
+      console.error('Error fetching simulacros:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const simulationsUsed = disponibilidad.usados
+  const simulationsTotal = disponibilidad.usados + disponibilidad.disponibles
 
   // Filtrar por modalidad
   const filterByModality = (items) => {
@@ -84,9 +122,9 @@ export default function SimulationsPage() {
     return items.filter(item => item.modality === modalityFilter)
   }
 
-  const filteredProposals = filterByModality(MOCK_PROPOSALS)
-  const filteredUpcoming = filterByModality(MOCK_UPCOMING)
-  const filteredCompleted = filterByModality(MOCK_COMPLETED)
+  const filteredProposals = filterByModality(proposals)
+  const filteredUpcoming = filterByModality(upcoming)
+  const filteredCompleted = filterByModality(completed)
 
   // Handler para ir a la sala o a info presencial
   const handleGoToSimulation = (simulation) => {
@@ -97,21 +135,87 @@ export default function SimulationsPage() {
     }
   }
 
-  const handleAcceptSimulation = (simulation) => {
-    console.log('Accepted:', simulation)
-    // TODO: API call
+  const handleAcceptSimulation = async (simulation) => {
+    try {
+      await simulacrosService.aceptarPropuesta(simulation.id)
+      fetchSimulacros() // Refresh data
+    } catch (error) {
+      console.error('Error confirming simulation:', error)
+    }
   }
 
-  const handleProposeDate = () => {
-    console.log('Proposed:', { date: proposedDate, time: proposedTime, reason: proposeReason })
-    setShowProposeModal(false)
-    // TODO: API call
+  const handleProposeDate = async () => {
+    try {
+      await simulacrosService.proponerFechaAlternativa(selectedSimulation.id, {
+        fecha: proposedDate,
+        hora: proposedTime
+      })
+      setShowProposeModal(false)
+      fetchSimulacros() // Refresh data
+    } catch (error) {
+      console.error('Error proposing new date:', error)
+    }
   }
 
-  const handleCancelSimulation = () => {
-    console.log('Cancelled:', selectedSimulation)
-    setShowCancelModal(false)
-    // TODO: API call
+  const handleCancelSimulation = async () => {
+    try {
+      await simulacrosService.cancelar(selectedSimulation.id)
+      setShowCancelModal(false)
+      fetchSimulacros() // Refresh data
+    } catch (error) {
+      console.error('Error cancelling simulation:', error)
+    }
+  }
+
+  // Handler para abrir modal de solicitar simulacro
+  const handleOpenRequestModal = async () => {
+    try {
+      // Obtener solicitudes del cliente que puedan tener simulacro
+      const response = await solicitudesService.getMisSolicitudes()
+      const solicitudes = Array.isArray(response) ? response : (response?.results || [])
+      
+      // Filtrar solicitudes que pueden tener simulacro (estados del backend)
+      const disponibles = solicitudes.filter(s => 
+        ['pendiente', 'en_revision', 'aprobada', 'enviada_embajada', 'entrevista_agendada'].includes(s.estado)
+      )
+      
+      setSolicitudesDisponibles(disponibles)
+      setShowRequestModal(true)
+    } catch (error) {
+      console.error('Error loading solicitudes:', error)
+    }
+  }
+
+  // Handler para solicitar simulacro
+  const handleRequestSimulation = async () => {
+    if (!requestData.solicitudId) {
+      return
+    }
+    
+    try {
+      setSubmitting(true)
+      await simulacrosService.solicitarSimulacro(requestData.solicitudId, {
+        fecha_propuesta: requestData.fechaPreferida,
+        hora_propuesta: requestData.horaPreferida,
+        modalidad: requestData.modalidad,
+        observaciones: requestData.observaciones
+      })
+      
+      setShowRequestModal(false)
+      setRequestData({
+        solicitudId: '',
+        fechaPreferida: '',
+        horaPreferida: '',
+        modalidad: 'virtual',
+        observaciones: ''
+      })
+      
+      fetchSimulacros() // Refresh data
+    } catch (error) {
+      console.error('Error requesting simulation:', error)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const getCancellationMessage = (hoursUntil) => {
@@ -171,7 +275,10 @@ export default function SimulationsPage() {
               </span>
             </div>
           </div>
-          <Button disabled={simulationsUsed >= simulationsTotal}>
+          <Button 
+            disabled={simulationsUsed >= simulationsTotal}
+            onClick={handleOpenRequestModal}
+          >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -570,6 +677,128 @@ export default function SimulationsPage() {
           })()}
         </Modal>
       )}
+
+      {/* Request Simulation Modal */}
+      <Modal
+        isOpen={showRequestModal}
+        onClose={() => setShowRequestModal(false)}
+        title="Solicitar Simulacro"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Solicita un simulacro de entrevista consular. Tu asesor recibirá la solicitud y te propondrá una fecha.
+          </p>
+          
+          {/* Selección de solicitud */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Solicitud asociada <span className="text-red-500">*</span>
+            </label>
+            {solicitudesDisponibles.length > 0 ? (
+              <select
+                value={requestData.solicitudId}
+                onChange={(e) => setRequestData({ ...requestData, solicitudId: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Selecciona una solicitud</option>
+                {solicitudesDisponibles.map(sol => (
+                  <option key={sol.id} value={sol.id}>
+                    {sol.tipo_visa_display || sol.tipo_visa} - {sol.estado_display || sol.estado}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="p-4 bg-amber-50 text-amber-700 rounded-xl text-sm">
+                No tienes solicitudes activas para solicitar un simulacro. Primero debes crear una solicitud de visa.
+              </div>
+            )}
+          </div>
+
+          {/* Modalidad */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Modalidad preferida</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="modalidad"
+                  value="virtual"
+                  checked={requestData.modalidad === 'virtual'}
+                  onChange={(e) => setRequestData({ ...requestData, modalidad: e.target.value })}
+                  className="text-primary-600"
+                />
+                <span className="text-sm">🎥 Virtual</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="modalidad"
+                  value="presential"
+                  checked={requestData.modalidad === 'presential'}
+                  onChange={(e) => setRequestData({ ...requestData, modalidad: e.target.value })}
+                  className="text-primary-600"
+                />
+                <span className="text-sm">🏢 Presencial</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Fecha y hora preferida (opcional) */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha preferida (opcional)
+              </label>
+              <input
+                type="date"
+                value={requestData.fechaPreferida}
+                onChange={(e) => setRequestData({ ...requestData, fechaPreferida: e.target.value })}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Hora preferida (opcional)
+              </label>
+              <input
+                type="time"
+                value={requestData.horaPreferida}
+                onChange={(e) => setRequestData({ ...requestData, horaPreferida: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+
+          {/* Observaciones */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Observaciones (opcional)
+            </label>
+            <textarea
+              value={requestData.observaciones}
+              onChange={(e) => setRequestData({ ...requestData, observaciones: e.target.value })}
+              placeholder="Indica cualquier preferencia o información adicional..."
+              rows={3}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 resize-none"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button variant="secondary" className="flex-1" onClick={() => setShowRequestModal(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              className="flex-1" 
+              onClick={handleRequestSimulation}
+              disabled={!requestData.solicitudId || submitting}
+            >
+              {submitting ? 'Enviando...' : 'Solicitar Simulacro'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

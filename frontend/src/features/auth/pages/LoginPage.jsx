@@ -45,7 +45,9 @@ export default function LoginPage() {
       const result = await login(formData.email, formData.password)
       if (result.success) {
         // Redirigir según el rol del usuario
-        if (result.user.role === 'advisor') {
+        if (result.user.role === 'admin') {
+          navigate('/admin')
+        } else if (result.user.role === 'advisor') {
           navigate('/asesor')
         } else {
           navigate('/dashboard')

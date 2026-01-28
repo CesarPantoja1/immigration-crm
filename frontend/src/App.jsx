@@ -29,6 +29,9 @@ import {
   InterviewScheduling
 } from './features/advisor'
 
+// Pagina admin
+import { AdminDashboard } from './features/admin'
+
 // Pagina asesor - Presencial Feedback
 import { PresentialFeedbackPage } from './features/simulations'
 // Rutas protegidas
@@ -230,6 +233,19 @@ function App() {
             <AdvisorLayout>
               <CalendarPage />
             </AdvisorLayout>
+          </ProtectedRoute>
+        } />
+
+        {/* Admin Routes */}
+        <Route path="/admin" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/*" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
           </ProtectedRoute>
         } />
 

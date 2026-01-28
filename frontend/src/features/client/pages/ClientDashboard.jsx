@@ -1,29 +1,128 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { Card, Badge, StatCard } from '../../../components/common'
+import { 
+  solicitudesService, 
+  simulacrosService, 
+  practicaService,
+  entrevistasService 
+} from '../../../services'
 
 export default function ClientDashboard() {
   const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    pendingApplications: 0,
+    approvedDocuments: 0,
+    upcomingSimulations: 0,
+    practiceScore: 0
+  })
+  const [disponibilidad, setDisponibilidad] = useState({ disponibles: 2, usados: 0 })
+  const [recentApplications, setRecentApplications] = useState([])
+  const [upcomingSimulations, setUpcomingSimulations] = useState([])
 
-  // Mock data - será reemplazado por API
-  const stats = {
-    pendingApplications: 2,
-    approvedDocuments: 5,
-    upcomingSimulations: 1,
-    practiceScore: 85
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true)
+        
+        // Fetch all data in parallel
+        const [solicitudesResponse, simulacrosResponse, disponibilidadData, practicaResponse] = await Promise.all([
+          solicitudesService.getAll({ limit: 5 }).catch(() => ({ results: [] })),
+          simulacrosService.getMisSimulacros().catch(() => []),
+          simulacrosService.getDisponibilidad().catch(() => ({ disponibles: 2, usados: 0 })),
+          practicaService.getHistorial({ limit: 1 }).catch(() => [])
+        ])
+
+        // Handle both array and object with results
+        const solicitudes = Array.isArray(solicitudesResponse) 
+          ? solicitudesResponse 
+          : (solicitudesResponse?.results || [])
+        
+        const simulacrosData = Array.isArray(simulacrosResponse) 
+          ? simulacrosResponse 
+          : (simulacrosResponse?.results || [])
+        
+        const practicaData = Array.isArray(practicaResponse) 
+          ? practicaResponse 
+          : (practicaResponse?.results || [])
+
+        // Process solicitudes
+        setRecentApplications(solicitudes.slice(0, 2).map(s => ({
+          id: `SOL-${s.id}`,
+          rawId: s.id,
+          type: s.tipo_visa,
+          embassy: s.embajada,
+          status: s.estado,
+          date: s.created_at?.split('T')[0]
+        })))
+
+        // Count pending applications
+        const pending = solicitudes.filter(s => 
+          ['borrador', 'pendiente', 'en_revision'].includes(s.estado)
+        ).length
+
+        // Count approved documents
+        const approvedDocs = solicitudes.reduce((acc, s) => {
+          const docs = s.documentos_adjuntos || []
+          return acc + docs.filter(d => d.estado === 'aprobado').length
+        }, 0)
+
+        // Process simulacros
+        const proximos = simulacrosData.filter(s => 
+          ['propuesto', 'confirmado'].includes(s.estado)
+        )
+        setUpcomingSimulations(proximos.slice(0, 1).map(s => ({
+          id: s.id,
+          date: s.fecha_propuesta,
+          time: s.hora_propuesta,
+          advisor: s.asesor_nombre || 'Asesor asignado',
+          modality: 'Virtual',
+          visaType: s.solicitud_tipo || 'Entrevista'
+        })))
+
+        // Get disponibilidad - normalizar respuesta
+        const disponibilidadNormalizada = {
+          disponibles: disponibilidadData?.simulacros_disponibles ?? disponibilidadData?.disponibles ?? 2,
+          usados: disponibilidadData?.simulacros_realizados ?? disponibilidadData?.usados ?? 0
+        }
+        setDisponibilidad(disponibilidadNormalizada)
+
+        // Get last practice score
+        const lastPractice = practicaData[0]
+        const practiceScore = lastPractice?.porcentaje_aciertos || 0
+
+        setStats({
+          pendingApplications: pending,
+          approvedDocuments: approvedDocs,
+          upcomingSimulations: proximos.length,
+          practiceScore: Math.round(practiceScore)
+        })
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
+
+  const simulationsUsed = disponibilidad.usados
+  const simulationsTotal = disponibilidad.usados + disponibilidad.disponibles
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Cargando tu dashboard...</p>
+        </div>
+      </div>
+    )
   }
-
-  const recentApplications = [
-    { id: 'SOL-2026-001', type: 'study', embassy: 'USA', status: 'pending', date: '2026-01-20' },
-    { id: 'SOL-2026-002', type: 'work', embassy: 'Brazil', status: 'reviewing', date: '2026-01-15' },
-  ]
-
-  const upcomingSimulations = [
-    { id: 1, date: '2026-01-28', time: '10:00 AM', advisor: 'María González', modality: 'Virtual', visaType: 'Estudio' }
-  ]
-
-  const simulationsUsed = user?.simulationsUsed || 1
-  const simulationsTotal = user?.simulationsTotal || 2
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -149,7 +248,7 @@ export default function ClientDashboard() {
                      app.status === 'reviewing' ? 'En revisión' : 'Aprobada'}
                   </Badge>
                   <Link 
-                    to={`/solicitudes/${app.id}`}
+                    to={`/solicitudes/${app.rawId}`}
                     className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

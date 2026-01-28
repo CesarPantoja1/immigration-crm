@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Card, Badge, Button } from '../../../components/common'
+import { solicitudesService } from '../../../services'
 
 const VISA_TYPES = [
   {
-    id: 'residence',
+    id: 'vivienda',
     name: 'Visa de Vivienda',
     description: 'Para establecer residencia permanente',
     icon: '🏠',
@@ -12,7 +13,7 @@ const VISA_TYPES = [
     color: 'purple'
   },
   {
-    id: 'work',
+    id: 'trabajo',
     name: 'Visa de Trabajo',
     description: 'Para trabajar en el exterior',
     icon: '💼',
@@ -20,7 +21,7 @@ const VISA_TYPES = [
     color: 'green'
   },
   {
-    id: 'study',
+    id: 'estudio',
     name: 'Visa de Estudio',
     description: 'Para estudiar en instituciones extranjeras',
     icon: '📚',
@@ -31,7 +32,9 @@ const VISA_TYPES = [
 
 const EMBASSIES = [
   { id: 'usa', name: 'Estados Unidos', flag: '🇺🇸' },
-  { id: 'brazil', name: 'Brasil', flag: '🇧🇷' }
+  { id: 'brasil', name: 'Brasil', flag: '🇧🇷' },
+  { id: 'canada', name: 'Canadá', flag: '🇨🇦' },
+  { id: 'espana', name: 'España', flag: '🇪🇸' }
 ]
 
 export default function NewApplicationPage() {
@@ -41,17 +44,43 @@ export default function NewApplicationPage() {
   const [selectedEmbassy, setSelectedEmbassy] = useState(null)
   const [files, setFiles] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState(null)
 
   const handleFileChange = (docName, file) => {
     setFiles(prev => ({ ...prev, [docName]: file }))
   }
 
   const handleSubmit = async () => {
-    setIsSubmitting(true)
-    // Simular envío
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsSubmitting(false)
-    navigate('/solicitudes')
+    try {
+      setIsSubmitting(true)
+      setError(null)
+      
+      // Create application via API
+      const solicitudData = {
+        tipo_visa: selectedVisa,
+        embajada: selectedEmbassy,
+        estado: 'borrador'
+      }
+      
+      const result = await solicitudesService.create(solicitudData)
+      
+      // Upload documents if any
+      for (const [docName, file] of Object.entries(files)) {
+        if (file) {
+          await solicitudesService.uploadDocument(result.id, file, docName)
+        }
+      }
+      
+      // Submit application
+      await solicitudesService.submit(result.id)
+      
+      navigate('/solicitudes')
+    } catch (err) {
+      console.error('Error creating application:', err)
+      setError('Error al crear la solicitud. Por favor intenta de nuevo.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const currentVisaType = VISA_TYPES.find(v => v.id === selectedVisa)

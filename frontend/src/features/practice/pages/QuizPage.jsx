@@ -129,47 +129,62 @@ const questionsDB = {
       correctAnswer: 1,
       explanation: 'Demuestra que has investigado las ventajas económicas y legales de la inversión.'
     }
-  ],
-  turismo: [
-    {
-      id: 1,
-      question: '¿Cuál es el propósito de su viaje?',
-      options: [
-        'Buscar trabajo',
-        'Turismo y recreación, visitaré [lugares específicos] durante X días',
-        'Ver si me gusta para mudarme',
-        'No estoy seguro todavía'
-      ],
-      correctAnswer: 1,
-      explanation: 'Ten un itinerario claro y demuestra que tu visita es temporal con propósito turístico.'
-    },
-    {
-      id: 2,
-      question: '¿Dónde se hospedará durante su visita?',
-      options: [
-        'Ya veré cuando llegue',
-        'En casa de un amigo que conocí en internet',
-        'Tengo reservación confirmada en [hotel] por X noches',
-        'Dormiré donde pueda'
-      ],
-      correctAnswer: 2,
-      explanation: 'Tener reservaciones confirmadas demuestra planificación y recursos.'
-    }
   ]
 }
 
 export default function QuizPage() {
   const { visaType } = useParams()
   const navigate = useNavigate()
+  const [loading, setLoading] = useState(true)
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState(null)
   const [showExplanation, setShowExplanation] = useState(false)
   const [answers, setAnswers] = useState([])
   const [isComplete, setIsComplete] = useState(false)
+  const [questions, setQuestions] = useState([])
+  const [practicaId, setPracticaId] = useState(null)
 
-  const questions = questionsDB[visaType] || []
+  // Map frontend visa types to backend (solo 3 tipos)
+  const tipoVisaMap = {
+    'estudio': 'estudio',
+    'trabajo': 'trabajo',
+    'vivienda': 'vivienda'
+  }
+
+  useEffect(() => {
+    const iniciarPractica = async () => {
+      try {
+        setLoading(true)
+        const { practicaService } = await import('../../../services')
+        const tipoVisa = tipoVisaMap[visaType] || visaType
+        
+        const data = await practicaService.iniciar(tipoVisa)
+        
+        setPracticaId(data.practica_id)
+        // Transform API questions to component format
+        const transformedQuestions = data.preguntas.map(p => ({
+          id: p.id,
+          question: p.pregunta,
+          options: p.opciones,
+          correctAnswer: p.respuesta_correcta,
+          explanation: p.explicacion || 'Esta es la respuesta correcta para una entrevista de visa.'
+        }))
+        
+        setQuestions(transformedQuestions)
+      } catch (error) {
+        console.error('Error starting practice:', error)
+        // Fallback to local questions if API fails
+        setQuestions(questionsDB[visaType] || [])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    iniciarPractica()
+  }, [visaType])
+
   const question = questions[currentQuestion]
-  const progress = ((currentQuestion) / questions.length) * 100
+  const progress = questions.length > 0 ? ((currentQuestion) / questions.length) * 100 : 0
 
   const handleSelectAnswer = (index) => {
     if (showExplanation) return
@@ -187,14 +202,38 @@ export default function QuizPage() {
     }])
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(prev => prev + 1)
       setSelectedAnswer(null)
       setShowExplanation(false)
     } else {
+      // Send results to API
+      if (practicaId) {
+        try {
+          const { practicaService } = await import('../../../services')
+          const respuestas = answers.map(a => ({
+            pregunta_id: a.questionId,
+            respuesta_seleccionada: a.selected
+          }))
+          await practicaService.enviarRespuestas(practicaId, respuestas)
+        } catch (error) {
+          console.error('Error saving practice results:', error)
+        }
+      }
       setIsComplete(true)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Cargando preguntas...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!questions.length) {

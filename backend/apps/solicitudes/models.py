@@ -16,7 +16,6 @@ class Solicitud(TimeStampedModel, SoftDeleteModel):
         ('vivienda', 'Visa de Vivienda'),
         ('trabajo', 'Visa de Trabajo'),
         ('estudio', 'Visa de Estudio'),
-        ('turismo', 'Visa de Turismo'),
     ]
     
     ESTADOS = [

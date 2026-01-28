@@ -11,14 +11,27 @@ Usuario = get_user_model()
 
 class DocumentoSerializer(serializers.ModelSerializer):
     """Serializer para documentos."""
+    archivo_url = serializers.SerializerMethodField()
+    fecha_subida = serializers.DateTimeField(source='created_at', read_only=True)
     
     class Meta:
         model = Documento
         fields = [
-            'id', 'nombre', 'archivo', 'estado',
-            'motivo_rechazo', 'fecha_revision', 'created_at'
+            'id', 'nombre', 'archivo', 'archivo_url', 'estado',
+            'motivo_rechazo', 'fecha_revision', 'created_at', 'fecha_subida'
         ]
-        read_only_fields = ['id', 'created_at', 'fecha_revision']
+        read_only_fields = ['id', 'created_at', 'fecha_revision', 'fecha_subida']
+    
+    def get_archivo_url(self, obj):
+        if obj.archivo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.archivo.url)
+            # Fallback: construir URL manualmente si no hay request
+            from django.conf import settings
+            base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+            return f"{base_url}{obj.archivo.url}"
+        return None
 
 
 class EntrevistaSerializer(serializers.ModelSerializer):
@@ -42,13 +55,16 @@ class SolicitudListSerializer(serializers.ModelSerializer):
     cliente_nombre = serializers.SerializerMethodField()
     asesor_nombre = serializers.SerializerMethodField()
     tiene_entrevista = serializers.SerializerMethodField()
+    documentos_count = serializers.SerializerMethodField()
+    documentos_aprobados = serializers.SerializerMethodField()
     
     class Meta:
         model = Solicitud
         fields = [
             'id', 'tipo_visa', 'tipo_visa_display', 'embajada', 'embajada_display',
             'estado', 'estado_display', 'cliente_nombre', 'asesor_nombre',
-            'tiene_entrevista', 'created_at', 'updated_at'
+            'tiene_entrevista', 'documentos_count', 'documentos_aprobados',
+            'created_at', 'updated_at'
         ]
     
     def get_cliente_nombre(self, obj):
@@ -59,6 +75,12 @@ class SolicitudListSerializer(serializers.ModelSerializer):
     
     def get_tiene_entrevista(self, obj):
         return hasattr(obj, 'entrevista')
+    
+    def get_documentos_count(self, obj):
+        return obj.documentos_adjuntos.count()
+    
+    def get_documentos_aprobados(self, obj):
+        return obj.documentos_adjuntos.filter(estado='aprobado').count()
 
 
 class SolicitudDetailSerializer(serializers.ModelSerializer):
@@ -68,7 +90,7 @@ class SolicitudDetailSerializer(serializers.ModelSerializer):
     estado_display = serializers.CharField(source='get_estado_display', read_only=True)
     cliente_nombre = serializers.SerializerMethodField()
     asesor_nombre = serializers.SerializerMethodField()
-    documentos_adjuntos = DocumentoSerializer(many=True, read_only=True)
+    documentos_adjuntos = serializers.SerializerMethodField()
     entrevista = EntrevistaSerializer(read_only=True)
     
     class Meta:
@@ -91,6 +113,11 @@ class SolicitudDetailSerializer(serializers.ModelSerializer):
     
     def get_asesor_nombre(self, obj):
         return obj.asesor.nombre_completo() if obj.asesor else None
+    
+    def get_documentos_adjuntos(self, obj):
+        """Serializa los documentos pasando el contexto con request."""
+        documentos = obj.documentos_adjuntos.all()
+        return DocumentoSerializer(documentos, many=True, context=self.context).data
 
 
 class SolicitudCreateSerializer(serializers.ModelSerializer):
@@ -99,8 +126,9 @@ class SolicitudCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Solicitud
         fields = [
-            'tipo_visa', 'embajada', 'datos_personales', 'observaciones'
+            'id', 'tipo_visa', 'embajada', 'datos_personales', 'observaciones', 'estado'
         ]
+        read_only_fields = ['id', 'estado']
     
     def create(self, validated_data):
         # El cliente se obtiene del request

@@ -1,90 +1,105 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Badge, Button, Modal } from '../../../components/common'
-
-// Mock data
-const simulations = [
-  {
-    id: 1,
-    client: 'Juan Pérez',
-    date: '27 de enero de 2024',
-    time: '10:00 AM',
-    visaType: 'Visa de Estudio',
-    status: 'upcoming',
-    clientAvatar: 'JP'
-  },
-  {
-    id: 2,
-    client: 'María García',
-    date: '27 de enero de 2024',
-    time: '11:30 AM',
-    visaType: 'Visa de Trabajo',
-    status: 'upcoming',
-    clientAvatar: 'MG'
-  },
-  {
-    id: 3,
-    client: 'Carlos López',
-    date: '27 de enero de 2024',
-    time: '02:00 PM',
-    visaType: 'Visa de Estudio',
-    status: 'upcoming',
-    clientAvatar: 'CL'
-  },
-  {
-    id: 4,
-    client: 'Ana Martínez',
-    date: '28 de enero de 2024',
-    time: '09:00 AM',
-    visaType: 'Visa de Trabajo',
-    status: 'scheduled',
-    clientAvatar: 'AM'
-  },
-  {
-    id: 5,
-    client: 'Pedro Sánchez',
-    date: '28 de enero de 2024',
-    time: '03:00 PM',
-    visaType: 'Visa de Vivienda',
-    status: 'scheduled',
-    clientAvatar: 'PS'
-  }
-]
-
-const proposals = [
-  {
-    id: 1,
-    client: 'Laura Díaz',
-    proposedDate: '30 de enero de 2024',
-    proposedTime: '10:00 AM - 11:00 AM',
-    visaType: 'Visa de Turismo',
-    note: 'Prefiero mañanas si es posible'
-  },
-  {
-    id: 2,
-    client: 'Roberto Gómez',
-    proposedDate: '31 de enero de 2024',
-    proposedTime: '02:00 PM - 04:00 PM',
-    visaType: 'Visa de Estudio',
-    note: 'Disponible toda la tarde'
-  }
-]
+import { simulacrosService } from '../../../services/simulacrosService'
 
 export default function AdvisorSimulationsPage() {
   const [activeTab, setActiveTab] = useState('upcoming')
   const [showProposalModal, setShowProposalModal] = useState(false)
   const [selectedProposal, setSelectedProposal] = useState(null)
   const [selectedTime, setSelectedTime] = useState('')
+  const [simulations, setSimulations] = useState([])
+  const [proposals, setProposals] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const todaySimulations = simulations.filter(s => s.date === '27 de enero de 2024')
-  const upcomingSimulations = simulations.filter(s => s.date !== '27 de enero de 2024')
+  useEffect(() => {
+    fetchSimulationsData()
+  }, [])
 
-  const handleAcceptProposal = () => {
-    if (!selectedTime) return
-    // Handle proposal acceptance
+  const fetchSimulationsData = async () => {
+    try {
+      setLoading(true)
+      const [simulacionesResponse, propuestasResponse] = await Promise.all([
+        simulacrosService.getSimulacros().catch(() => []),
+        simulacrosService.getPropuestasPendientes().catch(() => [])
+      ])
+
+      // Handle both array and object with results
+      const simulacionesData = Array.isArray(simulacionesResponse)
+        ? simulacionesResponse
+        : (simulacionesResponse?.results || [])
+      
+      const propuestasData = Array.isArray(propuestasResponse)
+        ? propuestasResponse
+        : (propuestasResponse?.results || [])
+
+      // Transform simulaciones
+      const simList = simulacionesData.map(s => ({
+        id: s.id,
+        client: s.cliente_nombre || s.cliente?.nombre || 'Cliente',
+        date: formatDateForDisplay(s.fecha_propuesta || s.fecha),
+        time: s.hora_propuesta || s.hora || '10:00 AM',
+        visaType: s.tipo_visa || 'Visa',
+        status: s.estado || 'upcoming',
+        clientAvatar: getInitials(s.cliente_nombre || s.cliente?.nombre || 'C')
+      }))
+
+      // Transform propuestas
+      const propList = propuestasData.map(p => ({
+        id: p.id,
+        client: p.cliente_nombre || p.cliente?.nombre || 'Cliente',
+        proposedDate: formatDateForDisplay(p.fecha_propuesta),
+        proposedTime: p.hora_propuesta || '10:00 AM - 11:00 AM',
+        visaType: p.tipo_visa || 'Visa',
+        note: p.nota || ''
+      }))
+
+      setSimulations(simList)
+      setProposals(propList)
+    } catch (error) {
+      console.error('Error fetching simulations:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatDateForDisplay = (dateStr) => {
+    if (!dateStr) return ''
+    const date = new Date(dateStr + 'T00:00')
+    return date.toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+  }
+
+  const getInitials = (name) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+  }
+
+  const todayStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+  const todaySimulations = simulations.filter(s => s.date === todayStr)
+  const upcomingSimulations = simulations.filter(s => s.date !== todayStr)
+
+  const handleAcceptProposal = async () => {
+    if (!selectedTime || !selectedProposal) return
+    try {
+      await simulacrosService.aceptarPropuesta(selectedProposal.id)
+      fetchSimulationsData()
+    } catch (error) {
+      console.error('Error accepting proposal:', error)
+    }
     setShowProposalModal(false)
     setSelectedProposal(null)
     setSelectedTime('')
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
   }
 
   return (

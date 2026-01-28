@@ -2,78 +2,32 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Badge, Button, Modal, SplitViewModal } from '../../../components/common'
 import { DOCUMENT_CHECKLIST } from '../../../store'
+import { solicitudesService } from '../../../services/solicitudesService'
 
-// Mock data
-const applicationData = {
-  id: 'SOL-2024-001',
+// Default empty application data
+const defaultApplicationData = {
+  id: '',
   client: {
-    name: 'Ana Martínez',
-    email: 'ana.martinez@email.com',
-    phone: '+57 300 123 4567',
-    nationality: 'Colombiana'
+    name: '',
+    email: '',
+    phone: '',
+    nationality: ''
   },
-  visaType: 'Visa de Trabajo',
-  embassy: 'Estados Unidos',
-  submittedAt: '25 de enero de 2024',
+  visaType: '',
+  embassy: '',
+  submittedAt: '',
   status: 'pending_review',
-  documents: [
-    {
-      id: 1,
-      name: 'Pasaporte',
-      filename: 'pasaporte_ana_martinez.pdf',
-      status: 'pending',
-      uploadedAt: '25/01/2024',
-      size: '2.4 MB',
-      type: 'pdf',
-      preview: 'https://images.unsplash.com/photo-1544965838-54ef8406f868?w=800'
-    },
-    {
-      id: 2,
-      name: 'Foto 2x2',
-      filename: 'foto_visa.jpg',
-      status: 'pending',
-      uploadedAt: '25/01/2024',
-      size: '1.1 MB',
-      type: 'image',
-      preview: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800'
-    },
-    {
-      id: 3,
-      name: 'Carta de Oferta Laboral',
-      filename: 'oferta_laboral.pdf',
-      status: 'pending',
-      uploadedAt: '25/01/2024',
-      size: '856 KB',
-      type: 'pdf',
-      preview: 'https://images.unsplash.com/photo-1586282391129-76a6df230234?w=800'
-    },
-    {
-      id: 4,
-      name: 'Certificado de Antecedentes',
-      filename: 'antecedentes.pdf',
-      status: 'pending',
-      uploadedAt: '25/01/2024',
-      size: '1.3 MB',
-      type: 'pdf',
-      preview: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800'
-    },
-    {
-      id: 5,
-      name: 'Currículum Vitae',
-      filename: 'cv_ana_martinez.pdf',
-      status: 'pending',
-      uploadedAt: '25/01/2024',
-      size: '523 KB',
-      type: 'pdf',
-      preview: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800'
-    }
-  ]
+  documents: []
 }
 
 export default function ApplicationReviewPage() {
-  const { id } = useParams()
+  const { id: rawId } = useParams()
+  // Extraer el ID numérico si viene en formato SOL-X
+  const id = rawId?.startsWith('SOL-') ? rawId.replace('SOL-', '') : rawId
   const navigate = useNavigate()
-  const [documents, setDocuments] = useState(applicationData.documents)
+  const [applicationData, setApplicationData] = useState(defaultApplicationData)
+  const [documents, setDocuments] = useState([])
+  const [loading, setLoading] = useState(true)
   const [showViewer, setShowViewer] = useState(false)
   const [showSplitView, setShowSplitView] = useState(false)
   const [currentDocIndex, setCurrentDocIndex] = useState(0)
@@ -81,6 +35,69 @@ export default function ApplicationReviewPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [rejectingDocId, setRejectingDocId] = useState(null)
+
+  useEffect(() => {
+    const fetchApplicationData = async () => {
+      try {
+        setLoading(true)
+        const data = await solicitudesService.getSolicitud(id)
+        
+        // Helper para construir URL absoluta
+        const buildAbsoluteUrl = (url) => {
+          if (!url) return null
+          if (url.startsWith('http')) return url
+          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'
+          return `${baseUrl}${url}`
+        }
+        
+        const formattedData = {
+          id: data.id || data.numero || id,
+          client: {
+            name: data.cliente?.nombre || data.cliente_nombre || 'Cliente',
+            email: data.cliente?.email || '',
+            phone: data.cliente?.telefono || '',
+            nationality: data.cliente?.nacionalidad || ''
+          },
+          visaType: data.tipo_visa_nombre || data.tipo_visa || 'Visa',
+          embassy: data.embajada_nombre || data.embajada || 'Embajada',
+          submittedAt: data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleDateString('es-ES', {
+            day: 'numeric', month: 'long', year: 'numeric'
+          }) : '',
+          status: data.estado || 'pending_review',
+          documents: (data.documentos_adjuntos || data.documentos || []).map((doc, i) => {
+            // Mapear estados del backend a valores del frontend
+            const mapEstado = (estado) => {
+              switch(estado) {
+                case 'aprobado': return 'approved'
+                case 'rechazado': return 'rejected'
+                case 'pendiente': 
+                default: return 'pending'
+              }
+            }
+            return {
+              id: doc.id || i + 1,
+              name: doc.nombre || doc.name || 'Documento',
+              filename: doc.archivo || doc.filename || '',
+              status: mapEstado(doc.estado),
+              uploadedAt: doc.fecha_subida || doc.created_at || '',
+              size: doc.tamano || '',
+              type: doc.archivo?.endsWith('.pdf') ? 'pdf' : (doc.tipo || 'pdf'),
+              preview: buildAbsoluteUrl(doc.archivo_url || doc.archivo || doc.url)
+            }
+          })
+        }
+        
+        setApplicationData(formattedData)
+        setDocuments(formattedData.documents)
+      } catch (error) {
+        console.error('Error fetching application:', error)
+        // Keep default empty data on error
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchApplicationData()
+  }, [id])
 
   const currentDoc = documents[currentDocIndex]
   const pendingDocuments = documents.filter(d => d.status === 'pending')
@@ -194,6 +211,14 @@ export default function ApplicationReviewPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -215,7 +240,20 @@ export default function ApplicationReviewPage() {
         {allDocumentsReviewed && (
           <div className="flex gap-3">
             {hasRejectedDocs ? (
-              <Button variant="danger" onClick={() => alert('Solicitud devuelta al cliente')}>
+              <Button 
+                variant="danger" 
+                onClick={async () => {
+                  try {
+                    await solicitudesService.actualizarSolicitud(id, { 
+                      estado: 'pendiente',
+                      notas_asesor: 'Documentos rechazados. Por favor corrija y vuelva a enviar.'
+                    })
+                    navigate('/asesor/solicitudes')
+                  } catch (error) {
+                    console.error('Error:', error)
+                  }
+                }}
+              >
                 Devolver al Cliente
               </Button>
             ) : (
@@ -316,12 +354,20 @@ export default function ApplicationReviewPage() {
                   onClick={() => openViewer(index)}
                   className="group relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 hover:border-primary-400 transition-all hover:shadow-lg"
                 >
-                  {/* Preview Image */}
-                  <img
-                    src={doc.preview}
-                    alt={doc.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
+                  {/* Preview Image or PDF Icon */}
+                  {doc.type === 'pdf' || doc.preview?.endsWith('.pdf') ? (
+                    <div className="w-full h-full bg-red-50 flex items-center justify-center">
+                      <svg className="w-16 h-16 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10.92,12.31C10.68,11.54 10.15,9.08 11.55,9.04C12.95,9 12.03,12.16 12.03,12.16C12.42,13.65 14.05,14.72 14.05,14.72C14.55,14.57 17.4,14.24 17,15.72C16.57,17.2 13.5,15.81 13.5,15.81C11.55,15.95 10.09,16.47 10.09,16.47C8.96,18.58 7.64,19.5 7.1,18.61C6.43,17.5 9.23,16.07 9.23,16.07C10.68,13.7 10.92,12.31 10.92,12.31Z" />
+                      </svg>
+                    </div>
+                  ) : (
+                    <img
+                      src={doc.preview}
+                      alt={doc.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  )}
 
                   {/* Overlay with info */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
@@ -424,12 +470,20 @@ export default function ApplicationReviewPage() {
             </button>
 
             {/* Document Preview */}
-            <div className="max-w-4xl max-h-[70vh] rounded-xl overflow-hidden shadow-2xl">
-              <img
-                src={currentDoc?.preview}
-                alt={currentDoc?.name}
-                className="max-w-full max-h-[70vh] object-contain"
-              />
+            <div className="w-full max-w-4xl h-[70vh] rounded-xl overflow-hidden shadow-2xl bg-white">
+              {currentDoc?.type === 'pdf' || currentDoc?.preview?.endsWith('.pdf') ? (
+                <iframe
+                  src={`${currentDoc?.preview}#toolbar=1&view=FitH`}
+                  className="w-full h-full"
+                  title={currentDoc?.name}
+                />
+              ) : (
+                <img
+                  src={currentDoc?.preview}
+                  alt={currentDoc?.name}
+                  className="max-w-full max-h-[70vh] object-contain"
+                />
+              )}
             </div>
 
             {/* Right Arrow */}
@@ -481,11 +535,19 @@ export default function ApplicationReviewPage() {
                       : 'border-transparent hover:border-white/50'
                   }`}
                 >
-                  <img
-                    src={doc.preview}
-                    alt={doc.name}
-                    className="w-full h-full object-cover"
-                  />
+                  {doc.type === 'pdf' || doc.preview?.endsWith('.pdf') ? (
+                    <div className="w-full h-full bg-red-50 flex items-center justify-center">
+                      <svg className="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10.92,12.31C10.68,11.54 10.15,9.08 11.55,9.04C12.95,9 12.03,12.16 12.03,12.16C12.42,13.65 14.05,14.72 14.05,14.72C14.55,14.57 17.4,14.24 17,15.72C16.57,17.2 13.5,15.81 13.5,15.81C11.55,15.95 10.09,16.47 10.09,16.47C8.96,18.58 7.64,19.5 7.1,18.61C6.43,17.5 9.23,16.07 9.23,16.07C10.68,13.7 10.92,12.31 10.92,12.31Z" />
+                      </svg>
+                    </div>
+                  ) : (
+                    <img
+                      src={doc.preview}
+                      alt={doc.name}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
                   {/* Mini status indicator */}
                   {doc.status !== 'pending' && (
                     <div className={`absolute inset-0 ${
@@ -590,10 +652,19 @@ export default function ApplicationReviewPage() {
             </Button>
             <Button
               className="flex-1"
-              onClick={() => {
-                setShowApproveModal(false)
-                alert('Solicitud aprobada exitosamente. Ahora puedes enviarla a la embajada.')
-                navigate('/asesor/solicitudes')
+              onClick={async () => {
+                try {
+                  // First transition to en_revision if not already
+                  if (applicationData?.status === 'pendiente') {
+                    await solicitudesService.actualizarSolicitud(id, { estado: 'en_revision' })
+                  }
+                  // Then approve
+                  await solicitudesService.actualizarSolicitud(id, { estado: 'aprobada' })
+                  setShowApproveModal(false)
+                  navigate('/asesor/solicitudes')
+                } catch (error) {
+                  console.error('Error al aprobar:', error)
+                }
               }}
             >
               Confirmar Aprobación

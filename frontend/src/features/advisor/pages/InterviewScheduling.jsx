@@ -1,67 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Card, Button, Badge } from '../../../components/common'
-
-// Mock data - En producción esto vendría de la API
-const mockSolicitudes = [
-  {
-    id: 'SOL-2024-001',
-    cliente: 'Ana Martínez',
-    tipoVisa: 'Visa de Trabajo',
-    embajada: 'Estados Unidos',
-    estado: 'APROBADA_SIN_ENTREVISTA',
-    fechaSolicitud: '2024-01-25',
-    prioridad: 'alta'
-  },
-  {
-    id: 'SOL-2024-002',
-    cliente: 'Pedro Sánchez',
-    tipoVisa: 'Visa de Estudio',
-    embajada: 'Canadá',
-    estado: 'APROBADA_SIN_ENTREVISTA',
-    fechaSolicitud: '2024-01-24',
-    prioridad: 'media'
-  },
-  {
-    id: 'SOL-2024-003',
-    cliente: 'Laura Díaz',
-    tipoVisa: 'Visa de Residencia',
-    embajada: 'España',
-    estado: 'APROBADA_SIN_ENTREVISTA',
-    fechaSolicitud: '2024-01-23',
-    prioridad: 'baja'
-  }
-]
-
-const mockEntrevistas = [
-  {
-    id: 'ENT-001',
-    codigo: 'INT-2024-001',
-    solicitudId: 'SOL-2024-004',
-    cliente: 'Carlos López',
-    embajada: 'Estados Unidos',
-    estado: 'AGENDADA',
-    fecha: '2026-02-15',
-    hora: '10:00',
-    ubicacion: 'Embajada de EE.UU. - Ciudad de México',
-    vecesReprogramada: 0
-  },
-  {
-    id: 'ENT-002',
-    codigo: 'INT-2024-002',
-    solicitudId: 'SOL-2024-005',
-    cliente: 'María García',
-    embajada: 'Canadá',
-    estado: 'CONFIRMADA',
-    fecha: '2026-02-20',
-    hora: '14:00',
-    ubicacion: 'Consulado de Canadá',
-    vecesReprogramada: 1
-  }
-]
+import { entrevistasService } from '../../../services/entrevistasService'
+import { solicitudesService } from '../../../services/solicitudesService'
 
 export default function InterviewScheduling() {
-  const [solicitudes, setSolicitudes] = useState(mockSolicitudes)
-  const [entrevistas, setEntrevistas] = useState(mockEntrevistas)
+  const [solicitudes, setSolicitudes] = useState([])
+  const [entrevistas, setEntrevistas] = useState([])
+  const [loading, setLoading] = useState(true)
   const [selectedTab, setSelectedTab] = useState('pendientes') // 'pendientes' | 'agendadas'
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [selectedSolicitud, setSelectedSolicitud] = useState(null)
@@ -76,6 +21,63 @@ export default function InterviewScheduling() {
   const [opciones, setOpciones] = useState([
     { id: 'opt1', fecha: '', hora: '' }
   ])
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const [solicitudesResponse, entrevistasResponse] = await Promise.all([
+        solicitudesService.getSolicitudesAsignadas().catch(() => []),
+        entrevistasService.getEntrevistasAsesor().catch(() => [])
+      ])
+
+      // Handle both array and object with results
+      const solicitudesData = Array.isArray(solicitudesResponse) 
+        ? solicitudesResponse 
+        : (solicitudesResponse?.results || [])
+      
+      const entrevistasData = Array.isArray(entrevistasResponse)
+        ? entrevistasResponse
+        : (entrevistasResponse?.results || [])
+
+      // Transform solicitudes - only those approved without interview
+      const solList = solicitudesData
+        .filter(s => ['aprobada', 'enviada_embajada', 'APROBADA_SIN_ENTREVISTA', 'approved'].includes(s.estado))
+        .map(s => ({
+          id: s.id || s.numero,
+          cliente: s.cliente_nombre || s.cliente?.nombre || 'Cliente',
+          tipoVisa: s.tipo_visa_display || s.tipo_visa || 'Visa',
+          embajada: s.embajada_display || s.embajada || 'Embajada',
+          estado: s.estado || 'APROBADA_SIN_ENTREVISTA',
+          fechaSolicitud: s.fecha_creacion || s.created_at || '',
+          prioridad: s.prioridad || 'media'
+        }))
+
+      // Transform entrevistas
+      const entList = entrevistasData.map(e => ({
+        id: e.id,
+        codigo: e.codigo || `INT-${e.id}`,
+        solicitudId: e.solicitud_id || e.solicitud,
+        cliente: e.cliente_nombre || e.cliente?.nombre || 'Cliente',
+        embajada: e.embajada_nombre || e.embajada || 'Embajada',
+        estado: e.estado || 'AGENDADA',
+        fecha: e.fecha,
+        hora: e.hora,
+        ubicacion: e.ubicacion || 'Por confirmar',
+        vecesReprogramada: e.veces_reprogramada || 0
+      }))
+
+      setSolicitudes(solList)
+      setEntrevistas(entList)
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Ubicaciones predefinidas por embajada
   const ubicacionesPorEmbajada = {

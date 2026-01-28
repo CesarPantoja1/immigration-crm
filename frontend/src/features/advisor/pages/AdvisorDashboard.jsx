@@ -1,100 +1,164 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Badge, Button } from '../../../components/common'
-
-// Mock data
-const todaySimulations = [
-  {
-    id: 1,
-    client: 'Juan Pérez',
-    time: '10:00 AM',
-    visaType: 'Visa de Estudio',
-    status: 'upcoming'
-  },
-  {
-    id: 2,
-    client: 'María García',
-    time: '11:30 AM',
-    visaType: 'Visa de Trabajo',
-    status: 'upcoming'
-  },
-  {
-    id: 3,
-    client: 'Carlos López',
-    time: '02:00 PM',
-    visaType: 'Visa de Estudio',
-    status: 'upcoming'
-  }
-]
-
-const pendingReviews = [
-  {
-    id: 'SOL-2024-001',
-    client: 'Ana Martínez',
-    visaType: 'Visa de Trabajo',
-    submittedAt: '2024-01-25',
-    documentsCount: 5,
-    priority: 'high'
-  },
-  {
-    id: 'SOL-2024-002',
-    client: 'Pedro Sánchez',
-    visaType: 'Visa de Estudio',
-    submittedAt: '2024-01-24',
-    documentsCount: 4,
-    priority: 'medium'
-  },
-  {
-    id: 'SOL-2024-003',
-    client: 'Laura Díaz',
-    visaType: 'Visa de Vivienda',
-    submittedAt: '2024-01-23',
-    documentsCount: 6,
-    priority: 'low'
-  }
-]
-
-const recentActivity = [
-  { type: 'review', message: 'Aprobaste la solicitud de Carlos López', time: 'Hace 2 horas' },
-  { type: 'simulation', message: 'Completaste simulacro con María García', time: 'Hace 5 horas' },
-  { type: 'document', message: 'Rechazaste documento de Juan Pérez', time: 'Ayer' },
-  { type: 'feedback', message: 'Enviaste feedback a Ana Martínez', time: 'Ayer' }
-]
+import { useAuth } from '../../../contexts/AuthContext'
+import { 
+  solicitudesService, 
+  simulacrosService, 
+  entrevistasService 
+} from '../../../services'
 
 export default function AdvisorDashboard() {
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [todaySimulations, setTodaySimulations] = useState([])
+  const [pendingReviews, setPendingReviews] = useState([])
+  const [recentActivity, setRecentActivity] = useState([])
+  const [statsData, setStatsData] = useState({
+    simulacrosHoy: 0,
+    revisionesPendientes: 0,
+    clientesActivos: 0,
+    simulacrosMes: 0
+  })
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true)
+
+        const today = new Date().toISOString().split('T')[0]
+
+        // Fetch data in parallel
+        const [solicitudesResponse, simulacrosResponse] = await Promise.all([
+          solicitudesService.getAll({ estado: 'pendiente' }).catch(() => ({ results: [] })),
+          simulacrosService.getSimulacros({ fecha: today }).catch(() => [])
+        ])
+
+        // Handle both array and object with results
+        const solicitudes = Array.isArray(solicitudesResponse) 
+          ? solicitudesResponse 
+          : (solicitudesResponse?.results || [])
+        
+        const simulacrosData = Array.isArray(simulacrosResponse) 
+          ? simulacrosResponse 
+          : (simulacrosResponse?.results || [])
+        const pending = solicitudes.filter(s => 
+          ['pendiente', 'en_revision'].includes(s.estado)
+        )
+        
+        setPendingReviews(pending.slice(0, 3).map(s => ({
+          id: `SOL-${s.id}`,
+          rawId: s.id,
+          client: s.cliente_nombre || 'Cliente',
+          visaType: s.tipo_visa_display || s.tipo_visa,
+          submittedAt: s.created_at?.split('T')[0],
+          documentsCount: s.documentos_adjuntos?.length || 0,
+          priority: s.prioridad || 'medium'
+        })))
+
+        // Process simulacros de hoy
+        const todaySims = simulacrosData.filter(s => 
+          s.fecha_propuesta === today && 
+          ['confirmado', 'en_progreso'].includes(s.estado)
+        )
+        
+        setTodaySimulations(todaySims.map(s => ({
+          id: s.id,
+          client: s.cliente_nombre || 'Cliente',
+          time: s.hora_propuesta,
+          visaType: s.solicitud_tipo || 'Visa',
+          status: s.estado
+        })))
+
+        // Get unique clients
+        const uniqueClients = new Set(solicitudes.map(s => s.cliente))
+
+        setStatsData({
+          simulacrosHoy: todaySims.length,
+          revisionesPendientes: pending.length,
+          clientesActivos: uniqueClients.size,
+          simulacrosMes: simulacrosData.length
+        })
+
+        // Generate recent activity from data
+        const activities = []
+        pending.slice(0, 2).forEach(s => {
+          activities.push({
+            type: 'review',
+            message: `Nueva solicitud de ${s.cliente_nombre || 'cliente'} pendiente de revisión`,
+            time: 'Hace poco'
+          })
+        })
+        todaySims.slice(0, 2).forEach(s => {
+          activities.push({
+            type: 'simulation',
+            message: `Simulacro programado con ${s.cliente_nombre || 'cliente'}`,
+            time: s.hora_propuesta || 'Hoy'
+          })
+        })
+        if (activities.length === 0) {
+          activities.push({
+            type: 'review',
+            message: 'No hay actividad reciente',
+            time: 'Ahora'
+          })
+        }
+        setRecentActivity(activities)
+
+      } catch (error) {
+        console.error('Error fetching advisor dashboard:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
+
   const stats = [
     { 
       label: 'Simulacros Hoy', 
-      value: todaySimulations.length, 
+      value: statsData.simulacrosHoy, 
       icon: '📅',
       color: 'bg-blue-50 text-blue-600'
     },
     { 
       label: 'Revisiones Pendientes', 
-      value: pendingReviews.length, 
+      value: statsData.revisionesPendientes, 
       icon: '📋',
       color: 'bg-amber-50 text-amber-600'
     },
     { 
       label: 'Clientes Activos', 
-      value: 24, 
+      value: statsData.clientesActivos, 
       icon: '👥',
       color: 'bg-green-50 text-green-600'
     },
     { 
       label: 'Este Mes', 
-      value: 18, 
+      value: statsData.simulacrosMes, 
       subtext: 'simulacros',
       icon: '📊',
       color: 'bg-purple-50 text-purple-600'
     }
   ]
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Cargando dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">¡Buenos días, María!</h1>
+        <h1 className="text-2xl font-bold mb-2">¡Buenos días, {user?.name?.split(' ')[0] || 'Asesor'}!</h1>
         <p className="text-primary-100">
           Tienes {todaySimulations.length} simulacros programados para hoy y {pendingReviews.length} solicitudes pendientes de revisión.
         </p>
@@ -266,7 +330,7 @@ export default function AdvisorDashboard() {
                     </Badge>
                   </td>
                   <td className="py-3 px-4">
-                    <Link to={`/asesor/solicitudes/${review.id}`}>
+                    <Link to={`/asesor/solicitudes/${review.rawId}`}>
                       <Button variant="secondary" size="sm">Revisar</Button>
                     </Link>
                   </td>

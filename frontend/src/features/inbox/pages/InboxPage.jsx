@@ -1,80 +1,52 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Card, Badge, Button, EmptyState, EmptyStateIcons } from '../../../components/common'
 import { useAuth } from '../../../contexts/AuthContext'
 import { NOTIFICATION_TYPES } from '../../../store/constants'
-
-// Mock notifications data
-const MOCK_NOTIFICATIONS = [
-  {
-    id: 1,
-    type: 'application_update',
-    title: 'Solicitud aprobada por asesor',
-    message: 'Tu solicitud SOL-2024-001 ha sido aprobada y enviada a la embajada.',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    read: false,
-    deepLink: '/solicitudes/SOL-2024-001',
-    metadata: { applicationId: 'SOL-2024-001' }
-  },
-  {
-    id: 2,
-    type: 'embassy_response',
-    title: 'Embajada: Fecha de entrevista asignada',
-    message: 'La embajada ha asignado tu entrevista para el 15 de Febrero de 2026 a las 9:00 AM.',
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    read: false,
-    deepLink: '/calendario',
-    metadata: { date: '2026-02-15', time: '09:00' }
-  },
-  {
-    id: 3,
-    type: 'simulation_scheduled',
-    title: 'Simulacro programado',
-    message: 'Tienes un simulacro virtual con María González el 5 de Febrero a las 3:00 PM.',
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    read: true,
-    deepLink: '/simulacros/2',
-    metadata: { simulationId: 2, advisor: 'María González' }
-  },
-  {
-    id: 4,
-    type: 'document_review',
-    title: 'Documento requiere corrección',
-    message: 'El asesor ha solicitado que vuelvas a cargar el documento "Pasaporte" debido a problemas de legibilidad.',
-    timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    read: true,
-    deepLink: '/solicitudes/SOL-2024-001',
-    metadata: { documentId: 1, documentName: 'Pasaporte' }
-  },
-  {
-    id: 5,
-    type: 'feedback_received',
-    title: 'Retroalimentación de simulacro recibida',
-    message: 'Tu asesor ha enviado la retroalimentación de tu último simulacro. Puntuación: 8/10',
-    timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    read: true,
-    deepLink: '/simulacros/1/resumen',
-    metadata: { simulationId: 1, score: 8 }
-  },
-  {
-    id: 6,
-    type: 'simulation_reminder',
-    title: 'Recordatorio: Simulacro mañana',
-    message: 'Recuerda que mañana tienes tu simulacro virtual. Prepara tus documentos y verifica tu conexión.',
-    timestamp: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-    read: true,
-    deepLink: '/simulacros/2',
-    metadata: { simulationId: 2 }
-  }
-]
+import { notificacionesService } from '../../../services'
 
 export default function InboxPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS)
+  const [loading, setLoading] = useState(true)
+  const [notifications, setNotifications] = useState([])
   const [filter, setFilter] = useState('all') // all, unread
   const [typeFilter, setTypeFilter] = useState('all')
   const [expandedId, setExpandedId] = useState(null)
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [filter, typeFilter])
+
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true)
+      const params = {}
+      if (filter === 'unread') params.leida = false
+      if (typeFilter !== 'all') params.tipo = typeFilter
+      
+      const data = await notificacionesService.getAll(params)
+      const results = data.results || data || []
+      
+      // Transform to component format
+      const transformed = results.map(n => ({
+        id: n.id,
+        type: n.tipo,
+        title: n.titulo,
+        message: n.mensaje,
+        timestamp: n.created_at,
+        read: n.leida,
+        deepLink: n.link_accion || null,
+        metadata: n.datos_adicionales || {}
+      }))
+      
+      setNotifications(transformed)
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const unreadCount = notifications.filter(n => !n.read).length
   
@@ -84,18 +56,33 @@ export default function InboxPage() {
     return true
   })
 
-  const handleMarkAsRead = (id) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    )
+  const handleMarkAsRead = async (id) => {
+    try {
+      await notificacionesService.marcarLeida(id)
+      setNotifications(prev => 
+        prev.map(n => n.id === id ? { ...n, read: true } : n)
+      )
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+    }
   }
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificacionesService.marcarTodasLeidas()
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    } catch (error) {
+      console.error('Error marking all as read:', error)
+    }
   }
 
-  const handleDelete = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id))
+  const handleDelete = async (id) => {
+    try {
+      await notificacionesService.delete(id)
+      setNotifications(prev => prev.filter(n => n.id !== id))
+    } catch (error) {
+      console.error('Error deleting notification:', error)
+    }
   }
 
   const handleNavigate = (notification) => {

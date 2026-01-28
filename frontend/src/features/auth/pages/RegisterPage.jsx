@@ -2,13 +2,16 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Input } from '../../../components/common'
 import AuthBranding from '../components/AuthBranding'
+import { useAuth } from '../../../contexts/AuthContext'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
+  const { register } = useAuth()
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: '',
+    passwordConfirm: '',
   })
   const [errors, setErrors] = useState({})
   const [isLoading, setIsLoading] = useState(false)
@@ -51,13 +54,31 @@ export default function RegisterPage() {
     if (!validate()) return
 
     setIsLoading(true)
+    setErrors({})
+    
     try {
-      // TODO: Implementar llamada real al API
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      console.log('Register:', formData)
-      navigate('/login')
+      // Separar nombre y apellido
+      const nameParts = formData.fullName.trim().split(' ')
+      const firstName = nameParts[0]
+      const lastName = nameParts.slice(1).join(' ') || nameParts[0]
+      
+      const result = await register({
+        email: formData.email,
+        password: formData.password,
+        passwordConfirm: formData.passwordConfirm || formData.password,
+        firstName,
+        lastName,
+      })
+      
+      if (result.success) {
+        // Registro exitoso, redirigir al dashboard
+        navigate('/dashboard')
+      } else {
+        setErrors({ general: result.error || 'Error al crear la cuenta' })
+      }
     } catch (err) {
-      setErrors({ general: 'Error al crear la cuenta. Intenta de nuevo.' })
+      console.error('Error en registro:', err)
+      setErrors({ general: err.message || 'Error al crear la cuenta. Intenta de nuevo.' })
     } finally {
       setIsLoading(false)
     }
