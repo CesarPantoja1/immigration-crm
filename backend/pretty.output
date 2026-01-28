@@ -1,85 +1,134 @@
-Caracter铆stica: Seguimiento de Solicitudes Migratorias # features/notificaciones/seguimiento_solicitud.feature:3
-  Como migrante
-  Quiero mantener visibilidad total sobre el progreso de mi tr谩mite
-  Para reducir la incertidumbre y gestionar mis obligaciones legales oportunamente
-  Caracter铆stica: Seguimiento de Solicitudes Migratorias  # features/notificaciones/seguimiento_solicitud.feature:3
+Caracter韘tica: Recepci髇 de solicitudes # features/solicitudes/recepcion/recepcion_solicitud.feature:3
+  Como migrante de la agencia de migraci髇
+  quiero registrar mi solicitud de visa
+  para garantizar una entrevista con la embajada
+  Antecedentes:   # features/solicitudes/recepcion/recepcion_solicitud.feature:11
 
-  Escenario: Supervisi贸n global del portafolio de solicitudes                                    # features/notificaciones/seguimiento_solicitud.feature:13
-    Dado que soy un solicitante autenticado en el sistema de gesti贸n migratoria                  # features/notificaciones/steps/seguimiento_solicitud.py:46
-    Dado que gestiono los siguientes tr谩mites activos                                            # features/notificaciones/steps/seguimiento_solicitud.py:69
-      | tipo_visa | embajada       | estado                | fecha_creacion |
-      | TRABAJO   | ESTADOUNIDENSE | APROBADA              | 2024-01-15     |
-      | ESTUDIO   | ESPA脩OLA       | REQUIERE_CORRECCIONES | 2024-02-10     |
-      | VIVIENDA  | CANADIENSE     | PENDIENTE_REVISION    | 2024-02-20     |
-    Cuando reviso mi situaci贸n migratoria actual                                                 # features/notificaciones/steps/seguimiento_solicitud.py:91
-    Entonces se presenta mis 3 solicitudes priorizando la actividad m谩s reciente                 # features/notificaciones/steps/seguimiento_solicitud.py:98
-    Y cada solicitud expone el tipo de visa, la autoridad consular y su situaci贸n t茅cnica actual # features/notificaciones/steps/seguimiento_solicitud.py:108
+  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.1   # features/solicitudes/recepcion/recepcion_solicitud.feature:34
+    Dado que existen los siguientes checklists de documentos por tipo de visa        # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matr韈ula |
+    Y que existen las embajadas                                                      # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILE袮      |
+    Dado que un migrante solicita visa VIVIENDA para embajada ESTADOUNIDENSE         # None
+    Cuando carga todos los documentos obligatorios                                   # None
+      | documentos                                                    |
+      | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad |
+    Entonces todos los documentos tienen estado "EN_REVISION"                        # None
+    Y el estado de la solicitud es "EN_REVISION"                                     # None
+    Y el sistema registra la solicitud                                               # None
 
-  Escenario: Auditor铆a de detalles y trazabilidad de una solicitud espec铆fica        # features/notificaciones/seguimiento_solicitud.feature:23
-    Dado que soy un solicitante autenticado en el sistema de gesti贸n migratoria      # features/notificaciones/steps/seguimiento_solicitud.py:46
-    Dado que la solicitud "SOL-2024-00001" ha alcanzado el estado "APROBADA"         # features/notificaciones/steps/seguimiento_solicitud.py:121
-    Cuando exploro el expediente detallado del tr谩mite "SOL-2024-00001"              # features/notificaciones/steps/seguimiento_solicitud.py:139
-    Entonces el sistema confirma la resoluci贸n final como "APROBADA"                 # features/notificaciones/steps/seguimiento_solicitud.py:146
-    Y garantiza el acceso a la trazabilidad documental y validaciones de la embajada # features/notificaciones/steps/seguimiento_solicitud.py:152
+  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.2   # features/solicitudes/recepcion/recepcion_solicitud.feature:35
+    Dado que existen los siguientes checklists de documentos por tipo de visa        # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matr韈ula |
+    Y que existen las embajadas                                                      # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILE袮      |
+    Dado que un migrante solicita visa TRABAJO para embajada BRASILE袮               # None
+    Cuando carga todos los documentos obligatorios                                   # None
+      | documentos                                                 |
+      | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo |
+    Entonces todos los documentos tienen estado "EN_REVISION"                        # None
+    Y el estado de la solicitud es "EN_REVISION"                                     # None
+    Y el sistema registra la solicitud                                               # None
 
-  Escenario: Reconstrucci贸n hist贸rica de hitos operativos                       # features/notificaciones/seguimiento_solicitud.feature:29
-    Dado que soy un solicitante autenticado en el sistema de gesti贸n migratoria # features/notificaciones/steps/seguimiento_solicitud.py:46
-    Dado que la solicitud "SOL-2024-00002" registra los siguientes hitos        # features/notificaciones/steps/seguimiento_solicitud.py:163
-      | evento              | fecha               | descripcion             |
-      | SOLICITUD_CREADA    | 2024-02-01 10:00:00 | Solicitud creada        |
-      | DOCUMENTO_CARGADO   | 2024-02-01 10:15:00 | Pasaporte cargado       |
-      | DOCUMENTO_APROBADO  | 2024-02-03 14:30:00 | Pasaporte validado      |
-      | DOCUMENTO_RECHAZADO | 2024-02-03 14:35:00 | Antecedentes rechazados |
-      | SOLICITUD_APROBADA  | 2024-02-10 09:00:00 | Solicitud aprobada      |
-    Cuando audito la cronolog铆a de "SOL-2024-00002"                             # features/notificaciones/steps/seguimiento_solicitud.py:191
-    Entonces el sistema presenta los 5 eventos en orden cronol贸gico inverso     # features/notificaciones/steps/seguimiento_solicitud.py:198
-    Y cada hito detalla la naturaleza del cambio, fecha y descripci贸n t茅cnica   # features/notificaciones/steps/seguimiento_solicitud.py:209
+  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.3   # features/solicitudes/recepcion/recepcion_solicitud.feature:36
+    Dado que existen los siguientes checklists de documentos por tipo de visa        # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matr韈ula |
+    Y que existen las embajadas                                                      # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILE袮      |
+    Dado que un migrante solicita visa ESTUDIO para embajada ESTADOUNIDENSE          # None
+    Cuando carga todos los documentos obligatorios                                   # None
+      | documentos                                                      |
+      | Pasaporte, Antecedentes penales, Foto, Certificado de matr韈ula |
+    Entonces todos los documentos tienen estado "EN_REVISION"                        # None
+    Y el estado de la solicitud es "EN_REVISION"                                     # None
+    Y el sistema registra la solicitud                                               # None
 
-  Escenario: Identificaci贸n de bloqueos y motivos de rechazo documental                   # features/notificaciones/seguimiento_solicitud.feature:44
-    Dado que soy un solicitante autenticado en el sistema de gesti贸n migratoria           # features/notificaciones/steps/seguimiento_solicitud.py:46
-    Dado que la solicitud "SOL-2024-00003" se encuentra en estado "REQUIERE_CORRECCIONES" # features/notificaciones/steps/seguimiento_solicitud.py:222
-    Y presenta las siguientes validaciones documentales                                   # features/notificaciones/steps/seguimiento_solicitud.py:239
-      | nombre               | estado    | motivo_rechazo                                  |
-      | Pasaporte            | APROBADO  |                                                 |
-      | Antecedentes penales | RECHAZADO | Documento vencido, fecha de emisi贸n muy antigua |
-    Cuando analizo los requisitos pendientes de mi solicitud                              # features/notificaciones/steps/seguimiento_solicitud.py:250
-    Entonces el sistema me alerta sobre el estado "RECHAZADO" de "Antecedentes penales"   # features/notificaciones/steps/seguimiento_solicitud.py:257
-    Y justifica la incidencia como: "Documento vencido, fecha de emisi贸n muy antigua"     # features/notificaciones/steps/seguimiento_solicitud.py:265
-    Y permite la carga inmediata de una nueva versi贸n del documento                       # features/notificaciones/steps/seguimiento_solicitud.py:274
+  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.1   # features/solicitudes/recepcion/recepcion_solicitud.feature:63
+    Dado que existen los siguientes checklists de documentos por tipo de visa                          # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matr韈ula |
+    Y que existen las embajadas                                                                        # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILE袮      |
+    Dado que existe una solicitud de visa VIVIENDA con embajada ESTADOUNIDENSE con id VVE01            # None
+    Y todos los documentos est醤 en estado "EN_REVISION"                                               # None
+    Cuando el asesor revisa todos los documentos de la solicitud                                       # None
+    Y todos los documentos son "Correcto"                                                              # None
+    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # None
+    Y el estado de la solicitud debe ser "APROBADO"                                                    # None
+    Y los documentos quedan almacenados en el sistema                                                  # None
+    Y el migrante recibe la notificaci髇 "VISA_VIVIENDA_APROBADA"                                      # None
 
-  Escenario: Monitoreo del nivel de completitud del tr谩mite                                  # features/notificaciones/seguimiento_solicitud.feature:55
-    Dado que soy un solicitante autenticado en el sistema de gesti贸n migratoria              # features/notificaciones/steps/seguimiento_solicitud.py:46
-    Dado que la solicitud "SOL-2024-00004" de tipo "TRABAJO" requiere 4 documentos validados # features/notificaciones/steps/seguimiento_solicitud.py:285
-    Y cuenta actualmente con 3 documentos en estado "APROBADO"                               # features/notificaciones/steps/seguimiento_solicitud.py:302
-    Cuando consulto el progreso de mi gesti贸n                                                # features/notificaciones/steps/seguimiento_solicitud.py:312
-    Entonces el sistema informa un avance del 75%                                            # features/notificaciones/steps/seguimiento_solicitud.py:319
-    Y especifica la cantidad de validaciones restantes para completar el proceso             # features/notificaciones/steps/seguimiento_solicitud.py:325
+  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.2   # features/solicitudes/recepcion/recepcion_solicitud.feature:64
+    Dado que existen los siguientes checklists de documentos por tipo de visa                          # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matr韈ula |
+    Y que existen las embajadas                                                                        # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILE袮      |
+    Dado que existe una solicitud de visa TRABAJO con embajada BRASILE袮 con id VTB01                  # None
+    Y todos los documentos est醤 en estado "EN_REVISION"                                               # None
+    Cuando el asesor revisa todos los documentos de la solicitud                                       # None
+    Y todos los documentos son "Correcto"                                                              # None
+    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # None
+    Y el estado de la solicitud debe ser "APROBADO"                                                    # None
+    Y los documentos quedan almacenados en el sistema                                                  # None
+    Y el migrante recibe la notificaci髇 "VISA_TRABAJO_APROBADA"                                       # None
 
-  Escenario: Aislamiento de informaci贸n sensible entre usuarios                                  # features/notificaciones/seguimiento_solicitud.feature:64
-    Dado que soy un solicitante autenticado en el sistema de gesti贸n migratoria                  # features/notificaciones/steps/seguimiento_solicitud.py:46
-    Dado que existe informaci贸n de otro solicitante identificado como "pedro.lopez@ejemplo.com"  # features/notificaciones/steps/seguimiento_solicitud.py:336
-    Cuando accedo a mis servicios privados                                                       # features/notificaciones/steps/seguimiento_solicitud.py:355
-    Entonces el sistema garantiza la privacidad mostrando exclusivamente mis tr谩mites vinculados # features/notificaciones/steps/seguimiento_solicitud.py:367
-    Y restringe cualquier visibilidad sobre el expediente de "pedro.lopez@ejemplo.com"           # features/notificaciones/steps/seguimiento_solicitud.py:374
+  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.3   # features/solicitudes/recepcion/recepcion_solicitud.feature:65
+    Dado que existen los siguientes checklists de documentos por tipo de visa                          # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matr韈ula |
+    Y que existen las embajadas                                                                        # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILE袮      |
+    Dado que existe una solicitud de visa ESTUDIO con embajada BRASILE袮 con id VEB01                  # None
+    Y todos los documentos est醤 en estado "EN_REVISION"                                               # None
+    Cuando el asesor revisa todos los documentos de la solicitud                                       # None
+    Y todos los documentos son "Correcto"                                                              # None
+    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # None
+    Y el estado de la solicitud debe ser "APROBADO"                                                    # None
+    Y los documentos quedan almacenados en el sistema                                                  # None
+    Y el migrante recibe la notificaci髇 "VISA_ESTUDIO_APROBADA"                                       # None
 
-  Escenario: Protecci贸n de recursos ajenos mediante control de acceso                                     # features/notificaciones/seguimiento_solicitud.feature:70
-    Dado que soy un solicitante autenticado en el sistema de gesti贸n migratoria                           # features/notificaciones/steps/seguimiento_solicitud.py:46
-    Dado que el expediente "SOL-2024-00099" pertenece a un tercero                                        # features/notificaciones/steps/seguimiento_solicitud.py:382
-    Cuando intento acceder directamente al recurso "SOL-2024-00099"                                       # features/notificaciones/steps/seguimiento_solicitud.py:397
-    Entonces el sistema deniega el acceso por falta de permisos y protege la integridad de la informaci贸n # features/notificaciones/steps/seguimiento_solicitud.py:407
-
-  Escenario: Notificaci贸n de riesgos cr铆ticos por vencimiento                                       # features/notificaciones/seguimiento_solicitud.feature:77
-    Dado que soy un solicitante autenticado en el sistema de gesti贸n migratoria                     # features/notificaciones/steps/seguimiento_solicitud.py:46
-    Dado que en la solicitud "SOL-2024-00015" el "Pasaporte" tiene fecha de expiraci贸n "2024-03-10" # features/notificaciones/steps/seguimiento_solicitud.py:417
-    Y hoy es "2024-02-23"                                                                           # features/notificaciones/steps/seguimiento_solicitud.py:440
-    Cuando el sistema eval煤a la vigencia de los requisitos                                          # features/notificaciones/steps/seguimiento_solicitud.py:446
-    Entonces el sistema emite una alerta de urgencia: "Tu pasaporte vence en 15 d铆as"               # features/notificaciones/steps/seguimiento_solicitud.py:461
-    Y provee una recomendaci贸n proactiva para evitar retrasos en el proceso consular                # features/notificaciones/steps/seguimiento_solicitud.py:473
-
-  Escenario: Gesti贸n de expectativas sobre el tiempo de resoluci贸n                                              # features/notificaciones/seguimiento_solicitud.feature:84
-    Dado que soy un solicitante autenticado en el sistema de gesti贸n migratoria                                 # features/notificaciones/steps/seguimiento_solicitud.py:46
-    Dado que la solicitud "SOL-2024-00016" ha sido "APROBADA"                                                   # features/notificaciones/steps/seguimiento_solicitud.py:485
-    Cuando reviso los siguientes pasos de mi tr谩mite                                                            # features/notificaciones/steps/seguimiento_solicitud.py:501
-    Entonces el sistema reduce mi incertidumbre informando el paso: "Esperar asignaci贸n de fecha de entrevista" # features/notificaciones/steps/seguimiento_solicitud.py:508
-    Y proyecta una ventana estimada de resoluci贸n de "3-5 d铆as h谩biles"                                         # features/notificaciones/steps/seguimiento_solicitud.py:522
-
+  Esquema del escenario: Asesor rechaza solicitud por documento incorrecto -- @1.1            # features/solicitudes/recepcion/recepcion_solicitud.feature:81
+    Dado que existen los siguientes checklists de documentos por tipo de visa                 # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matr韈ula |
+    Y que existen las embajadas                                                               # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILE袮      |
+    Dado que existe una solicitud de visa VIVIENDA con embajada ESTADOUNIDENSE con id "VVE01" # None
+    Y todos los documentos est醤 en estado "EN_REVISION"                                      # None
+    Cuando el asesor revisa todos los documentos de la solicitud                              # None
+    Y el documento "Pasaporte" es "Incorrecto"                                                # None
+    Entonces el documento "Pasaporte" debe cambiar a estado "DESAPROBADO"                     # None
+    Y el estado de la solicitud debe ser "DESAPROBADO"                                        # None
+    Y el migrante recibe la notificaci髇 "DOCUMENTO_RECHAZADO: Pasaporte"                     # None
