@@ -28,7 +28,7 @@ from backend.apps.preparacion.simulacion.domain.value_objects import (
     PreguntaIncorrecta
 )
 
-@step('que el sistema tiene configurados los siguientes límites:')
+@step('que el sistema tiene configurados los siguientes límites')
 def step_configurar_sistema(context):
     context.config_params = {}
     for row in context.table:
