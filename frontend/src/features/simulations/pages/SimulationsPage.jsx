@@ -545,11 +545,39 @@ export default function SimulationsPage() {
                       </div>
                     </div>
                   </div>
-                  <Link to={`/simulacros/${simulation.id}/resumen`}>
-                    <Button variant="secondary">
-                      Ver Resumen
-                    </Button>
-                  </Link>
+                  <div className="flex gap-2 flex-wrap">
+                    {simulation.feedbackStatus === 'received' && (
+                      <>
+                        <Button 
+                          variant="secondary"
+                          onClick={() => navigate(`/recomendaciones?simulacro=${simulation.id}`)}
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          Ver Recomendaciones
+                        </Button>
+                        <Button 
+                          variant="secondary"
+                          onClick={() => window.open(`/api/simulacros/${simulation.id}/feedback/download`, '_blank')}
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Descargar PDF
+                        </Button>
+                      </>
+                    )}
+                    <Link to={`/simulacros/${simulation.id}/resumen`}>
+                      <Button variant={simulation.feedbackStatus === 'received' ? 'secondary' : 'primary'}>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Ver Resumen
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </Card>
             ))

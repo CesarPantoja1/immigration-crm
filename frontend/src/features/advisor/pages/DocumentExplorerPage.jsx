@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Card, SplitViewModal } from '../../../components/common'
+import { useNavigate } from 'react-router-dom'
+import { Card } from '../../../components/common'
 import { solicitudesService } from '../../../services'
 
 // Mapeo de tipos de visa a iconos y colores (solo 3 tipos: vivienda, trabajo, estudio)
@@ -10,17 +11,17 @@ const visaTypeConfig = {
 }
 
 export default function DocumentExplorerPage() {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [folderStructure, setFolderStructure] = useState([])
   const [documentsMap, setDocumentsMap] = useState({})
-  const [selectedSolicitud, setSelectedSolicitud] = useState(null)
+  const [solicitudesMap, setSolicitudesMap] = useState({}) // Mapa de folderId a solicitudId
   const [expandedFolders, setExpandedFolders] = useState([])
   const [selectedFolder, setSelectedFolder] = useState(null)
   const [selectedPath, setSelectedPath] = useState([])
   const [viewMode, setViewMode] = useState('grid')
   const [searchQuery, setSearchQuery] = useState('')
-  const [reviewingDocument, setReviewingDocument] = useState(null)
-  const [showSplitView, setShowSplitView] = useState(false)
+  const [previewDocument, setPreviewDocument] = useState(null) // Solo para ver documento
   const [error, setError] = useState(null)
 
   // Cargar solicitudes desde la API y organizarlas por tipo de visa
@@ -44,6 +45,7 @@ export default function DocumentExplorerPage() {
         // Organizar solicitudes por tipo de visa
         const solicitudesPorTipo = {}
         const docsMap = {}
+        const solsMap = {} // Mapa de folderId a solicitudId
         
         solicitudes.forEach(sol => {
           const tipoVisa = sol.tipo_visa || 'otro'
@@ -54,6 +56,7 @@ export default function DocumentExplorerPage() {
           
           // Guardar documentos en el mapa
           const clientFolderId = `client-${sol.id}`
+          solsMap[clientFolderId] = sol.id // Guardar referencia a solicitudId
           const documentos = sol.documentos_adjuntos || []
           docsMap[clientFolderId] = documentos.map(doc => ({
             id: doc.id,
@@ -91,6 +94,7 @@ export default function DocumentExplorerPage() {
         
         setFolderStructure(structure)
         setDocumentsMap(docsMap)
+        setSolicitudesMap(solsMap)
         
         // Expandir el primer tipo de visa si existe
         if (structure.length > 0) {
@@ -150,53 +154,17 @@ export default function DocumentExplorerPage() {
     }
   }
 
-  const handleOpenReview = (doc) => {
-    setReviewingDocument(doc)
-    setShowSplitView(true)
-  }
-
-  const handleCloseReview = () => {
-    setShowSplitView(false)
-    setReviewingDocument(null)
-  }
-
-  const handleApprove = async (checklist, observations) => {
-    if (!reviewingDocument) return
-    try {
-      await solicitudesService.aprobarDocumento(reviewingDocument.id)
-      // Actualizar el estado local del documento
-      setDocumentsMap(prev => {
-        const newMap = { ...prev }
-        Object.keys(newMap).forEach(key => {
-          newMap[key] = newMap[key].map(doc => 
-            doc.id === reviewingDocument.id ? { ...doc, status: 'approved' } : doc
-          )
-        })
-        return newMap
-      })
-      handleCloseReview()
-    } catch (err) {
-      console.error('Error approving document:', err)
+  // Solo abrir documento para ver (sin revisión)
+  const handleViewDocument = (doc) => {
+    if (doc.archivo || doc.preview) {
+      window.open(doc.archivo || doc.preview, '_blank')
     }
   }
 
-  const handleReject = async (checklist, observations) => {
-    if (!reviewingDocument) return
-    try {
-      await solicitudesService.rechazarDocumento(reviewingDocument.id, observations)
-      // Actualizar el estado local del documento
-      setDocumentsMap(prev => {
-        const newMap = { ...prev }
-        Object.keys(newMap).forEach(key => {
-          newMap[key] = newMap[key].map(doc => 
-            doc.id === reviewingDocument.id ? { ...doc, status: 'rejected' } : doc
-          )
-        })
-        return newMap
-      })
-      handleCloseReview()
-    } catch (err) {
-      console.error('Error rejecting document:', err)
+  // Navegar a la solicitud para realizar revisión
+  const handleGoToSolicitud = () => {
+    if (selectedFolder && solicitudesMap[selectedFolder]) {
+      navigate(`/asesor/solicitudes/${solicitudesMap[selectedFolder]}/revisar`)
     }
   }
 
@@ -376,6 +344,19 @@ export default function DocumentExplorerPage() {
               </div>
 
               <div className="flex items-center gap-3 flex-shrink-0">
+                {/* Botón para ir a la solicitud */}
+                {selectedFolder && solicitudesMap[selectedFolder] && (
+                  <button
+                    onClick={handleGoToSolicitud}
+                    className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    Revisar Solicitud
+                  </button>
+                )}
+
                 {/* Search */}
                 <div className="relative">
                   <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -453,15 +434,17 @@ export default function DocumentExplorerPage() {
                             {doc.type.toUpperCase()}
                           </span>
                         </div>
-                        {/* Realizar Revisión Button */}
-                        {(doc.status === 'pending' || doc.status === 'pendiente') && (
-                          <button
-                            onClick={() => handleOpenReview(doc)}
-                            className="w-full py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors"
-                          >
-                            Realizar Revisión
-                          </button>
-                        )}
+                        {/* Ver Documento Button */}
+                        <button
+                          onClick={() => handleViewDocument(doc)}
+                          className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          Ver Documento
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -520,28 +503,26 @@ export default function DocumentExplorerPage() {
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex gap-2">
-                              {(doc.status === 'pending' || doc.status === 'pendiente') ? (
-                                <button 
-                                  onClick={() => handleOpenReview(doc)}
-                                  className="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium rounded-lg transition-colors"
-                                >
-                                  Realizar Revisión
-                                </button>
-                              ) : (
-                                <>
-                                  <button className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                  </button>
-                                  <button className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                    </svg>
-                                  </button>
-                                </>
-                              )}
+                              <button 
+                                onClick={() => handleViewDocument(doc)}
+                                className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                                title="Ver documento"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              </button>
+                              <a 
+                                href={doc.archivo || doc.preview}
+                                download
+                                className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                                title="Descargar documento"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                              </a>
                             </div>
                           </td>
                         </tr>
@@ -580,17 +561,6 @@ export default function DocumentExplorerPage() {
           </Card>
         )}
       </div>
-
-      {/* SplitView Modal for Document Review */}
-      {showSplitView && reviewingDocument && (
-        <SplitViewModal
-          isOpen={showSplitView}
-          onClose={handleCloseReview}
-          document={reviewingDocument}
-          onApprove={handleApprove}
-          onReject={handleReject}
-        />
-      )}
     </div>
   )
 }

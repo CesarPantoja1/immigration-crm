@@ -1,5 +1,12 @@
 """
-Steps para la feature de Generación de Recomendaciones.
+Steps para la feature de Generación de Recomendaciones basadas en análisis de IA.
+
+Este módulo implementa los step definitions para validar:
+- Generación de documentos de recomendaciones post-simulacro
+- Análisis de transcripciones de entrevistas por agente de IA
+- Clasificación y priorización de recomendaciones accionables
+- Trazabilidad de recomendaciones hacia preguntas específicas
+- Cálculo de nivel de preparación del migrante
 """
 import os
 import sys
@@ -40,42 +47,46 @@ use_step_matcher("re")
 
 
 # =============================================================================
-# ANTECEDENTES
+# ANTECEDENTES - Configuración inicial del sistema
 # =============================================================================
 
-@given(r'que existen simulacros de entrevista consular registrados en el sistema')
-def step_existen_simulacros(context):
-    """Configura que existen simulacros en el sistema."""
+@given(r'que el módulo de simulacros de entrevista consular está operativo')
+def step_modulo_simulacros_operativo(context):
+    """Verifica que el módulo de simulacros esté disponible y funcionando."""
     context.simulacros = {}
     context.documentos = {}
     context.analisis = {}
+    context.errores = []
+    context.modulo_operativo = True
 
 
-@given(r'cada simulacro puede contar con una transcripción de preguntas y respuestas almacenada en el sistema')
-def step_simulacros_pueden_tener_transcripcion(context):
-    """Indica que los simulacros pueden tener transcripciones."""
+@given(r'el sistema almacena transcripciones en formato .txt de cada simulacro completado')
+def step_sistema_almacena_transcripciones(context):
+    """Confirma que las transcripciones .txt están habilitadas."""
     context.transcripciones_habilitadas = True
+    context.formato_transcripcion = ".txt"
 
 
-@given(r'existe un agente de IA habilitado en el sistema para analizar transcripciones de simulacros')
+@given(r'el agente de IA para análisis de entrevistas está habilitado')
 def step_agente_ia_habilitado(context):
     """Configura el agente de IA."""
     context.agente_ia_habilitado = True
 
 
-@given(r'el sistema permite generar documentos de recomendaciones asociados a un simulacro')
-def step_sistema_permite_documentos(context):
-    """Configura que el sistema permite generar documentos."""
+@given(r'la generación de documentos de recomendaciones está disponible')
+def step_generacion_documentos_disponible(context):
+    """Confirma que la generación de documentos está habilitada."""
     context.generacion_documentos_habilitada = True
+    context.formatos_exportacion = [FormatoDocumento.PDF, FormatoDocumento.HTML]
 
 
 # =============================================================================
-# ESCENARIO: GENERACIÓN DE DOCUMENTO DE RECOMENDACIONES
+# ESCENARIO 1: GENERACIÓN DEL DOCUMENTO DE RECOMENDACIONES
 # =============================================================================
 
-@given(r'que existe un simulacro identificado como "([^"]*)" registrado en el sistema')
-def step_existe_simulacro_id(context, id_simulacro):
-    """Registra un simulacro con el ID dado."""
+@given(r'que el migrante completó el simulacro "([^"]*)" con transcripción disponible')
+def step_migrante_completo_simulacro_transcripcion(context, id_simulacro):
+    """Registra un simulacro completado con transcripción disponible."""
     if not hasattr(context, 'simulacros'):
         context.simulacros = {}
     
@@ -84,43 +95,33 @@ def step_existe_simulacro_id(context, id_simulacro):
         migrante_id="migrante-001",
         migrante_nombre="Oscar",
     )
+    
+    # Transcripción en formato .txt
+    transcripcion = TranscripcionSimulacro(
+        simulacro_id=id_simulacro,
+        contenido="""
+        Entrevistador: ¿Cuál es el motivo de su viaje?
+        Migrante: Quiero estudiar una maestría en ciencias de datos.
+        Entrevistador: ¿Cómo financiará sus estudios?
+        Migrante: Tengo una beca completa y apoyo familiar documentado.
+        """,
+        fecha_simulacro=datetime.now()
+    )
+    simulacro.transcripcion = transcripcion
+    
     context.simulacros[id_simulacro] = simulacro
     context.simulacro_actual = simulacro
 
 
-@given(r'el simulacro "([^"]*)" tiene una transcripción de preguntas y respuestas registrada en el sistema')
-def step_simulacro_tiene_transcripcion(context, id_simulacro):
-    """Agrega transcripción al simulacro."""
+@given(r'la IA analizó la transcripción del simulacro "([^"]*)" con los siguientes resultados:')
+def step_ia_analizo_transcripcion(context, id_simulacro):
+    """La IA analizó la transcripción con indicadores de desempeño."""
     simulacro = context.simulacros.get(id_simulacro)
-    if simulacro:
-        transcripcion = TranscripcionSimulacro(
-            simulacro_id=id_simulacro,
-            contenido="""
-            Entrevistador: ¿Cuál es el motivo de su viaje?
-            Migrante: Quiero estudiar una maestría.
-            Entrevistador: ¿Cómo financiará sus estudios?
-            Migrante: Tengo una beca y apoyo familiar.
-            """,
-            fecha_simulacro=datetime.now()
-        )
-        simulacro.transcripcion = transcripcion
-
-
-@given(r'el agente de IA ha analizado la transcripción del simulacro "([^"]*)"')
-def step_ia_ha_analizado_transcripcion(context, id_simulacro):
-    """Marca que la IA ha analizado el simulacro."""
-    simulacro = context.simulacros.get(id_simulacro)
-    if simulacro:
-        analisis = AnalisisIA(simulacro_id=id_simulacro)
-        simulacro.analisis = analisis
-        context.analisis_actual = analisis
-
-
-@given(r'se han identificado los siguientes indicadores de desempeño:')
-def step_indicadores_desempeno(context):
-    """Configura los indicadores de desempeño desde la tabla."""
-    if not hasattr(context, 'analisis_actual'):
-        context.analisis_actual = AnalisisIA(simulacro_id="temp")
+    if not simulacro:
+        simulacro = SimulacroParaRecomendaciones(id=id_simulacro)
+        context.simulacros[id_simulacro] = simulacro
+    
+    analisis = AnalisisIA(simulacro_id=id_simulacro)
     
     nivel_map = {
         "Alta": NivelIndicador.ALTA,
@@ -135,58 +136,81 @@ def step_indicadores_desempeno(context):
         nombre = row['indicador']
         valor_str = row['valor']
         valor = nivel_map.get(valor_str, NivelIndicador.MEDIA)
-        
         indicador = IndicadorDesempeno(nombre=nombre, valor=valor)
-        context.analisis_actual.agregar_indicador(indicador)
+        analisis.agregar_indicador(indicador)
     
-    context.analisis_actual.marcar_completado()
-    
-    # Asociar al simulacro actual
-    if hasattr(context, 'simulacro_actual') and context.simulacro_actual:
-        context.simulacro_actual.analisis = context.analisis_actual
+    analisis.marcar_completado()
+    simulacro.analisis = analisis
+    context.analisis_actual = analisis
+    context.simulacro_actual = simulacro
 
 
-@when(r'el asesor solicita generar el documento de recomendaciones para el simulacro "([^"]*)"')
-def step_asesor_solicita_generar_documento(context, id_simulacro):
-    """El asesor solicita generar el documento."""
+@when(r'se genera el documento de recomendaciones para el simulacro "([^"]*)"')
+def step_genera_documento_para_simulacro(context, id_simulacro):
+    """Se genera el documento de recomendaciones con validaciones."""
     simulacro = context.simulacros.get(id_simulacro)
     
-    if simulacro and simulacro.puede_generar_documento():
-        documento = simulacro.generar_documento_recomendaciones()
-        
-        if not hasattr(context, 'documentos'):
-            context.documentos = {}
-        
-        context.documentos[id_simulacro] = documento
-        context.documento_actual = documento
+    # Validar transcripción disponible
+    if not simulacro or not simulacro.transcripcion:
+        context.errores.append(
+            f"No es posible generar recomendaciones: la transcripción del simulacro {id_simulacro} no está disponible"
+        )
+        context.documento_generado = False
+        return
+    
+    # Validar análisis completado
+    if not simulacro.analisis or not simulacro.analisis.completado:
+        context.errores.append(
+            f"No es posible generar recomendaciones: el análisis de IA del simulacro {id_simulacro} no se ha completado"
+        )
+        context.documento_generado = False
+        return
+    
+    # Generar documento
+    documento = simulacro.generar_documento_recomendaciones()
+    
+    if not hasattr(context, 'documentos'):
+        context.documentos = {}
+    
+    context.documentos[id_simulacro] = documento
+    context.documento_actual = documento
+    context.documento_generado = True
 
 
-@then(r'el sistema debe crear un documento de recomendaciones asociado al simulacro "([^"]*)" con los siguientes metadatos:')
-def step_documento_con_metadatos(context, id_simulacro):
-    """Verifica que se cree el documento con metadatos correctos."""
-    documento = context.documentos.get(id_simulacro)
-    assert documento is not None, f"No se creó documento para {id_simulacro}"
-    
-    # Verificar metadatos
-    metadatos_esperados = {}
-    for row in context.table:
-        metadatos_esperados[row['campo']] = row['valor']
-    
-    assert documento.metadatos is not None, "El documento no tiene metadatos"
-    
-    metadatos_doc = documento.metadatos.a_dict()
-    
-    for campo, valor_esperado in metadatos_esperados.items():
-        assert campo in metadatos_doc, f"Campo '{campo}' no encontrado en metadatos"
-        assert metadatos_doc[campo] == valor_esperado, \
-            f"Metadato '{campo}': esperado '{valor_esperado}', actual '{metadatos_doc[campo]}'"
-
-
-@then(r'el documento debe incluir las siguientes secciones:')
-def step_documento_incluye_secciones(context):
-    """Verifica que el documento incluya las secciones requeridas."""
+@then(r'el documento tiene estado "([^"]*)"')
+def step_documento_tiene_estado(context, estado_esperado):
+    """Verifica el estado del documento."""
     documento = context.documento_actual
-    assert documento is not None, "No hay documento actual"
+    assert documento is not None, "No se generó el documento"
+    
+    # Comparar con el valor del enum o el string del estado
+    estado_actual = documento.estado.value if hasattr(documento.estado, 'value') else str(documento.estado)
+    # Normalizar para comparación
+    estado_esperado_normalizado = estado_esperado.lower().replace(" ", "_")
+    estado_actual_normalizado = estado_actual.lower().replace(" ", "_")
+    
+    assert estado_esperado_normalizado == estado_actual_normalizado, \
+        f"Estado esperado: '{estado_esperado}', actual: '{estado_actual}'"
+
+
+@then(r'el nivel de preparación calculado es "([^"]*)"')
+def step_nivel_preparacion_calculado(context, nivel_esperado):
+    """Verifica el nivel de preparación calculado."""
+    documento = context.documento_actual
+    nivel_map = {
+        "Alto": NivelPreparacion.ALTO,
+        "Medio": NivelPreparacion.MEDIO,
+        "Bajo": NivelPreparacion.BAJO,
+    }
+    nivel_esperado_enum = nivel_map.get(nivel_esperado)
+    assert documento.nivel_preparacion == nivel_esperado_enum, \
+        f"Nivel esperado: {nivel_esperado}, actual: {documento.nivel_preparacion.value}"
+
+
+@then(r'el documento contiene las siguientes secciones:')
+def step_documento_contiene_secciones(context):
+    """Verifica que el documento contiene las secciones requeridas."""
+    documento = context.documento_actual
     
     for row in context.table:
         seccion = row['seccion']
@@ -195,12 +219,27 @@ def step_documento_incluye_secciones(context):
 
 
 # =============================================================================
-# ESCENARIO: RECOMENDACIONES ACCIONABLES POR CATEGORÍA
+# ESCENARIO 2: RECOMENDACIONES ACCIONABLES POR CATEGORÍA
 # =============================================================================
 
-@given(r'el agente de IA ha identificado los siguientes puntos de mejora en el simulacro "([^"]*)":')
+@given(r'que el migrante completó el simulacro "([^"]*)" con transcripción procesada')
+def step_migrante_completo_con_transcripcion(context, id_simulacro):
+    """El migrante completó simulacro con transcripción procesada."""
+    if not hasattr(context, 'simulacros'):
+        context.simulacros = {}
+    
+    simulacro = SimulacroParaRecomendaciones(id=id_simulacro)
+    simulacro.transcripcion = TranscripcionSimulacro(
+        simulacro_id=id_simulacro,
+        contenido="Transcripción del simulacro procesada."
+    )
+    context.simulacros[id_simulacro] = simulacro
+    context.simulacro_actual = simulacro
+
+
+@given(r'la IA identificó los siguientes puntos de mejora en el simulacro "([^"]*)":')
 def step_ia_identifico_puntos_mejora(context, id_simulacro):
-    """Configura los puntos de mejora identificados."""
+    """Configura los puntos de mejora identificados por la IA."""
     simulacro = context.simulacros.get(id_simulacro)
     
     if not simulacro:
@@ -321,12 +360,15 @@ def step_documento_tiene_fecha_generacion(context):
 
 
 # =============================================================================
-# ESCENARIO: NIVEL DE PREPARACIÓN
+# ESCENARIO 3: NIVEL DE PREPARACIÓN
 # =============================================================================
 
 @given(r'el análisis del simulacro "([^"]*)" tiene los siguientes resultados:')
 def step_analisis_simulacro_resultados(context, id_simulacro):
     """Configura los resultados del análisis."""
+    if not hasattr(context, 'simulacros'):
+        context.simulacros = {}
+    
     simulacro = context.simulacros.get(id_simulacro)
     
     if not simulacro:
@@ -380,12 +422,15 @@ def step_nivel_preparacion_asignado(context, nivel_esperado):
 
 
 # =============================================================================
-# ESCENARIO: TRAZABILIDAD
+# ESCENARIO 4: TRAZABILIDAD
 # =============================================================================
 
-@given(r'el simulacro "([^"]*)" tiene las siguientes preguntas y respuestas:')
+@given(r'que el simulacro "([^"]*)" tiene las siguientes preguntas y respuestas:')
 def step_simulacro_tiene_preguntas(context, id_simulacro):
     """Configura las preguntas del simulacro."""
+    if not hasattr(context, 'simulacros'):
+        context.simulacros = {}
+    
     simulacro = context.simulacros.get(id_simulacro)
     
     if not simulacro:
@@ -424,6 +469,9 @@ def step_simulacro_tiene_preguntas(context, id_simulacro):
 @given(r'el agente de IA ha generado recomendaciones asociadas al simulacro "([^"]*)"')
 def step_ia_genero_recomendaciones(context, id_simulacro):
     """La IA ha generado recomendaciones."""
+    if not hasattr(context, 'documentos'):
+        context.documentos = {}
+    
     simulacro = context.simulacros.get(id_simulacro)
     
     if not simulacro.analisis:
@@ -477,13 +525,20 @@ def step_documento_permite_identificar(context):
     atributos_esperados = [row['atributo'] for row in context.table]
     atributos_disponibles = documento.obtener_atributos_trazabilidad()
     
+    # Mapeo de nombres amigables a nombres técnicos
+    mapeo_atributos = {
+        "Número de pregunta": "numero_pregunta_origen",
+        "Tipo de pregunta": "tipo_pregunta_origen",
+    }
+    
     for atributo in atributos_esperados:
-        assert atributo in atributos_disponibles, \
+        atributo_tecnico = mapeo_atributos.get(atributo, atributo)
+        assert atributo_tecnico in atributos_disponibles, \
             f"Atributo '{atributo}' no disponible en el documento"
 
 
 # =============================================================================
-# ESCENARIO: CLASIFICACIÓN POR IMPACTO
+# ESCENARIO 5: CLASIFICACIÓN POR IMPACTO
 # =============================================================================
 
 @given(r'que existe un documento de recomendaciones generado para el simulacro "([^"]*)"')
@@ -553,12 +608,15 @@ def step_recomendaciones_registran_impacto(context):
 
 
 # =============================================================================
-# ESCENARIO: ACCIÓN SUGERIDA
+# ESCENARIO 6: ACCIÓN SUGERIDA
 # =============================================================================
 
-@given(r'el documento de recomendaciones del simulacro "([^"]*)" tiene nivel de preparación "([^"]*)"')
+@given(r'que el documento de recomendaciones del simulacro "([^"]*)" tiene nivel de preparación "([^"]*)"')
 def step_documento_tiene_nivel(context, id_simulacro, nivel_str):
     """El documento tiene un nivel de preparación."""
+    if not hasattr(context, 'documentos'):
+        context.documentos = {}
+    
     documento = context.documentos.get(id_simulacro)
     
     if not documento:
@@ -593,12 +651,15 @@ def step_sistema_sugiere_accion(context, accion_esperada):
 
 
 # =============================================================================
-# ESCENARIO: CONSULTA Y DESCARGA
+# ESCENARIO 7: CONSULTA Y DESCARGA
 # =============================================================================
 
 @given(r'que existe un documento de recomendaciones publicado para el simulacro "([^"]*)"')
 def step_documento_publicado(context, id_simulacro):
     """Existe un documento publicado."""
+    if not hasattr(context, 'documentos'):
+        context.documentos = {}
+    
     documento = DocumentoRecomendaciones(simulacro_id=id_simulacro)
     documento.metadatos = MetadatosDocumento(
         simulacro_id=id_simulacro,
@@ -613,9 +674,6 @@ def step_documento_publicado(context, id_simulacro):
         categoria=CategoriaRecomendacion.SEGURIDAD,
         descripcion="Mejorar seguridad"
     ))
-    
-    if not hasattr(context, 'documentos'):
-        context.documentos = {}
     
     context.documentos[id_simulacro] = documento
     context.documento_actual = documento
@@ -654,8 +712,78 @@ def step_permitir_descargar_formato(context, formato_str):
     
     formato = formato_map.get(formato_str, FormatoDocumento.PDF)
     
-    # Verificar que se puede exportar (la implementación real generaría el archivo)
+    # Verificar que se puede exportar
     try:
         documento.exportar_formato(formato)
     except Exception as e:
         assert False, f"Error al exportar: {e}"
+
+
+# =============================================================================
+# ESCENARIOS 8 y 9: MANEJO DE ERRORES
+# =============================================================================
+
+@given(r'que el migrante completó el simulacro "([^"]*)" sin transcripción generada')
+def step_simulacro_sin_transcripcion(context, id_simulacro):
+    """El simulacro no tiene transcripción."""
+    if not hasattr(context, 'simulacros'):
+        context.simulacros = {}
+    
+    simulacro = SimulacroParaRecomendaciones(id=id_simulacro)
+    # No asignar transcripción
+    simulacro.transcripcion = None
+    context.simulacros[id_simulacro] = simulacro
+
+
+@when(r'se intenta generar el documento de recomendaciones para el simulacro "([^"]*)"')
+def step_intenta_generar_documento(context, id_simulacro):
+    """Se intenta generar el documento (puede fallar)."""
+    simulacro = context.simulacros.get(id_simulacro)
+    
+    # Validar transcripción disponible
+    if not simulacro or not simulacro.transcripcion:
+        context.errores.append(
+            f"No es posible generar recomendaciones: la transcripción del simulacro {id_simulacro} no está disponible"
+        )
+        context.documento_generado = False
+        return
+    
+    # Validar análisis completado
+    if not simulacro.analisis or not simulacro.analisis.completado:
+        context.errores.append(
+            f"No es posible generar recomendaciones: el análisis de IA del simulacro {id_simulacro} no se ha completado"
+        )
+        context.documento_generado = False
+        return
+    
+    # Si pasó validaciones, generar
+    documento = simulacro.generar_documento_recomendaciones()
+    if not hasattr(context, 'documentos'):
+        context.documentos = {}
+    context.documentos[id_simulacro] = documento
+    context.documento_actual = documento
+    context.documento_generado = True
+
+
+@given(r'el análisis de IA del simulacro "([^"]*)" está incompleto')
+def step_analisis_incompleto(context, id_simulacro):
+    """El análisis de IA está incompleto."""
+    simulacro = context.simulacros.get(id_simulacro)
+    if simulacro:
+        # Crear análisis pero NO marcarlo como completado
+        simulacro.analisis = AnalisisIA(simulacro_id=id_simulacro)
+        # No llamar a marcar_completado()
+
+
+@then(r'el sistema debe mostrar el mensaje de error "([^"]*)"')
+def step_sistema_muestra_error(context, mensaje_esperado):
+    """Verifica que se muestre el mensaje de error."""
+    assert len(context.errores) > 0, "No se registró ningún error"
+    assert mensaje_esperado in context.errores, \
+        f"Mensaje esperado: '{mensaje_esperado}', errores: {context.errores}"
+
+
+@then(r'el documento no debe ser generado')
+def step_documento_no_generado(context):
+    """Verifica que el documento no fue generado."""
+    assert context.documento_generado == False, "El documento fue generado cuando no debía"

@@ -26,7 +26,8 @@ import {
   DocumentExplorerPage,
   AdvisorSimulationsPage,
   AdvisorMeetingRoomPage,
-  InterviewScheduling
+  InterviewScheduling,
+  AdvisorInboxPage
 } from './features/advisor'
 
 // Pagina admin
@@ -222,7 +223,7 @@ function App() {
         <Route path="/asesor/inbox" element={
           <ProtectedRoute allowedRoles={['advisor']}>
             <AdvisorLayout>
-              <InboxPage />
+              <AdvisorInboxPage />
             </AdvisorLayout>
           </ProtectedRoute>
         } />
