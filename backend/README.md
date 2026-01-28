@@ -137,8 +137,124 @@ pytest
 | `asesor` | Revisa y gestiona solicitudes (límite 10/día) |
 | `admin` | Administrador del sistema |
 
+## Solución de Problemas
+
+### Error: "No such file or directory: logs/django.log"
+
+Si al ejecutar `python manage.py runserver` recibes un error sobre el directorio `logs/`, asegúrate de que el directorio exista:
+
+```bash
+# Windows PowerShell/CMD
+mkdir logs
+
+# Linux/Mac
+mkdir -p logs
+```
+
+El directorio `logs/` ya debería existir en el repositorio con un archivo `.gitignore` que mantiene la estructura pero ignora los archivos de log.
+
+## Creación de Usuarios Asesores
+
+Existen tres formas de crear usuarios con rol de asesor en el sistema:
+
+### Opción 1: Django Shell (Recomendada para desarrollo)
+
+```bash
+# Activar entorno virtual primero
+.\venv\Scripts\activate  # Windows
+source venv/bin/activate # Linux/Mac
+
+# Abrir shell de Django
+python manage.py shell
+```
+
+Dentro del shell ejecutar:
+
+```python
+from apps.usuarios.models import Usuario
+
+# Crear usuario asesor
+asesor = Usuario.objects.create_user(
+    email='asesor@example.com',
+    password='Asesor123!',
+    first_name='Carlos',
+    last_name='González',
+    rol='asesor',
+    telefono='+57 300 1234567',
+    limite_solicitudes_diarias=10  # Opcional, default: 10
+)
+
+print(f'Asesor creado: {asesor.email} (ID: {asesor.id})')
+```
+
+### Opción 2: Panel de Administración
+
+1. Acceder a `http://127.0.0.1:8000/admin/`
+2. Iniciar sesión con credenciales de superusuario
+3. Ir a **Usuarios** → **Agregar Usuario**
+4. Completar los campos:
+   - Email (requerido)
+   - Nombre y Apellido
+   - Contraseña
+   - **Rol: asesor**
+   - Teléfono (opcional)
+5. Guardar
+
+### Opción 3: API REST (requiere autenticación de admin)
+
+```bash
+# Primero obtener token de admin
+curl -X POST http://127.0.0.1:8000/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "password": "admin123"}'
+
+# Crear asesor con el token obtenido
+curl -X POST http://127.0.0.1:8000/api/auth/registro/ \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{
+    "email": "nuevo.asesor@example.com",
+    "first_name": "María",
+    "last_name": "López",
+    "password": "Segura123!",
+    "password_confirm": "Segura123!",
+    "rol": "asesor",
+    "telefono": "+57 301 9876543"
+  }'
+```
+
+### Campos del Usuario Asesor
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `email` | string | Sí | Email único (usado para login) |
+| `password` | string | Sí | Contraseña segura |
+| `first_name` | string | Sí | Nombre |
+| `last_name` | string | Sí | Apellido |
+| `rol` | string | Sí | Debe ser `"asesor"` |
+| `telefono` | string | No | Número de contacto |
+| `limite_solicitudes_diarias` | int | No | Default: 10 |
+
+### Verificar Usuario Creado
+
+```python
+# En Django shell
+from apps.usuarios.models import Usuario
+
+# Listar todos los asesores
+asesores = Usuario.objects.filter(rol='asesor')
+for a in asesores:
+    print(f'{a.id}: {a.email} - {a.nombre_completo()}')
+
+# Verificar un asesor específico
+asesor = Usuario.objects.get(email='asesor@example.com')
+print(f'Es asesor: {asesor.es_asesor()}')
+print(f'Límite diario: {asesor.limite_solicitudes_diarias}')
+```
+
 ## Notas de Desarrollo
 
 - Base de datos: SQLite (desarrollo), PostgreSQL (producción)
 - Autenticación: JWT (SimpleJWT)
 - CORS habilitado para `localhost:3000` y `localhost:5173`
+- Los logs se almacenan en `backend/logs/django.log`
