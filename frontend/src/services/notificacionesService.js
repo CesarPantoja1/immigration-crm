@@ -16,7 +16,9 @@ export const notificacionesService = {
   async getNotificaciones(filters = {}) {
     const params = new URLSearchParams()
     Object.keys(filters).forEach(key => {
-      if (filters[key] !== undefined) params.append(key, filters[key])
+      if (filters[key] !== undefined && filters[key] !== null) {
+        params.append(key, filters[key])
+      }
     })
     const query = params.toString() ? `?${params.toString()}` : ''
     return apiClient.get(`/notificaciones/${query}`)
@@ -59,23 +61,44 @@ export const notificacionesService = {
    * Marca una notificación como leída
    * @param {number} id
    */
-  async marcarComoLeida(id) {
+  async marcarLeida(id) {
     return apiClient.post(`/notificaciones/${id}/leer/`, {})
+  },
+
+  /**
+   * Alias para compatibilidad
+   */
+  async marcarComoLeida(id) {
+    return this.marcarLeida(id)
   },
 
   /**
    * Marca todas las notificaciones como leídas
    */
-  async marcarTodasComoLeidas() {
+  async marcarTodasLeidas() {
     return apiClient.post('/notificaciones/leer-todas/', {})
+  },
+
+  /**
+   * Alias para compatibilidad
+   */
+  async marcarTodasComoLeidas() {
+    return this.marcarTodasLeidas()
   },
 
   /**
    * Elimina una notificación
    * @param {number} id
    */
-  async eliminarNotificacion(id) {
-    return apiClient.delete(`/notificaciones/${id}/`)
+  async eliminar(id) {
+    return apiClient.delete(`/notificaciones/${id}/eliminar/`)
+  },
+
+  /**
+   * Alias para compatibilidad
+   */
+  async delete(id) {
+    return this.eliminar(id)
   },
 
   /**
@@ -113,6 +136,33 @@ export const notificacionesService = {
    */
   async actualizarPreferencias(preferencias) {
     return apiClient.patch('/notificaciones/preferencias/', preferencias)
+  },
+
+  // =====================================================
+  // FUNCIONES PARA ASESORES
+  // =====================================================
+
+  /**
+   * Obtiene notificaciones del asesor (propias + clientes asignados)
+   * @param {Object} filters - { tipo, leida, solo_propias, page }
+   */
+  async getNotificacionesAsesor(filters = {}) {
+    const params = new URLSearchParams()
+    Object.keys(filters).forEach(key => {
+      if (filters[key] !== undefined && filters[key] !== null) {
+        params.append(key, filters[key])
+      }
+    })
+    const query = params.toString() ? `?${params.toString()}` : ''
+    return apiClient.get(`/notificaciones/asesor/${query}`)
+  },
+
+  /**
+   * Crea una notificación para un cliente (solo asesores/admin)
+   * @param {Object} data - { usuario_id, tipo, titulo, mensaje, solicitud_id?, url_accion?, datos? }
+   */
+  async crearNotificacion(data) {
+    return apiClient.post('/notificaciones/crear/', data)
   }
 }
 

@@ -6,12 +6,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.utils import timezone
+from django.db.models import Q
 
 from .models import Notificacion, PreferenciaNotificacion
 from .serializers import (
     NotificacionSerializer,
     NotificacionListSerializer,
     PreferenciaNotificacionSerializer,
+    CrearNotificacionSerializer,
 )
 
 
@@ -231,6 +233,76 @@ class PreferenciasView(APIView):
         serializer.save()
         
         return Response(serializer.data)
+
+
+class CrearNotificacionView(APIView):
+    """
+    POST /api/notificaciones/crear/
+    Permite a asesores/admins crear notificaciones para clientes.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        # Solo asesores y admins pueden crear notificaciones
+        if request.user.rol not in ['asesor', 'admin']:
+            return Response(
+                {'error': 'No tienes permisos para crear notificaciones'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = CrearNotificacionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        notificacion = serializer.save()
+        
+        return Response(
+            NotificacionSerializer(notificacion).data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+class NotificacionesAsesorView(generics.ListAPIView):
+    """
+    GET /api/notificaciones/asesor/
+    Lista notificaciones relevantes para el asesor:
+    - Sus propias notificaciones
+    - Notificaciones de sus clientes asignados (para seguimiento)
+    """
+    serializer_class = NotificacionListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = NotificacionPagination
+    
+    def get_queryset(self):
+        user = self.request.user
+        
+        if user.rol not in ['asesor', 'admin']:
+            return Notificacion.objects.none()
+        
+        # Obtener IDs de clientes asignados al asesor
+        from apps.solicitudes.models import Solicitud
+        clientes_ids = Solicitud.objects.filter(
+            asesor=user
+        ).values_list('cliente_id', flat=True).distinct()
+        
+        # Notificaciones propias + de clientes asignados
+        queryset = Notificacion.objects.filter(
+            Q(usuario=user) | Q(usuario_id__in=clientes_ids)
+        )
+        
+        # Filtros opcionales
+        tipo = self.request.query_params.get('tipo')
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+        
+        leida = self.request.query_params.get('leida')
+        if leida is not None:
+            queryset = queryset.filter(leida=leida.lower() == 'true')
+        
+        solo_propias = self.request.query_params.get('solo_propias')
+        if solo_propias and solo_propias.lower() == 'true':
+            queryset = queryset.filter(usuario=user)
+        
+        return queryset.order_by('-created_at')
 
 
 # =====================================================

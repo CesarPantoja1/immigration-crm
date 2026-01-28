@@ -418,6 +418,8 @@ class IngresarSalaView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request, pk):
+        from django.conf import settings
+        
         try:
             simulacro = Simulacro.objects.get(
                 pk=pk,
@@ -431,7 +433,8 @@ class IngresarSalaView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        if not simulacro.puede_ingresar_sala():
+        # En desarrollo, permitir siempre el acceso
+        if not settings.DEBUG and not simulacro.puede_ingresar_sala():
             # Calcular tiempo restante
             fecha_simulacro = datetime.combine(simulacro.fecha, simulacro.hora)
             fecha_simulacro = timezone.make_aware(fecha_simulacro)
@@ -472,16 +475,23 @@ class IniciarSimulacroView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsAsesor]
     
     def post(self, request, pk):
+        from django.conf import settings
+        
+        # En DEBUG permitimos iniciar desde confirmado o en_sala_espera
+        estados_permitidos = ['en_sala_espera']
+        if settings.DEBUG:
+            estados_permitidos = ['confirmado', 'en_sala_espera']
+        
         try:
             simulacro = Simulacro.objects.get(
                 pk=pk,
                 asesor=request.user,
-                estado='en_sala_espera',
+                estado__in=estados_permitidos,
                 is_deleted=False
             )
         except Simulacro.DoesNotExist:
             return Response(
-                {'error': 'Simulacro no encontrado o cliente no en sala'},
+                {'error': 'Simulacro no encontrado o no está listo para iniciar'},
                 status=status.HTTP_404_NOT_FOUND
             )
         
@@ -532,6 +542,113 @@ class FinalizarSimulacroView(APIView):
         return Response({
             'mensaje': 'Simulacro completado',
             'simulacro': SimulacroDetailSerializer(simulacro).data
+        })
+
+
+class InfoSalaView(APIView):
+    """
+    GET /api/simulacros/<id>/sala/
+    Obtiene información de la sala de reunión con URL de Jitsi.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        try:
+            user = request.user
+            # Permitir acceso al cliente o asesor del simulacro
+            if user.rol == 'cliente':
+                simulacro = Simulacro.objects.get(
+                    pk=pk,
+                    cliente=user,
+                    is_deleted=False
+                )
+            elif user.rol == 'asesor':
+                simulacro = Simulacro.objects.get(
+                    pk=pk,
+                    asesor=user,
+                    is_deleted=False
+                )
+            else:
+                return Response(
+                    {'error': 'No autorizado'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Simulacro.DoesNotExist:
+            return Response(
+                {'error': 'Simulacro no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Verificar que el simulacro esté en un estado que permita acceso a la sala
+        estados_permitidos = ['confirmado', 'en_sala_espera', 'en_progreso']
+        if simulacro.estado not in estados_permitidos:
+            return Response({
+                'error': f'El simulacro no está disponible (estado: {simulacro.estado})',
+                'estado_actual': simulacro.estado
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Generar nombre de sala único para Jitsi
+        room_name = f"migrafacil-sim-{simulacro.id}"
+        
+        # URL de Jitsi Meet (usando el servidor público gratuito)
+        jitsi_domain = "meet.jit.si"
+        jitsi_url = f"https://{jitsi_domain}/{room_name}"
+        
+        # Información del otro participante
+        if user.rol == 'cliente':
+            otro_participante = {
+                'nombre': simulacro.asesor.nombre_completo() if simulacro.asesor else 'Asesor',
+                'rol': 'asesor'
+            }
+        else:
+            otro_participante = {
+                'nombre': simulacro.cliente.nombre_completo() if simulacro.cliente else 'Cliente',
+                'rol': 'cliente'
+            }
+        
+        return Response({
+            'simulacro_id': simulacro.id,
+            'room_name': room_name,
+            'jitsi_domain': jitsi_domain,
+            'jitsi_url': jitsi_url,
+            'estado': simulacro.estado,
+            'modalidad': simulacro.modalidad,
+            'fecha': simulacro.fecha,
+            'hora': str(simulacro.hora) if simulacro.hora else None,
+            'otro_participante': otro_participante,
+            'mi_rol': user.rol,
+            'mi_nombre': user.nombre_completo(),
+            'puede_iniciar': user.rol == 'asesor' and simulacro.estado in ['confirmado', 'en_sala_espera'],
+            'en_progreso': simulacro.estado == 'en_progreso',
+            'fecha_inicio': simulacro.fecha_inicio,
+        })
+
+
+class EstadoSalaView(APIView):
+    """
+    GET /api/simulacros/<id>/estado-sala/
+    Obtiene el estado actual de la sala (para polling).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        try:
+            user = request.user
+            if user.rol == 'cliente':
+                simulacro = Simulacro.objects.get(pk=pk, cliente=user, is_deleted=False)
+            elif user.rol == 'asesor':
+                simulacro = Simulacro.objects.get(pk=pk, asesor=user, is_deleted=False)
+            else:
+                return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
+        except Simulacro.DoesNotExist:
+            return Response({'error': 'Simulacro no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({
+            'simulacro_id': simulacro.id,
+            'estado': simulacro.estado,
+            'en_progreso': simulacro.estado == 'en_progreso',
+            'fecha_inicio': simulacro.fecha_inicio,
+            'duracion_actual': int((timezone.now() - simulacro.fecha_inicio).total_seconds()) if simulacro.fecha_inicio else 0
         })
 
 

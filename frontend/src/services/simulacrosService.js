@@ -133,6 +133,14 @@ export const simulacrosService = {
   },
 
   /**
+   * Obtiene información completa de la sala (Jitsi)
+   * @param {number} simulacroId
+   */
+  async getInfoSala(simulacroId) {
+    return apiClient.get(`/simulacros/${simulacroId}/sala/`)
+  },
+
+  /**
    * Obtiene el estado de la sala de espera
    * @param {number} simulacroId
    */
