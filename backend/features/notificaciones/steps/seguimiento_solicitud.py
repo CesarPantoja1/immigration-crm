@@ -2,6 +2,14 @@
 Steps BDD para Seguimiento de Solicitudes.
 Implementación usando el dominio de Seguimiento.
 """
+import os
+import sys
+
+# Agregar el directorio backend al path para importar los módulos
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from behave import given, when, then, step, use_step_matcher
 from datetime import datetime, date, timedelta
 from unittest.mock import patch
@@ -58,7 +66,7 @@ def step_impl(context):
 # DASHBOARD - Supervisión global
 # ============================================================
 
-@step("que gestiono los siguientes trámites activos:")
+@step("que gestiono los siguientes trámites activos")
 def step_impl(context):
     """Setup: cargar trámites activos desde la tabla."""
     for row in context.table:
@@ -152,7 +160,7 @@ def step_impl(context):
 # CRONOLOGÍA / HISTORIAL
 # ============================================================
 
-@step('que la solicitud "(?P<codigo>.+)" registra los siguientes hitos:')
+@step('que la solicitud "(?P<codigo>.+)" registra los siguientes hitos')
 def step_impl(context, codigo):
     """Setup: solicitud con historial de eventos."""
     seguimiento = SeguimientoSolicitud(
@@ -228,7 +236,7 @@ def step_impl(context, codigo):
     context.seguimiento = seguimiento
 
 
-@step("presenta las siguientes validaciones documentales:")
+@step("presenta las siguientes validaciones documentales")
 def step_impl(context):
     """Setup: cargar validaciones de documentos."""
     for row in context.table:

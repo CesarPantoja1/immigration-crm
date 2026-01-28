@@ -1,6 +1,14 @@
 """
 Steps para la feature de Generación de Recomendaciones.
 """
+import os
+import sys
+
+# Agregar el directorio backend al path para importar los módulos
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from behave import given, when, then, step, use_step_matcher
 from datetime import datetime
 
