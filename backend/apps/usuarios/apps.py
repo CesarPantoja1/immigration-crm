@@ -7,5 +7,5 @@ class UsuariosConfig(AppConfig):
     label = 'usuarios'
     
     def ready(self):
-        # Importar admin para registrarlo
-        from . import infrastructure
+        # Importar admin cuando Django está listo
+        from .infrastructure import admin  # noqa

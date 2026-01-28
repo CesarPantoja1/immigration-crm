@@ -1,73 +1,144 @@
-# Backend - CRM Migratorio
+# Backend - CRM Migratorio (MigraFácil)
 
-API REST Django para el sistema CRM migratorio.
+API REST Django para el sistema de gestión de trámites migratorios.
 
-## Ejecución del Backend
+## Requisitos
+
+- Python 3.10+
+- pip
+
+## Instalación y Ejecución
+
+### 1. Crear y activar entorno virtual
 
 ```bash
 # Crear entorno virtual
 python -m venv venv
 
-# Activar entorno virtual (Windows - Git Bash)
-source venv/Scripts/activate
+# Activar (Windows PowerShell)
+.\venv\Scripts\Activate.ps1
 
-# Activar entorno virtual (Windows - CMD)
+# Activar (Windows CMD)
 .\venv\Scripts\activate
 
-# Activar entorno virtual (Linux/Mac)
+# Activar (Linux/Mac)
 source venv/bin/activate
+```
 
-# Instalar dependencias
+### 2. Instalar dependencias
+
+```bash
 pip install -r requirements.txt
+```
 
-# Aplicar migraciones
+### 3. Aplicar migraciones
+
+```bash
 python manage.py migrate
+```
 
-# Crear superusuario (opcional)
+### 4. Crear superusuario (admin)
+
+```bash
 python manage.py createsuperuser
+```
 
-# Ejecutar servidor
+### 5. Ejecutar servidor
+
+```bash
 python manage.py runserver
 ```
 
 El servidor se ejecutará en: `http://127.0.0.1:8000`
 
-Admin panel: `http://127.0.0.1:8000/admin`
+## URLs Disponibles
 
-## Ejecución del Frontend
+| URL | Descripción |
+|-----|-------------|
+| `http://127.0.0.1:8000/admin/` | Panel de administración |
+| `http://127.0.0.1:8000/api/` | API REST |
 
-El frontend se encuentra en el directorio `../frontend/`. Para levantarlo:
+## Endpoints de la API
 
-### Opción 1: Con http-server (Recomendado)
+### Autenticación
 
-```bash
-# Ir al directorio frontend
-cd ../frontend
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/auth/registro/` | POST | Registrar nuevo usuario |
+| `/api/auth/login/` | POST | Iniciar sesión (retorna JWT) |
+| `/api/auth/logout/` | POST | Cerrar sesión |
+| `/api/auth/refresh/` | POST | Refrescar token |
+| `/api/auth/perfil/` | GET/PATCH | Ver/editar perfil |
+| `/api/auth/cambiar-password/` | POST | Cambiar contraseña |
 
-# Instalar dependencias (solo la primera vez)
-npm install
+### Usuarios
 
-# Ejecutar servidor de desarrollo
-npm run dev
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/usuarios/` | GET | Listar usuarios |
+| `/api/usuarios/asesores/` | GET | Listar asesores |
+| `/api/usuarios/<id>/` | GET/PATCH | Detalle/editar usuario |
+
+### Solicitudes
+
+| Endpoint | Método | Rol | Descripción |
+|----------|--------|-----|-------------|
+| `/api/solicitudes/mis-solicitudes/` | GET | Cliente | Mis solicitudes |
+| `/api/solicitudes/nueva/` | POST | Cliente | Crear solicitud |
+| `/api/solicitudes/<id>/` | GET | Todos | Detalle solicitud |
+| `/api/solicitudes/asignadas/` | GET | Asesor | Solicitudes asignadas |
+| `/api/solicitudes/pendientes/` | GET | Admin | Sin asignar |
+| `/api/solicitudes/<id>/actualizar/` | PATCH | Asesor | Actualizar estado |
+| `/api/solicitudes/<id>/asignar/` | POST | Admin | Asignar asesor |
+| `/api/solicitudes/estadisticas/cliente/` | GET | Cliente | Stats cliente |
+| `/api/solicitudes/estadisticas/asesor/` | GET | Asesor | Stats asesor |
+
+## Estructura del Proyecto
+
+```
+backend/
+├── apps/
+│   ├── core/           # Modelos base, eventos
+│   ├── usuarios/       # Autenticación y usuarios
+│   ├── solicitudes/    # Gestión de solicitudes
+│   ├── preparacion/    # Simulacros y recomendaciones
+│   └── notificaciones/ # Seguimiento y alertas
+├── config/
+│   └── settings/
+│       ├── base.py         # Configuración base
+│       ├── development.py  # Desarrollo (SQLite)
+│       ├── testing.py      # Testing
+│       └── production.py   # Producción
+├── features/           # Tests BDD (Behave)
+├── templates/          # Templates HTML
+├── static/             # Archivos estáticos
+└── manage.py
 ```
 
-El frontend estará disponible en: `http://localhost:3000`
+## Tests
 
-### Opción 2: Con Python (sin Node.js)
+### Ejecutar tests BDD (Behave)
 
 ```bash
-# Ir al directorio frontend
-cd ../frontend
-
-# Ejecutar servidor HTTP simple
-python -m http.server 3000
+python manage.py behave
 ```
 
-Luego abre en tu navegador: `http://localhost:3000`
+### Ejecutar tests unitarios (pytest)
 
-### Opción 3: Abrir directamente
+```bash
+pytest
+```
 
-Abre el archivo `../frontend/index.html` en tu navegador.
+## Roles de Usuario
 
-**Nota:** Para funcionalidad completa, asegúrate de tener el backend ejecutándose antes de usar el frontend.
+| Rol | Descripción |
+|-----|-------------|
+| `cliente` | Solicitante de visa |
+| `asesor` | Revisa y gestiona solicitudes (límite 10/día) |
+| `admin` | Administrador del sistema |
 
+## Notas de Desarrollo
+
+- Base de datos: SQLite (desarrollo), PostgreSQL (producción)
+- Autenticación: JWT (SimpleJWT)
+- CORS habilitado para `localhost:3000` y `localhost:5173`

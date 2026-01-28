@@ -13,6 +13,9 @@ DATABASES = {
     }
 }
 
+# CORS permitir todo en testing
+CORS_ALLOW_ALL_ORIGINS = True
+
 # Password hashers más rápidos para tests
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.MD5PasswordHasher',

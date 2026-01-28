@@ -10,17 +10,9 @@ urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
 
-    # Apps
-    path('usuarios/', include('apps.usuarios.presentation.urls')),
-    # path('solicitudes/recepcion/', include('apps.solicitudes.recepcion.presentation.urls')),
-    # path('solicitudes/agendamiento/', include('apps.solicitudes.agendamiento.presentation.urls')),
-    # path('preparacion/simulacion/', include('apps.preparacion.simulacion.presentation.urls')),
-    # path('preparacion/recomendaciones/', include('apps.preparacion.recomendaciones.presentation.urls')),
-    # path('notificaciones/seguimiento/', include('apps.notificaciones.seguimiento.presentation.urls')),
-    # path('notificaciones/coordinacion/', include('apps.notificaciones.coordinacion.presentation.urls')),
-
-    # API (cuando se implemente)
-    # path('api/', include('api.urls')),
+    # API v1
+    path('api/', include('apps.usuarios.presentation.urls')),
+    path('api/', include('apps.solicitudes.urls')),
 ]
 
 # Servir archivos estáticos y media en desarrollo

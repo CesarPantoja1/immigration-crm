@@ -25,7 +25,8 @@ import {
   ApplicationReviewPage,
   DocumentExplorerPage,
   AdvisorSimulationsPage,
-  AdvisorMeetingRoomPage
+  AdvisorMeetingRoomPage,
+  InterviewScheduling
 } from './features/advisor'
 
 // Pagina asesor - Presencial Feedback
@@ -179,6 +180,14 @@ function App() {
           <ProtectedRoute allowedRoles={['advisor']}>
             <AdvisorLayout>
               <DocumentExplorerPage />
+            </AdvisorLayout>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/asesor/entrevistas" element={
+          <ProtectedRoute allowedRoles={['advisor']}>
+            <AdvisorLayout>
+              <InterviewScheduling />
             </AdvisorLayout>
           </ProtectedRoute>
         } />

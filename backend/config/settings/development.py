@@ -7,23 +7,46 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
 
-# Database
+# Database - SQLite para desarrollo local
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'postgres'),
-        'USER': os.environ.get('DB_USER', 'postgres.lhbezpqwcolfccrwhfkl'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'da!@zBS.U.8cbDb'),
-        'HOST': os.environ.get('DB_HOST', 'aws-0-us-west-2.pooler.supabase.com'),
-        'PORT': os.environ.get('DB_PORT', '6543'),
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
-# CORS para desarrollo (si se usa DRF)
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:3000",
-#     "http://127.0.0.1:3000",
-# ]
+# =====================================================
+# CORS Configuration for Development
+# =====================================================
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Add browsable API renderer for development
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+}
 
 # Email backend para desarrollo (console)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
