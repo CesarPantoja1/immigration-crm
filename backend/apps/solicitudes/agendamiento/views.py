@@ -420,13 +420,13 @@ class CalendarioEventosView(APIView):
         if user.rol == 'cliente':
             entrevistas = Entrevista.objects.filter(
                 solicitud__cliente=user
-            ).select_related('solicitud')
+            ).select_related('solicitud', 'solicitud__cliente', 'solicitud__asesor')
         elif user.rol == 'asesor':
             entrevistas = Entrevista.objects.filter(
                 solicitud__asesor=user
-            ).select_related('solicitud')
+            ).select_related('solicitud', 'solicitud__cliente', 'solicitud__asesor')
         else:
-            entrevistas = Entrevista.objects.all().select_related('solicitud')
+            entrevistas = Entrevista.objects.all().select_related('solicitud', 'solicitud__cliente', 'solicitud__asesor')
         
         if mes:
             year, month = mes.split('-')
@@ -446,8 +446,11 @@ class CalendarioEventosView(APIView):
                 'estado': e.estado,
                 'ubicacion': e.ubicacion,
                 'tipo_visa': e.solicitud.tipo_visa,
+                'tipo_visa_display': e.solicitud.get_tipo_visa_display(),
                 'solicitud_id': e.solicitud.id,
                 'embajada': e.solicitud.get_embajada_display() if e.solicitud.embajada else None,
+                'cliente_nombre': e.solicitud.cliente.nombre_completo() if e.solicitud.cliente else None,
+                'asesor_nombre': e.solicitud.asesor.nombre_completo() if e.solicitud.asesor else None,
             })
         
         return Response(eventos)
