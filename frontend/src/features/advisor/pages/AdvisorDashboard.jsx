@@ -164,6 +164,30 @@ export default function AdvisorDashboard() {
               )}
             </div>
           </Card>
+
+          {/* Quick Access - Entrevistas */}
+          <Card className="mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Agendamiento de Entrevistas</h2>
+              <Link to="/asesor/entrevistas" className="text-sm text-primary-600 hover:text-primary-700">
+                Ver todo →
+              </Link>
+            </div>
+            <div className="bg-gradient-to-r from-blue-50 to-primary-50 p-4 rounded-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center text-2xl">
+                  📅
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">Gestiona las entrevistas consulares</p>
+                  <p className="text-sm text-gray-600">Agenda, reprograma y da seguimiento a entrevistas</p>
+                </div>
+                <Link to="/asesor/entrevistas">
+                  <Button size="sm">Ir a Entrevistas</Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
         </div>
 
         {/* Recent Activity */}
