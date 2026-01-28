@@ -53,13 +53,13 @@ export default function CalendarPage() {
 
       // Transform simulacros - Mostrar confirmados, propuestos y solicitados
       const simulacros = (simulacrosData || [])
-        .filter(s => ['confirmado', 'propuesto', 'solicitado', 'en_progreso'].includes(s.estado))
+        .filter(s => ['confirmado', 'propuesto', 'solicitado', 'en_progreso', 'pendiente_respuesta'].includes(s.estado))
         .map(s => ({
           id: `sim-${s.id}`,
           type: s.modalidad === 'presencial' ? 'simulation_presential' : 'simulation_virtual',
           title: s.modalidad === 'presencial' ? 'Simulacro Presencial' : 'Simulacro Virtual',
-          date: s.fecha_propuesta,
-          time: s.hora_propuesta,
+          date: s.fecha_propuesta || s.fecha,
+          time: s.hora_propuesta || s.hora,
           advisor: s.asesor_nombre || 'Asesor asignado',
           duration: '30-45 min',
           visaType: s.solicitud_tipo || 'Visa',
