@@ -1,3 +1,3 @@
 # Infrastructure Layer - Implementaciones técnicas
-from . import admin
+# El admin se importa en apps.py cuando Django está listo
 
