@@ -99,10 +99,11 @@ export default function SimulationsPage() {
         feedbackStatus: s.tiene_recomendaciones ? 'received' : 'pending'
       })))
 
-      // Normalizar disponibilidad
+      // Normalizar disponibilidad - usar total_usados que incluye todos los simulacros activos
       const disponibilidadNormalizada = {
         disponibles: disponibilidadData?.simulacros_disponibles ?? disponibilidadData?.disponibles ?? 2,
-        usados: disponibilidadData?.simulacros_realizados ?? disponibilidadData?.usados ?? 0
+        usados: disponibilidadData?.total_usados ?? disponibilidadData?.simulacros_activos ?? disponibilidadData?.usados ?? 0,
+        total: disponibilidadData?.total_permitidos ?? 2
       }
       setDisponibilidad(disponibilidadNormalizada)
 
@@ -114,7 +115,8 @@ export default function SimulationsPage() {
   }
 
   const simulationsUsed = disponibilidad.usados
-  const simulationsTotal = disponibilidad.usados + disponibilidad.disponibles
+  const simulationsTotal = disponibilidad.total || 2
+  const simulationsAvailable = disponibilidad.disponibles
 
   // Filtrar por modalidad
   const filterByModality = (items) => {
@@ -276,7 +278,7 @@ export default function SimulationsPage() {
             </div>
           </div>
           <Button 
-            disabled={simulationsUsed >= simulationsTotal}
+            disabled={simulationsAvailable <= 0}
             onClick={handleOpenRequestModal}
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

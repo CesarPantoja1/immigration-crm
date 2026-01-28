@@ -16,13 +16,17 @@ class SimulacroListSerializer(serializers.ModelSerializer):
     asesor_nombre = serializers.SerializerMethodField()
     puede_cancelar = serializers.SerializerMethodField()
     puede_ingresar = serializers.SerializerMethodField()
+    fecha_propuesta = serializers.SerializerMethodField()
+    hora_propuesta = serializers.SerializerMethodField()
+    solicitud_tipo = serializers.SerializerMethodField()
     
     class Meta:
         model = Simulacro
         fields = [
             'id', 'fecha', 'hora', 'modalidad', 'modalidad_display',
             'estado', 'estado_display', 'cliente_nombre', 'asesor_nombre',
-            'ubicacion', 'puede_cancelar', 'puede_ingresar', 'created_at'
+            'ubicacion', 'puede_cancelar', 'puede_ingresar', 'created_at',
+            'fecha_propuesta', 'hora_propuesta', 'solicitud_tipo'
         ]
     
     def get_cliente_nombre(self, obj):
@@ -36,6 +40,19 @@ class SimulacroListSerializer(serializers.ModelSerializer):
     
     def get_puede_ingresar(self, obj):
         return obj.puede_ingresar_sala()
+    
+    def get_fecha_propuesta(self, obj):
+        # Devolver fecha_propuesta si existe, sino fecha
+        return str(obj.fecha_propuesta) if obj.fecha_propuesta else str(obj.fecha)
+    
+    def get_hora_propuesta(self, obj):
+        # Devolver hora_propuesta si existe, sino hora
+        return str(obj.hora_propuesta) if obj.hora_propuesta else str(obj.hora)
+    
+    def get_solicitud_tipo(self, obj):
+        if obj.solicitud:
+            return obj.solicitud.get_tipo_visa_display()
+        return 'Visa'
 
 
 class SimulacroDetailSerializer(serializers.ModelSerializer):

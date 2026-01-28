@@ -135,27 +135,29 @@ class DisponibilidadView(APIView):
     def get(self, request):
         user = request.user
         
-        # Contar simulacros completados del cliente
-        simulacros_realizados = Simulacro.objects.filter(
+        # Contar simulacros ACTIVOS del cliente (todos excepto cancelados)
+        # Esto incluye: solicitado, propuesto, pendiente_respuesta, confirmado, en_progreso, completado
+        simulacros_activos = Simulacro.objects.filter(
             cliente=user,
-            estado='completado',
             is_deleted=False
+        ).exclude(
+            estado='cancelado'
         ).count()
         
         max_simulacros = 2
-        disponibles = max_simulacros - simulacros_realizados
+        disponibles = max(0, max_simulacros - simulacros_activos)
         
         if disponibles > 0:
             return Response({
                 'disponibilidad': 'disponible',
-                'simulacros_realizados': simulacros_realizados,
+                'simulacros_activos': simulacros_activos,
                 'simulacros_disponibles': disponibles,
                 'mensaje': f'Tiene {disponibles} simulacro(s) disponible(s)'
             })
         
         return Response({
             'disponibilidad': 'no_disponible',
-            'simulacros_realizados': simulacros_realizados,
+            'simulacros_activos': simulacros_activos,
             'simulacros_disponibles': 0,
             'mensaje': f'Ha alcanzado el límite de {max_simulacros} simulacros por proceso'
         })
@@ -171,23 +173,29 @@ class ContadorSimulacrosView(APIView):
     def get(self, request):
         user = request.user
         
-        realizados = Simulacro.objects.filter(
+        # Contar simulacros completados
+        completados = Simulacro.objects.filter(
             cliente=user,
             estado='completado',
             is_deleted=False
         ).count()
         
-        pendientes = Simulacro.objects.filter(
+        # Contar simulacros activos (pendientes, confirmados, solicitados, en_progreso)
+        activos = Simulacro.objects.filter(
             cliente=user,
-            estado__in=['pendiente_respuesta', 'confirmado'],
+            estado__in=['solicitado', 'propuesto', 'pendiente_respuesta', 'confirmado', 'en_progreso'],
             is_deleted=False
         ).count()
         
+        # Total de simulacros no cancelados
+        total_activos = completados + activos
+        
         return Response({
-            'realizados': realizados,
-            'pendientes': pendientes,
+            'completados': completados,
+            'activos': activos,
+            'total_usados': total_activos,
             'total_permitidos': 2,
-            'disponibles': max(0, 2 - realizados)
+            'disponibles': max(0, 2 - total_activos)
         })
 
 
@@ -208,16 +216,17 @@ class SolicitarSimulacroView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Verificar disponibilidad
-        realizados = Simulacro.objects.filter(
+        # Verificar disponibilidad - contar TODOS los simulacros activos (no cancelados)
+        simulacros_activos = Simulacro.objects.filter(
             cliente=user,
-            estado='completado',
             is_deleted=False
+        ).exclude(
+            estado='cancelado'
         ).count()
         
-        if realizados >= 2:
+        if simulacros_activos >= 2:
             return Response(
-                {'error': 'Ha alcanzado el límite de simulacros permitidos'},
+                {'error': 'Ha alcanzado el límite de 2 simulacros permitidos. Debe cancelar uno existente para solicitar otro.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
