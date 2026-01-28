@@ -3,15 +3,17 @@ import { AnimatePresence } from 'framer-motion'
 import LandingPage from './pages/LandingPage'
 import { LoginPage, RegisterPage } from './features/auth'
 import { useAuth } from './contexts/AuthContext'
+import { NotificationToast } from './components/common'
 
 // Layouts
 import ClientLayout from './layouts/ClientLayout'
 import AdvisorLayout from './layouts/AdvisorLayout'
+import AdminLayout from './layouts/AdminLayout'
 
 // Paginas cliente
 import { ClientDashboard } from './features/client'
 import { NewApplicationPage, ApplicationsListPage, ApplicationDetailPage } from './features/applications'
-import { SimulationsPage, MeetingRoomPage, SimulationSummaryPage, PresentialInfoPage } from './features/simulations'
+import { SimulationsPage, MeetingRoomPage, SimulationSummaryPage, PresentialInfoPage, RecomendacionesPage } from './features/simulations'
 import { PracticePage, QuizPage } from './features/practice'
 
 // Nuevas páginas cliente
@@ -27,11 +29,13 @@ import {
   AdvisorSimulationsPage,
   AdvisorMeetingRoomPage,
   InterviewScheduling,
-  AdvisorInboxPage
+  AdvisorInboxPage,
+  IAConfigPage,
+  AdvisorFeedbackViewPage
 } from './features/advisor'
 
 // Pagina admin
-import { AdminDashboard } from './features/admin'
+import { AdminDashboard, AdminAsesoresPage } from './features/admin'
 
 // Pagina asesor - Presencial Feedback
 import { PresentialFeedbackPage } from './features/simulations'
@@ -111,6 +115,15 @@ function App() {
         <Route path="/simulacros/:id/resumen" element={
           <ProtectedRoute allowedRoles={['client']}>
             <SimulationSummaryPage />
+          </ProtectedRoute>
+        } />
+
+        {/* Client Recomendaciones */}
+        <Route path="/recomendaciones" element={
+          <ProtectedRoute allowedRoles={['client']}>
+            <ClientLayout>
+              <RecomendacionesPage />
+            </ClientLayout>
           </ProtectedRoute>
         } />
 
@@ -212,6 +225,15 @@ function App() {
           </ProtectedRoute>
         } />
 
+        {/* Advisor View Feedback */}
+        <Route path="/asesor/simulacros/:id/feedback" element={
+          <ProtectedRoute allowedRoles={['advisor']}>
+            <AdvisorLayout>
+              <AdvisorFeedbackViewPage />
+            </AdvisorLayout>
+          </ProtectedRoute>
+        } />
+
         {/* Advisor Presential Feedback */}
         <Route path="/asesor/simulacros/:id/presencial" element={
           <ProtectedRoute allowedRoles={['advisor']}>
@@ -228,6 +250,15 @@ function App() {
           </ProtectedRoute>
         } />
 
+        {/* Advisor IA Config (Configuración de IA) */}
+        <Route path="/asesor/configuracion-ia" element={
+          <ProtectedRoute allowedRoles={['advisor']}>
+            <AdvisorLayout>
+              <IAConfigPage />
+            </AdvisorLayout>
+          </ProtectedRoute>
+        } />
+
         {/* Advisor Calendar (Calendario Maestro) */}
         <Route path="/asesor/calendario" element={
           <ProtectedRoute allowedRoles={['advisor']}>
@@ -240,19 +271,34 @@ function App() {
         {/* Admin Routes */}
         <Route path="/admin" element={
           <ProtectedRoute allowedRoles={['admin']}>
-            <AdminDashboard />
+            <AdminLayout>
+              <AdminDashboard />
+            </AdminLayout>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/asesores" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminLayout>
+              <AdminAsesoresPage />
+            </AdminLayout>
           </ProtectedRoute>
         } />
 
         <Route path="/admin/*" element={
           <ProtectedRoute allowedRoles={['admin']}>
-            <AdminDashboard />
+            <AdminLayout>
+              <AdminDashboard />
+            </AdminLayout>
           </ProtectedRoute>
         } />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      
+      {/* Toasts de notificaciones en tiempo real */}
+      <NotificationToast />
     </AnimatePresence>
   )
 }

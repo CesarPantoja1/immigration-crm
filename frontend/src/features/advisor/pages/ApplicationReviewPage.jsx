@@ -721,8 +721,8 @@ export default function ApplicationReviewPage() {
       <SplitViewModal
         isOpen={showSplitView}
         onClose={() => setShowSplitView(false)}
-        documents={pendingDocuments}
-        initialIndex={0}
+        documents={documents}
+        initialIndex={documents.findIndex(d => d.status === 'pending')}
         onApprove={handleSplitViewApprove}
         onReject={handleSplitViewReject}
       />

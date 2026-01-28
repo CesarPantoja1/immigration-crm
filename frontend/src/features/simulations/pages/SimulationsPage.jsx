@@ -68,6 +68,7 @@ export default function SimulationsPage() {
         advisor: s.asesor_nombre || 'Asesor asignado',
         modality: s.modalidad || 'virtual',
         visaType: s.solicitud_tipo || 'Entrevista',
+        solicitudId: s.solicitud_id,
         status: 'pending',
         location: s.ubicacion
       })))
@@ -82,6 +83,7 @@ export default function SimulationsPage() {
           advisor: s.asesor_nombre || 'Asesor asignado',
           modality: s.modalidad || 'virtual',
           visaType: s.solicitud_tipo || 'Entrevista',
+          solicitudId: s.solicitud_id,
           status: 'confirmed',
           hoursUntil: Math.max(0, Math.round(horasRestantes)),
           location: s.ubicacion
@@ -95,6 +97,7 @@ export default function SimulationsPage() {
         advisor: s.asesor_nombre || 'Asesor asignado',
         modality: s.modalidad || 'virtual',
         visaType: s.solicitud_tipo || 'Entrevista',
+        solicitudId: s.solicitud_id,
         duration: s.duracion_minutos ? `${s.duracion_minutos} min` : '-',
         feedbackStatus: s.tiene_recomendaciones ? 'received' : 'pending'
       })))
@@ -368,6 +371,14 @@ export default function SimulationsPage() {
                       <div className="flex gap-2 mt-3">
                         <Badge variant="primary">{proposal.modality}</Badge>
                         <Badge variant="info">{proposal.visaType}</Badge>
+                        {proposal.solicitudId && (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            SOL-{proposal.solicitudId}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -462,9 +473,17 @@ export default function SimulationsPage() {
                             {simulation.location}
                           </div>
                         )}
-                        <div className="flex gap-2 mt-3">
+                        <div className="flex flex-wrap gap-2 mt-3">
                           <ModalityBadge modality={simulation.modality} />
                           <Badge variant="info">{simulation.visaType}</Badge>
+                          {simulation.solicitudId && (
+                            <Badge variant="secondary" className="flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              SOL-{simulation.solicitudId}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-3">
@@ -539,9 +558,17 @@ export default function SimulationsPage() {
                         <span>Duración: {simulation.duration}</span>
                         <span>Asesor: {simulation.advisor}</span>
                       </div>
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex flex-wrap gap-2 mt-2">
                         <ModalityBadge modality={simulation.modality} />
                         <Badge variant="info">{simulation.visaType}</Badge>
+                        {simulation.solicitudId && (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            SOL-{simulation.solicitudId}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -559,7 +586,13 @@ export default function SimulationsPage() {
                         </Button>
                         <Button 
                           variant="secondary"
-                          onClick={() => window.open(`/api/simulacros/${simulation.id}/feedback/download`, '_blank')}
+                          onClick={async () => {
+                            try {
+                              await simulacrosService.descargarPDFSimulacro(simulation.id)
+                            } catch (error) {
+                              alert(error.message || 'Error al descargar el PDF')
+                            }
+                          }}
                         >
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -734,7 +767,7 @@ export default function SimulationsPage() {
                 <option value="">Selecciona una solicitud</option>
                 {solicitudesDisponibles.map(sol => (
                   <option key={sol.id} value={sol.id}>
-                    {sol.tipo_visa_display || sol.tipo_visa} - {sol.estado_display || sol.estado}
+                    SOL-{sol.id} | {sol.tipo_visa_display || sol.tipo_visa} - {sol.estado_display || sol.estado}
                   </option>
                 ))}
               </select>

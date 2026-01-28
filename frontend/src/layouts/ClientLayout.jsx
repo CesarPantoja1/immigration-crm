@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useNotifications } from '../contexts/NotificationContext'
 
 export default function ClientLayout({ children }) {
   const { user, logout } = useAuth()
@@ -8,13 +9,23 @@ export default function ClientLayout({ children }) {
   const navigate = useNavigate()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [bellAnimating, setBellAnimating] = useState(false)
 
-  // Contador de notificaciones no leídas (mock)
-  const unreadNotifications = 3
+  // Contador de notificaciones no leídas (desde el contexto)
+  const { unreadCount, toasts } = useNotifications()
+
+  // Animar campana cuando llega una nueva notificación
+  useEffect(() => {
+    if (toasts.length > 0) {
+      setBellAnimating(true)
+      const timer = setTimeout(() => setBellAnimating(false), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [toasts.length])
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-    { name: 'Bandeja de Entrada', href: '/inbox', icon: InboxIcon, badge: unreadNotifications },
+    { name: 'Bandeja de Entrada', href: '/inbox', icon: InboxIcon, badge: unreadCount },
     { name: 'Mis Solicitudes', href: '/solicitudes', icon: DocumentIcon },
     { name: 'Simulacros', href: '/simulacros', icon: VideoIcon },
     { name: 'Práctica', href: '/practica', icon: BookIcon },
@@ -57,9 +68,9 @@ export default function ClientLayout({ children }) {
                     }`}
                   >
                     {item.name}
-                    {item.badge && item.badge > 0 && (
-                      <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-xs font-medium bg-red-500 text-white rounded-full min-w-[18px] text-center">
-                        {item.badge > 9 ? '9+' : item.badge}
+                    {item.badge > 0 && (
+                      <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full min-w-[18px] text-center animate-pulse">
+                        {item.badge > 99 ? '99+' : item.badge}
                       </span>
                     )}
                   </Link>
@@ -70,6 +81,22 @@ export default function ClientLayout({ children }) {
 
           {/* Right Section */}
           <div className="flex items-center gap-3">
+            {/* Notification Bell */}
+            <Link 
+              to="/inbox" 
+              className={`relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors ${bellAnimating ? 'animate-shake-bell' : ''}`}
+              title="Notificaciones"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 px-1.5 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full min-w-[18px] text-center animate-pulse">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </Link>
+
             {/* Simulation Counter */}
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
               <div className={`w-2 h-2 rounded-full ${

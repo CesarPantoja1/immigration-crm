@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recomendaciones de Simulacro - {{ cliente.nombre_completo }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            color: #333;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4F46E5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 14pt;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        
+        .print-button:hover {
+            background: #4338CA;
+        }
+        
+        @media print {
+            .print-button {
+                display: none;
+            }
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #4F46E5;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #4F46E5;
+            font-size: 24pt;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            color: #666;
+            font-size: 12pt;
+        }
+        
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .info-value {
+            color: #333;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section h2 {
+            color: #4F46E5;
+            font-size: 16pt;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .nivel-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14pt;
+        }
+        
+        .nivel-alto {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .nivel-medio {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .nivel-bajo {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .indicadores-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .indicador-item {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4F46E5;
+        }
+        
+        .indicador-label {
+            font-size: 10pt;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        
+        .indicador-value {
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        
+        .indicador-value.alto {
+            color: #166534;
+        }
+        
+        .indicador-value.medio {
+            color: #92400e;
+        }
+        
+        .indicador-value.bajo {
+            color: #991b1b;
+        }
+        
+        .item-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .item-list li {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        
+        .fortaleza-item {
+            border-left: 4px solid #22c55e;
+        }
+        
+        .mejora-item {
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .recomendacion-item {
+            border-left: 4px solid #4F46E5;
+        }
+        
+        .item-categoria {
+            font-size: 10pt;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        
+        .item-descripcion {
+            font-size: 11pt;
+        }
+        
+        .item-impacto {
+            font-size: 10pt;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .accion-sugerida {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        
+        .accion-sugerida h3 {
+            font-size: 14pt;
+            margin-bottom: 10px;
+        }
+        
+        .resumen-box {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 15px 20px;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+            text-align: center;
+            color: #888;
+            font-size: 10pt;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+            }
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Botón de imprimir/guardar PDF -->
+    <button class="print-button" onclick="window.print()">
+        🖨️ Imprimir / Guardar PDF
+    </button>
+    
+    <div class="header">
+        <h1>📋 Informe de Simulacro</h1>
+        <p class="subtitle">Recomendaciones y Feedback de Preparación</p>
+    </div>
+    
+    <div class="info-box">
+        <div class="info-row">
+            <span class="info-label">Cliente:</span>
+            <span class="info-value">{{ cliente.get_full_name|default:"Cliente" }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Asesor:</span>
+            <span class="info-value">{{ asesor.get_full_name|default:"Asesor asignado" }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Fecha del Simulacro:</span>
+            <span class="info-value">{{ simulacro.fecha|date:"d/m/Y" }} a las {{ simulacro.hora }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Fecha de Generación:</span>
+            <span class="info-value">{{ fecha_generacion|date:"d/m/Y H:i" }}</span>
+        </div>
+        {% if simulacro.solicitud %}
+        <div class="info-row">
+            <span class="info-label">Tipo de Visa:</span>
+            <span class="info-value">{{ simulacro.solicitud.tipo_visa_nombre|default:"Visa" }}</span>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="section">
+        <h2>📊 Nivel de Preparación</h2>
+        <div style="text-align: center; margin: 20px 0;">
+            <span class="nivel-badge nivel-{{ recomendacion.nivel_preparacion }}">
+                {{ nivel_preparacion }}
+            </span>
+        </div>
+        
+        <div class="indicadores-grid">
+            {% for label, valor in indicadores.items %}
+            <div class="indicador-item">
+                <div class="indicador-label">{{ label }}</div>
+                <div class="indicador-value {{ valor }}">{{ valor }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    {% if resumen_ejecutivo %}
+    <div class="section">
+        <h2>📝 Resumen Ejecutivo</h2>
+        <div class="resumen-box">
+            <p>{{ resumen_ejecutivo|linebreaks }}</p>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if fortalezas %}
+    <div class="section">
+        <h2>✅ Fortalezas Identificadas</h2>
+        <ul class="item-list">
+            {% for item in fortalezas %}
+            <li class="fortaleza-item">
+                {% if item.categoria %}
+                <div class="item-categoria">{{ item.categoria }}</div>
+                {% endif %}
+                <div class="item-descripcion">{{ item.descripcion }}</div>
+                {% if item.impacto %}
+                <div class="item-impacto">Impacto: {{ item.impacto }}</div>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    {% if puntos_mejora %}
+    <div class="section">
+        <h2>⚠️ Puntos de Mejora</h2>
+        <ul class="item-list">
+            {% for item in puntos_mejora %}
+            <li class="mejora-item">
+                {% if item.categoria %}
+                <div class="item-categoria">{{ item.categoria }}</div>
+                {% endif %}
+                <div class="item-descripcion">{{ item.descripcion }}</div>
+                {% if item.impacto %}
+                <div class="item-impacto">Impacto: {{ item.impacto }}</div>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    {% if recomendaciones %}
+    <div class="section">
+        <h2>💡 Recomendaciones</h2>
+        <ul class="item-list">
+            {% for item in recomendaciones %}
+            <li class="recomendacion-item">
+                {% if item.titulo %}
+                <div class="item-categoria">{{ item.titulo }}</div>
+                {% endif %}
+                <div class="item-descripcion">{{ item.descripcion }}</div>
+                {% if item.accion_concreta %}
+                <div class="item-impacto"><strong>Acción:</strong> {{ item.accion_concreta }}</div>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    {% if accion_sugerida %}
+    <div class="accion-sugerida">
+        <h3>🎯 Acción Sugerida</h3>
+        <p>{{ accion_sugerida }}</p>
+    </div>
+    {% endif %}
+    
+    <div class="footer">
+        <p>Documento generado automáticamente por el Sistema de Gestión de Visas</p>
+        <p>Este informe es confidencial y está destinado únicamente para el destinatario indicado.</p>
+    </div>
+</body>
+</html>

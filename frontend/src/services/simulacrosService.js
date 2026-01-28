@@ -248,6 +248,201 @@ export const simulacrosService = {
    */
   async completarSimulacro(simulacroId) {
     return apiClient.post(`/simulacros/${simulacroId}/finalizar/`, {})
+  },
+
+  // =====================================================
+  // RECOMENDACIONES CON IA
+  // =====================================================
+
+  /**
+   * Obtiene simulacros completados del asesor (para agregar feedback)
+   */
+  async getSimulacrosCompletados() {
+    return apiClient.get('/simulacros/completados/')
+  },
+
+  /**
+   * Sube un archivo de transcripción (.txt)
+   * @param {number} simulacroId
+   * @param {File} archivo - Archivo .txt con la transcripción
+   */
+  async subirTranscripcion(simulacroId, archivo) {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+    // No pasar headers, el apiClient detecta FormData y maneja el Content-Type automáticamente
+    return apiClient.post(`/simulacros/${simulacroId}/subir-transcripcion/`, formData)
+  },
+
+  /**
+   * Genera recomendaciones usando IA (Gemini)
+   * @param {number} simulacroId
+   */
+  async generarRecomendacionIA(simulacroId) {
+    return apiClient.post(`/simulacros/${simulacroId}/generar-recomendacion-ia/`, {})
+  },
+
+  /**
+   * Obtiene la recomendación de un simulacro específico (cliente)
+   * @param {number} simulacroId
+   */
+  async getMiRecomendacion(simulacroId) {
+    return apiClient.get(`/simulacros/${simulacroId}/mi-recomendacion/`)
+  },
+
+  /**
+   * Obtiene todas las recomendaciones del cliente
+   */
+  async getMisRecomendaciones() {
+    return apiClient.get('/mis-recomendaciones/')
+  },
+
+  /**
+   * Obtiene el detalle de una recomendación
+   * @param {number} recomendacionId
+   */
+  async getDetalleRecomendacion(recomendacionId) {
+    return apiClient.get(`/recomendaciones/${recomendacionId}/detalle-cliente/`)
+  },
+
+  // =====================================================
+  // CONFIGURACIÓN DE IA
+  // =====================================================
+
+  /**
+   * Obtiene la configuración de IA del asesor
+   */
+  async getConfiguracionIA() {
+    return apiClient.get('/configuracion-ia/')
+  },
+
+  /**
+   * Guarda la configuración de IA del asesor
+   * @param {Object} data - { api_key, modelo }
+   */
+  async guardarConfiguracionIA(data) {
+    return apiClient.post('/configuracion-ia/', data)
+  },
+
+  /**
+   * Actualiza la configuración de IA del asesor
+   * @param {Object} data - { api_key?, modelo?, activo? }
+   */
+  async actualizarConfiguracionIA(data) {
+    return apiClient.put('/configuracion-ia/', data)
+  },
+
+  /**
+   * Elimina la configuración de IA del asesor
+   */
+  async eliminarConfiguracionIA() {
+    return apiClient.delete('/configuracion-ia/')
+  },
+
+  /**
+   * Prueba si una API key es válida
+   * @param {string} apiKey - API key de Gemini
+   * @param {string} modelo - Modelo a probar
+   */
+  async testAPIKey(apiKey, modelo = 'gemini-2.5-flash') {
+    return apiClient.post('/configuracion-ia/test/', { api_key: apiKey, modelo })
+  },
+
+  /**
+   * Descarga el PDF de una recomendación
+   * @param {number} recomendacionId
+   */
+  async descargarPDFRecomendacion(recomendacionId) {
+    const tokens = JSON.parse(localStorage.getItem('migrafacil_tokens') || '{}')
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/recomendaciones/${recomendacionId}/descargar-pdf/`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokens.access}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('Error al descargar el PDF')
+    }
+    
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `recomendacion_${recomendacionId}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  },
+
+  /**
+   * Descarga el PDF de recomendaciones de un simulacro
+   * @param {number} simulacroId
+   */
+  async descargarPDFSimulacro(simulacroId) {
+    const tokens = JSON.parse(localStorage.getItem('migrafacil_tokens') || '{}')
+    
+    if (!tokens.access) {
+      throw new Error('No hay sesión activa. Por favor inicia sesión.')
+    }
+    
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/simulacros/${simulacroId}/descargar-pdf/`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokens.access}`
+      }
+    })
+    
+    if (!response.ok) {
+      let errorMsg = 'Error al descargar el resumen'
+      try {
+        const error = await response.json()
+        errorMsg = error.error || errorMsg
+      } catch (e) {
+        // Si no es JSON, usar el mensaje por defecto
+      }
+      throw new Error(errorMsg)
+    }
+    
+    const contentType = response.headers.get('content-type') || ''
+    const blob = await response.blob()
+    
+    if (blob.size === 0) {
+      throw new Error('El archivo está vacío')
+    }
+    
+    const url = window.URL.createObjectURL(blob)
+    
+    if (contentType.includes('text/html')) {
+      // Abrir HTML en nueva ventana con botón de imprimir
+      const newWindow = window.open('', '_blank')
+      if (newWindow) {
+        const reader = new FileReader()
+        reader.onload = () => {
+          newWindow.document.write(reader.result)
+          newWindow.document.close()
+        }
+        reader.readAsText(blob)
+      } else {
+        // Si el popup está bloqueado, descargar como archivo
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `resumen_simulacro_${simulacroId}.html`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      }
+    } else {
+      // Descargar como PDF
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `resumen_simulacro_${simulacroId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    }
+    
+    window.URL.revokeObjectURL(url)
   }
 }
 

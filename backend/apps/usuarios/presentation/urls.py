@@ -13,6 +13,12 @@ from .views import (
     UsuarioListView,
     AsesoresListView,
     UsuarioDetailView,
+    # Admin views
+    CrearAsesorView,
+    AdminAsesoresListView,
+    AdminAsesorDetailView,
+    ToggleAsesorEstadoView,
+    AdminEstadisticasView,
 )
 
 app_name = 'usuarios'
@@ -32,4 +38,11 @@ urlpatterns = [
     path('usuarios/', UsuarioListView.as_view(), name='usuarios_list'),
     path('usuarios/asesores/', AsesoresListView.as_view(), name='asesores_list'),
     path('usuarios/<int:pk>/', UsuarioDetailView.as_view(), name='usuario_detail'),
+    
+    # Administración
+    path('admin/estadisticas/', AdminEstadisticasView.as_view(), name='admin_estadisticas'),
+    path('admin/asesores/', AdminAsesoresListView.as_view(), name='admin_asesores_list'),
+    path('admin/asesores/crear/', CrearAsesorView.as_view(), name='admin_crear_asesor'),
+    path('admin/asesores/<int:pk>/', AdminAsesorDetailView.as_view(), name='admin_asesor_detail'),
+    path('admin/asesores/<int:pk>/toggle-estado/', ToggleAsesorEstadoView.as_view(), name='admin_toggle_asesor'),
 ]

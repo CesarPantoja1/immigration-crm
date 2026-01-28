@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model, authenticate
+from django.db import models
 
 from .serializers import (
     UsuarioSerializer,
@@ -209,3 +210,150 @@ class UsuarioDetailView(generics.RetrieveUpdateAPIView):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+
+# =====================================================
+# VISTAS DE ADMINISTRACIÓN
+# =====================================================
+
+class EsAdmin(permissions.BasePermission):
+    """Permiso que verifica si el usuario es administrador."""
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.rol == 'admin'
+
+
+class CrearAsesorView(generics.CreateAPIView):
+    """
+    POST /api/admin/asesores/crear/
+    Crea un nuevo asesor (solo admin).
+    """
+    serializer_class = RegistroSerializer
+    permission_classes = [permissions.IsAuthenticated, EsAdmin]
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        return context
+    
+    def create(self, request, *args, **kwargs):
+        # Forzar rol asesor
+        data = request.data.copy()
+        data['rol'] = 'asesor'
+        
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        
+        return Response({
+            'message': 'Asesor creado exitosamente',
+            'asesor': {
+                'id': user.id,
+                'email': user.email,
+                'nombre': user.nombre_completo(),
+                'telefono': user.telefono
+            }
+        }, status=status.HTTP_201_CREATED)
+
+
+class AdminAsesoresListView(generics.ListAPIView):
+    """
+    GET /api/admin/asesores/
+    Lista todos los asesores (activos e inactivos) - solo admin.
+    """
+    serializer_class = UsuarioSerializer
+    permission_classes = [permissions.IsAuthenticated, EsAdmin]
+    
+    def get_queryset(self):
+        queryset = Usuario.objects.filter(rol='asesor')
+        
+        # Filtro por estado activo
+        activo = self.request.query_params.get('activo')
+        if activo is not None:
+            queryset = queryset.filter(is_active=activo.lower() == 'true')
+        
+        # Búsqueda por nombre o email
+        busqueda = self.request.query_params.get('busqueda')
+        if busqueda:
+            queryset = queryset.filter(
+                models.Q(first_name__icontains=busqueda) |
+                models.Q(last_name__icontains=busqueda) |
+                models.Q(email__icontains=busqueda)
+            )
+        
+        return queryset.order_by('-created_at')
+
+
+class AdminAsesorDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET/PUT/DELETE /api/admin/asesores/<id>/
+    Detalle, actualización y eliminación de asesor - solo admin.
+    """
+    queryset = Usuario.objects.filter(rol='asesor')
+    serializer_class = UsuarioSerializer
+    permission_classes = [permissions.IsAuthenticated, EsAdmin]
+    
+    def destroy(self, request, *args, **kwargs):
+        """Desactivar en lugar de eliminar."""
+        instance = self.get_object()
+        instance.is_active = False
+        instance.save()
+        return Response({'message': 'Asesor desactivado exitosamente'}, status=status.HTTP_200_OK)
+
+
+class ToggleAsesorEstadoView(APIView):
+    """
+    POST /api/admin/asesores/<id>/toggle-estado/
+    Activa/desactiva un asesor.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsAdmin]
+    
+    def post(self, request, pk):
+        try:
+            asesor = Usuario.objects.get(pk=pk, rol='asesor')
+        except Usuario.DoesNotExist:
+            return Response(
+                {'error': 'Asesor no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        asesor.is_active = not asesor.is_active
+        asesor.save()
+        
+        estado = 'activado' if asesor.is_active else 'desactivado'
+        return Response({
+            'message': f'Asesor {estado} exitosamente',
+            'is_active': asesor.is_active
+        })
+
+
+class AdminEstadisticasView(APIView):
+    """
+    GET /api/admin/estadisticas/
+    Estadísticas del sistema para el dashboard admin.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsAdmin]
+    
+    def get(self, request):
+        from apps.solicitudes.models import Solicitud
+        from apps.preparacion.models import Simulacro
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        hoy = timezone.now().date()
+        
+        stats = {
+            'total_usuarios': Usuario.objects.count(),
+            'total_asesores': Usuario.objects.filter(rol='asesor').count(),
+            'asesores_activos': Usuario.objects.filter(rol='asesor', is_active=True).count(),
+            'total_clientes': Usuario.objects.filter(rol='cliente').count(),
+            'clientes_activos': Usuario.objects.filter(rol='cliente', is_active=True).count(),
+            'solicitudes_totales': Solicitud.objects.count(),
+            'solicitudes_pendientes': Solicitud.objects.filter(estado='pendiente').count(),
+            'solicitudes_hoy': Solicitud.objects.filter(created_at__date=hoy).count(),
+            'simulacros_hoy': Simulacro.objects.filter(fecha=hoy, is_deleted=False).count(),
+            'simulacros_semana': Simulacro.objects.filter(
+                fecha__gte=hoy - timedelta(days=7),
+                is_deleted=False
+            ).count(),
+        }
+        
+        return Response(stats)

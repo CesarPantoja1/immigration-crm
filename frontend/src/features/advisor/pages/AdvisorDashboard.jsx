@@ -59,7 +59,8 @@ export default function AdvisorDashboard() {
         // Process simulacros de hoy
         const todaySims = simulacrosData.filter(s => 
           s.fecha_propuesta === today && 
-          ['confirmado', 'en_progreso'].includes(s.estado)
+          ['confirmado', 'en_progreso'].includes(s.estado) &&
+          s.estado !== 'completado'
         )
         
         setTodaySimulations(todaySims.map(s => ({

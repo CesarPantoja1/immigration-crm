@@ -34,34 +34,42 @@ export default function AdvisorMeetingRoomPage() {
   const [salaInfo, setSalaInfo] = useState(null)
   const [estadoSala, setEstadoSala] = useState(null)
   const [notes, setNotes] = useState('')
+  const [jitsiLoaded, setJitsiLoaded] = useState(false)
+  const [jitsiError, setJitsiError] = useState(null)
 
   // Cargar datos del simulacro y sala
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [simData, salaData] = await Promise.all([
+        const [simResponse, salaResponse] = await Promise.all([
           simulacrosService.getSimulacro(id),
           simulacrosService.getInfoSala(id)
         ])
         
-        const clientName = simData.data?.cliente_nombre || simData.cliente_nombre || 'Cliente'
+        const simData = simResponse.data || simResponse
+        const salaData = salaResponse.data || salaResponse
+        
+        console.log('Datos simulacro:', simData)
+        console.log('Datos sala:', salaData)
+        
+        const clientName = simData?.cliente_nombre || 'Cliente'
         setSimulationData({
-          id: simData.data?.id || simData.id,
+          id: simData?.id,
           client: {
             name: clientName,
-            visaType: simData.data?.tipo_visa || simData.tipo_visa || 'Visa',
+            visaType: simData?.tipo_visa || 'Visa',
             avatar: clientName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
           },
-          scheduledTime: simData.data?.hora_propuesta || simData.hora_propuesta || simData.data?.hora || simData.hora || '',
-          date: (simData.data?.fecha_propuesta || simData.fecha_propuesta) ? new Date((simData.data?.fecha_propuesta || simData.fecha_propuesta) + 'T00:00').toLocaleDateString('es-ES', {
+          scheduledTime: simData?.hora_propuesta || simData?.hora || '',
+          date: simData?.fecha_propuesta ? new Date(simData.fecha_propuesta + 'T00:00').toLocaleDateString('es-ES', {
             day: 'numeric', month: 'long', year: 'numeric'
           }) : ''
         })
         
-        setSalaInfo(salaData.data)
+        setSalaInfo(salaData)
         
         // Si ya está en progreso, mostrar Jitsi
-        if (salaData.data?.en_progreso) {
+        if (salaData?.en_progreso) {
           setIsInSession(true)
         }
       } catch (error) {
@@ -108,15 +116,21 @@ export default function AdvisorMeetingRoomPage() {
 
   // Inicializar Jitsi Meet
   const initJitsi = useCallback(() => {
-    if (!salaInfo || !jitsiContainerRef.current) return
-
-    // Limpiar instancia anterior
-    if (jitsiApiRef.current) {
-      jitsiApiRef.current.dispose()
+    if (!salaInfo || !jitsiContainerRef.current) {
+      console.log('No se puede iniciar Jitsi - salaInfo:', !!salaInfo, 'container:', !!jitsiContainerRef.current)
+      return
     }
 
     const domain = salaInfo.jitsi_domain || 'meet.jit.si'
     const roomName = salaInfo.room_name
+    
+    console.log('Asesor: Inicializando Jitsi:', { domain, roomName })
+
+    // Limpiar instancia anterior
+    if (jitsiApiRef.current) {
+      jitsiApiRef.current.dispose()
+      jitsiApiRef.current = null
+    }
 
     const options = {
       roomName: roomName,
@@ -124,19 +138,23 @@ export default function AdvisorMeetingRoomPage() {
       height: '100%',
       parentNode: jitsiContainerRef.current,
       userInfo: {
-        displayName: user?.nombre || user?.email || 'Asesor'
+        displayName: user?.name || user?.email || 'Asesor (Moderador)'
       },
       configOverwrite: {
         startWithAudioMuted: false,
         startWithVideoMuted: false,
+        // Deshabilitar pre-join - entrar directamente
         prejoinPageEnabled: false,
+        // Configuración general
         disableDeepLinking: true,
         enableClosePage: false,
         enableWelcomePage: false,
+        requireDisplayName: false,
+        startAudioOnly: false,
+        // Botones del asesor (con herramientas de moderador)
         toolbarButtons: [
           'microphone',
           'camera',
-          'closedcaptions',
           'desktop',
           'fullscreen',
           'fodeviceselection',
@@ -145,8 +163,12 @@ export default function AdvisorMeetingRoomPage() {
           'recording',
           'settings',
           'videoquality',
-          'tileview'
-        ]
+          'tileview',
+          'participants-pane',
+          'security'
+        ],
+        disableThirdPartyRequests: true,
+        disableInviteFunctions: true
       },
       interfaceConfigOverwrite: {
         SHOW_JITSI_WATERMARK: false,
@@ -154,23 +176,49 @@ export default function AdvisorMeetingRoomPage() {
         SHOW_BRAND_WATERMARK: false,
         TOOLBAR_ALWAYS_VISIBLE: true,
         MOBILE_APP_PROMO: false,
-        DISABLE_JOIN_LEAVE_NOTIFICATIONS: false
+        DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
+        HIDE_INVITE_MORE_HEADER: true,
+        SHOW_CHROME_EXTENSION_BANNER: false,
+        SHOW_PROMOTIONAL_CLOSE_PAGE: false,
+        SETTINGS_SECTIONS: ['devices', 'language', 'moderator', 'profile']
+      }
+    }
+
+    const createJitsiInstance = () => {
+      try {
+        console.log('Asesor: Creando instancia JitsiMeetExternalAPI')
+        jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options)
+        setupJitsiEvents()
+        setJitsiLoaded(true)
+        setJitsiError(null)
+      } catch (err) {
+        console.error('Error creando Jitsi:', err)
+        setJitsiError('Error al iniciar la videollamada')
       }
     }
 
     // Cargar el script de Jitsi si no está cargado
     if (!window.JitsiMeetExternalAPI) {
+      console.log('Asesor: Cargando script de Jitsi desde:', domain)
+      const existingScript = document.querySelector(`script[src*="${domain}/external_api.js"]`)
+      if (existingScript) {
+        existingScript.remove()
+      }
+      
       const script = document.createElement('script')
       script.src = `https://${domain}/external_api.js`
       script.async = true
       script.onload = () => {
-        jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options)
-        setupJitsiEvents()
+        console.log('Asesor: Script de Jitsi cargado')
+        createJitsiInstance()
+      }
+      script.onerror = () => {
+        console.error('Error cargando script de Jitsi')
+        setJitsiError('Error al cargar el servicio de videollamada')
       }
       document.body.appendChild(script)
     } else {
-      jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options)
-      setupJitsiEvents()
+      createJitsiInstance()
     }
   }, [salaInfo, user])
 
@@ -301,7 +349,7 @@ export default function AdvisorMeetingRoomPage() {
 
       <div className="flex-1 flex gap-4">
         {/* Jitsi Container */}
-        <div className="flex-1 bg-gray-900 rounded-2xl overflow-hidden relative">
+        <div className="flex-1 bg-gray-900 rounded-2xl overflow-hidden relative min-h-[400px]">
           {!isInSession ? (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
@@ -311,7 +359,10 @@ export default function AdvisorMeetingRoomPage() {
                   </svg>
                 </div>
                 <h3 className="text-xl font-medium text-white mb-2">Sesión no iniciada</h3>
-                <p className="text-gray-400 mb-6">Haz clic en "Iniciar Sesión" para comenzar</p>
+                <p className="text-gray-400 mb-2">Haz clic en "Iniciar Sesión" para comenzar</p>
+                {estadoSala?.cliente_en_sala && (
+                  <p className="text-green-400 text-sm mb-4">✓ El cliente está en la sala de espera</p>
+                )}
                 <Button onClick={handleStartSession}>
                   Iniciar Sesión
                 </Button>
@@ -322,8 +373,45 @@ export default function AdvisorMeetingRoomPage() {
               {/* Jitsi Container Real */}
               <div 
                 ref={jitsiContainerRef}
-                className="w-full h-full"
+                className="absolute inset-0"
+                style={{ minHeight: '400px' }}
               />
+              
+              {/* Error de Jitsi */}
+              {jitsiError && (
+                <div className="absolute inset-0 bg-gray-900 flex items-center justify-center z-20">
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-red-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-xl font-bold text-white mb-2">Error de conexión</h2>
+                    <p className="text-gray-400 max-w-md mx-auto mb-4">{jitsiError}</p>
+                    <Button onClick={() => window.location.reload()}>
+                      Reintentar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Cargando Jitsi */}
+              {!jitsiLoaded && !jitsiError && (
+                <div className="absolute inset-0 bg-gray-900 flex items-center justify-center z-10">
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <svg className="w-10 h-10 text-primary-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-xl font-bold text-white mb-2">Conectando...</h2>
+                    <p className="text-gray-400 max-w-md mx-auto">
+                      Iniciando videollamada. Por favor espera un momento.
+                    </p>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -13,18 +13,28 @@ import { DOCUMENT_CHECKLIST } from '../../store/constants'
 export default function SplitViewModal({
   isOpen,
   onClose,
-  documents = [],
+  documents: initialDocuments = [],
   initialIndex = 0,
   onApprove,
   onReject
 }) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex)
+  const [currentIndex, setCurrentIndex] = useState(initialIndex >= 0 ? initialIndex : 0)
+  const [internalDocs, setInternalDocs] = useState(initialDocuments)
   const [checklist, setChecklist] = useState({})
   const [observations, setObservations] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [zoom, setZoom] = useState(100)
 
-  const currentDoc = documents[currentIndex]
+  // Sync internal docs when prop changes (modal opens/closes)
+  useEffect(() => {
+    setInternalDocs(initialDocuments)
+    const firstPending = initialDocuments.findIndex(d => d.status === 'pending')
+    if (firstPending >= 0) {
+      setCurrentIndex(firstPending)
+    }
+  }, [isOpen])
+
+  const currentDoc = internalDocs[currentIndex]
   const allChecked = DOCUMENT_CHECKLIST.every(item => checklist[item.id])
 
   // Reset state when document changes
@@ -48,10 +58,10 @@ export default function SplitViewModal({
 
   const navigateDoc = useCallback((direction) => {
     const newIndex = currentIndex + direction
-    if (newIndex >= 0 && newIndex < documents.length) {
+    if (newIndex >= 0 && newIndex < internalDocs.length) {
       setCurrentIndex(newIndex)
     }
-  }, [currentIndex, documents.length])
+  }, [currentIndex, internalDocs.length])
 
   const handleCheckChange = (itemId) => {
     setChecklist(prev => ({
@@ -65,8 +75,19 @@ export default function SplitViewModal({
     setIsSubmitting(true)
     try {
       await onApprove?.(currentDoc.id, { checklist, observations })
-      // Auto-navigate to next pending document
-      const nextPending = documents.findIndex((d, i) => i > currentIndex && d.status === 'pending')
+      
+      // Update internal state to mark document as approved
+      const updatedDocs = internalDocs.map(doc => 
+        doc.id === currentDoc.id ? { ...doc, status: 'approved' } : doc
+      )
+      setInternalDocs(updatedDocs)
+      
+      // Find next pending document
+      let nextPending = updatedDocs.findIndex((d, i) => i > currentIndex && d.status === 'pending')
+      if (nextPending === -1) {
+        nextPending = updatedDocs.findIndex((d, i) => i !== currentIndex && d.status === 'pending')
+      }
+      
       if (nextPending !== -1) {
         setCurrentIndex(nextPending)
       } else {
@@ -85,10 +106,23 @@ export default function SplitViewModal({
     setIsSubmitting(true)
     try {
       await onReject?.(currentDoc.id, { checklist, observations })
-      // Auto-navigate to next pending document
-      const nextPending = documents.findIndex((d, i) => i > currentIndex && d.status === 'pending')
+      
+      // Update internal state to mark document as rejected
+      const updatedDocs = internalDocs.map(doc => 
+        doc.id === currentDoc.id ? { ...doc, status: 'rejected' } : doc
+      )
+      setInternalDocs(updatedDocs)
+      
+      // Find next pending document
+      let nextPending = updatedDocs.findIndex((d, i) => i > currentIndex && d.status === 'pending')
+      if (nextPending === -1) {
+        nextPending = updatedDocs.findIndex((d, i) => i !== currentIndex && d.status === 'pending')
+      }
+      
       if (nextPending !== -1) {
         setCurrentIndex(nextPending)
+      } else {
+        onClose()
       }
     } finally {
       setIsSubmitting(false)
@@ -128,13 +162,13 @@ export default function SplitViewModal({
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-bold text-gray-900">Revisión de Documento</h2>
               <span className="text-sm text-gray-500">
-                {currentIndex + 1} de {documents.length}
+                {currentIndex + 1} de {internalDocs.length}
               </span>
             </div>
 
             {/* Document Navigation */}
             <div className="flex items-center gap-2">
-              {documents.map((doc, index) => (
+              {internalDocs.map((doc, index) => (
                 <button
                   key={doc.id}
                   onClick={() => setCurrentIndex(index)}
@@ -236,7 +270,7 @@ export default function SplitViewModal({
               <div className="absolute right-[400px] top-1/2 -translate-y-1/2 z-10">
                 <button
                   onClick={() => navigateDoc(1)}
-                  disabled={currentIndex === documents.length - 1}
+                  disabled={currentIndex === internalDocs.length - 1}
                   className="p-2 bg-black/50 hover:bg-black/70 text-white rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

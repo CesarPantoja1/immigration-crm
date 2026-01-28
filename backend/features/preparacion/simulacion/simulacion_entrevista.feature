@@ -5,7 +5,7 @@ Característica: Simulación de entrevista para migrantes
   para familiarizarme con el formato de preguntas antes de la cita con la embajada
 
   Antecedentes:
-    Dado que el sistema tiene configurados los siguientes límites
+    Dado que el sistema tiene configurados los siguientes límites:
       | parámetro                    | valor |
       | máximo_simulacros_por_cliente| 2     |
       | minutos_anticipación_entrada | 15    |

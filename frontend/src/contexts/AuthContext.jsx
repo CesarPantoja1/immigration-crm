@@ -31,48 +31,21 @@ function transformUser(backendUser) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  /**
-   * Verifica la sesión al cargar la aplicación
-   */
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        // Primero verificar si hay tokens guardados
-        const hasTokens = authService.hasTokens()
-        const savedUser = authService.getStoredUser()
-        
-        if (hasTokens && savedUser) {
-          // Cargar usuario guardado inmediatamente para evitar flash
-          setUser(transformUser(savedUser))
-          
-          // Intentar verificar/refrescar en background
-          try {
-            const result = await authService.verifySession()
-            if (result.isValid) {
-              setUser(transformUser(result.user))
-            }
-          } catch (verifyError) {
-            console.warn('Error verificando sesión, usando datos guardados:', verifyError)
-            // Mantener el usuario guardado si la verificación falla
-            // (puede ser error de red temporal)
-          }
-        } else if (savedUser && !hasTokens) {
-          // Hay usuario guardado pero no tokens - limpiar todo
-          localStorage.removeItem('migrafacil_user')
-        }
-      } catch (err) {
-        console.error('Error al inicializar auth:', err)
-      } finally {
-        setIsLoading(false)
+  // Inicializar usuario directamente desde localStorage para evitar flash
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('migrafacil_user')
+      const savedTokens = localStorage.getItem('migrafacil_tokens')
+      if (savedUser && savedTokens) {
+        return transformUser(JSON.parse(savedUser))
       }
+    } catch (e) {
+      console.error('Error leyendo sesión guardada:', e)
     }
-
-    initAuth()
-  }, [])
+    return null
+  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   /**
    * Inicia sesión con email y contraseña
@@ -155,6 +128,8 @@ export function AuthProvider({ children }) {
       
       const updatedUser = transformUser(response.usuario)
       setUser(updatedUser)
+      // Actualizar también en localStorage
+      localStorage.setItem('migrafacil_user', JSON.stringify(response.usuario))
       return { success: true, user: updatedUser }
     } catch (err) {
       const errorMessage = err.data?.error || err.message || 'Error al actualizar perfil'
@@ -183,6 +158,7 @@ export function AuthProvider({ children }) {
       const profile = await authService.getProfile()
       const updatedUser = transformUser(profile)
       setUser(updatedUser)
+      localStorage.setItem('migrafacil_user', JSON.stringify(profile))
       return updatedUser
     } catch (err) {
       console.error('Error al refrescar usuario:', err)

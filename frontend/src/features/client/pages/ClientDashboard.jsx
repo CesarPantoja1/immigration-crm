@@ -21,6 +21,29 @@ export default function ClientDashboard() {
   const [disponibilidad, setDisponibilidad] = useState({ disponibles: 2, usados: 0 })
   const [recentApplications, setRecentApplications] = useState([])
   const [upcomingSimulations, setUpcomingSimulations] = useState([])
+  const [nextSimulacroSubtitle, setNextSimulacroSubtitle] = useState('Sin programar')
+
+  // Función para calcular el texto del próximo simulacro
+  const calcularProximoSimulacro = (simulacros) => {
+    if (!simulacros || simulacros.length === 0) {
+      return 'Sin programar'
+    }
+    const proximo = simulacros[0]
+    const fechaStr = proximo.fecha_propuesta || proximo.fecha
+    if (!fechaStr) return 'Sin programar'
+    
+    const fecha = new Date(fechaStr + 'T00:00:00')
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+    
+    const diffTime = fecha.getTime() - hoy.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 0) return 'Hoy'
+    if (diffDays === 1) return 'Mañana'
+    if (diffDays < 0) return 'Pasado'
+    return `En ${diffDays} días`
+  }
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -29,31 +52,35 @@ export default function ClientDashboard() {
         
         // Fetch all data in parallel
         const [solicitudesResponse, simulacrosResponse, disponibilidadData, practicaResponse] = await Promise.all([
-          solicitudesService.getAll({ limit: 5 }).catch(() => ({ results: [] })),
-          simulacrosService.getMisSimulacros().catch(() => []),
-          simulacrosService.getDisponibilidad().catch(() => ({ disponibles: 2, usados: 0 })),
-          practicaService.getHistorial({ limit: 1 }).catch(() => [])
+          solicitudesService.getAll({ limit: 5 }).catch((e) => { console.error('Error solicitudes:', e); return { results: [] } }),
+          simulacrosService.getMisSimulacros().catch((e) => { console.error('Error simulacros:', e); return [] }),
+          simulacrosService.getDisponibilidad().catch((e) => { console.error('Error disponibilidad:', e); return { disponibles: 2, usados: 0 } }),
+          practicaService.getHistorial({ limit: 1 }).catch((e) => { console.error('Error practica:', e); return [] })
         ])
+
+        console.log('Dashboard data:', { solicitudesResponse, simulacrosResponse, disponibilidadData, practicaResponse })
 
         // Handle both array and object with results
         const solicitudes = Array.isArray(solicitudesResponse) 
           ? solicitudesResponse 
-          : (solicitudesResponse?.results || [])
+          : (solicitudesResponse?.results || solicitudesResponse || [])
         
         const simulacrosData = Array.isArray(simulacrosResponse) 
           ? simulacrosResponse 
-          : (simulacrosResponse?.results || [])
+          : (simulacrosResponse?.results || simulacrosResponse || [])
         
         const practicaData = Array.isArray(practicaResponse) 
           ? practicaResponse 
-          : (practicaResponse?.results || [])
+          : (practicaResponse?.results || practicaResponse || [])
 
         // Process solicitudes
         setRecentApplications(solicitudes.slice(0, 2).map(s => ({
           id: `SOL-${s.id}`,
           rawId: s.id,
           type: s.tipo_visa,
+          typeDisplay: s.tipo_visa_display,
           embassy: s.embajada,
+          embajadaDisplay: s.embajada_display,
           status: s.estado,
           date: s.created_at?.split('T')[0]
         })))
@@ -63,8 +90,13 @@ export default function ClientDashboard() {
           ['borrador', 'pendiente', 'en_revision'].includes(s.estado)
         ).length
 
-        // Count approved documents
+        // Count approved documents - use backend field if available
         const approvedDocs = solicitudes.reduce((acc, s) => {
+          // El backend ya provee documentos_aprobados
+          if (typeof s.documentos_aprobados === 'number') {
+            return acc + s.documentos_aprobados
+          }
+          // Fallback: contar manualmente si hay documentos_adjuntos
           const docs = s.documentos_adjuntos || []
           return acc + docs.filter(d => d.estado === 'aprobado').length
         }, 0)
@@ -75,12 +107,15 @@ export default function ClientDashboard() {
         )
         setUpcomingSimulations(proximos.slice(0, 1).map(s => ({
           id: s.id,
-          date: s.fecha_propuesta,
-          time: s.hora_propuesta,
+          date: s.fecha_propuesta || s.fecha,
+          time: s.hora_propuesta || s.hora,
           advisor: s.asesor_nombre || 'Asesor asignado',
-          modality: 'Virtual',
-          visaType: s.solicitud_tipo || 'Entrevista'
+          modality: s.modalidad === 'virtual' ? 'Virtual' : 'Presencial',
+          visaType: s.solicitud_tipo || s.tipo_visa || 'Entrevista'
         })))
+
+        // Calcular subtítulo del próximo simulacro
+        setNextSimulacroSubtitle(calcularProximoSimulacro(proximos))
 
         // Get disponibilidad - normalizar respuesta
         const disponibilidadNormalizada = {
@@ -90,8 +125,8 @@ export default function ClientDashboard() {
         setDisponibilidad(disponibilidadNormalizada)
 
         // Get last practice score
-        const lastPractice = practicaData[0]
-        const practiceScore = lastPractice?.porcentaje_aciertos || 0
+        const lastPractice = Array.isArray(practicaData) ? practicaData[0] : practicaData
+        const practiceScore = lastPractice?.porcentaje_aciertos || lastPractice?.score || 0
 
         setStats({
           pendingApplications: pending,
@@ -174,7 +209,7 @@ export default function ClientDashboard() {
         <StatCard
           title="Próximo Simulacro"
           value={stats.upcomingSimulations}
-          subtitle="En 2 días"
+          subtitle={nextSimulacroSubtitle}
           icon={
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -211,20 +246,20 @@ export default function ClientDashboard() {
               <div key={app.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                    app.type === 'study' ? 'bg-blue-100' :
-                    app.type === 'work' ? 'bg-green-100' : 'bg-purple-100'
+                    app.type === 'estudio' ? 'bg-blue-100' :
+                    app.type === 'trabajo' ? 'bg-green-100' : 'bg-purple-100'
                   }`}>
-                    {app.type === 'study' && (
+                    {app.type === 'estudio' && (
                       <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                       </svg>
                     )}
-                    {app.type === 'work' && (
+                    {app.type === 'trabajo' && (
                       <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     )}
-                    {app.type === 'residence' && (
+                    {app.type === 'vivienda' && (
                       <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                       </svg>
@@ -233,19 +268,27 @@ export default function ClientDashboard() {
                   <div>
                     <p className="font-medium text-gray-900">{app.id}</p>
                     <p className="text-sm text-gray-500">
-                      {app.type === 'study' ? 'Visa de Estudio' : 
-                       app.type === 'work' ? 'Visa de Trabajo' : 'Visa de Vivienda'} 
-                      {' • '} Embajada {app.embassy === 'USA' ? 'Estados Unidos' : 'Brasil'}
+                      {app.typeDisplay} {' • '} {app.embajadaDisplay}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <Badge 
-                    variant={app.status === 'pending' ? 'warning' : app.status === 'reviewing' ? 'info' : 'success'}
+                    variant={
+                      app.status === 'borrador' || app.status === 'pendiente' ? 'warning' : 
+                      app.status === 'en_revision' ? 'info' : 
+                      app.status === 'aprobada' ? 'success' : 'default'
+                    }
                     dot
                   >
-                    {app.status === 'pending' ? 'Pendiente' : 
-                     app.status === 'reviewing' ? 'En revisión' : 'Aprobada'}
+                    {app.status === 'borrador' ? 'Borrador' :
+                     app.status === 'pendiente' ? 'Pendiente' : 
+                     app.status === 'en_revision' ? 'En revisión' : 
+                     app.status === 'aprobada' ? 'Aprobada' :
+                     app.status === 'rechazada' ? 'Rechazada' :
+                     app.status === 'enviada_embajada' ? 'Enviada' :
+                     app.status === 'entrevista_agendada' ? 'Entrevista agendada' :
+                     app.status === 'completada' ? 'Completada' : app.status}
                   </Badge>
                   <Link 
                     to={`/solicitudes/${app.rawId}`}
