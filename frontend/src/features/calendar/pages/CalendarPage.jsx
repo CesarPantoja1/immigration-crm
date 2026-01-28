@@ -13,6 +13,9 @@ export default function CalendarPage() {
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
+  
+  // Detectar si es asesor o cliente
+  const isAsesor = user?.rol === 'asesor'
 
   useEffect(() => {
     fetchCalendarEvents()
@@ -23,6 +26,7 @@ export default function CalendarPage() {
       setLoading(true)
       const mesStr = `${year}-${String(month + 1).padStart(2, '0')}`
       
+      // Obtener datos según el rol - el backend filtra automáticamente
       const [entrevistasResponse, simulacrosResponse] = await Promise.all([
         entrevistasService.getCalendario(mesStr).catch(() => []),
         simulacrosService.getMisSimulacros().catch(() => [])
@@ -41,14 +45,18 @@ export default function CalendarPage() {
       const entrevistas = (entrevistasData || []).map(e => ({
         id: e.id,
         type: 'interview',
-        title: e.titulo || `Entrevista - ${e.embajada || 'Embajada'}`,
+        title: isAsesor 
+          ? `Entrevista - ${e.cliente_nombre || 'Cliente'}` 
+          : `Entrevista - ${e.embajada || 'Embajada'}`,
         date: e.fecha,
         time: e.hora,
         location: e.ubicacion || e.embajada || 'Embajada',
         critical: true,
         visaType: e.tipo_visa || 'Visa',
         applicationId: e.solicitud_id,
-        status: e.estado
+        status: e.estado,
+        clientName: e.cliente_nombre,
+        advisorName: e.asesor_nombre
       }))
 
       // Transform simulacros - Mostrar confirmados, propuestos y solicitados
@@ -57,14 +65,19 @@ export default function CalendarPage() {
         .map(s => ({
           id: `sim-${s.id}`,
           type: s.modalidad === 'presencial' ? 'simulation_presential' : 'simulation_virtual',
-          title: s.modalidad === 'presencial' ? 'Simulacro Presencial' : 'Simulacro Virtual',
+          title: isAsesor 
+            ? `Simulacro - ${s.cliente_nombre || 'Cliente'}`
+            : (s.modalidad === 'presencial' ? 'Simulacro Presencial' : 'Simulacro Virtual'),
           date: s.fecha_propuesta || s.fecha,
           time: s.hora_propuesta || s.hora,
           advisor: s.asesor_nombre || 'Asesor asignado',
           duration: '30-45 min',
           visaType: s.solicitud_tipo || 'Visa',
           location: s.ubicacion || (s.modalidad === 'virtual' ? 'Virtual' : 'Por confirmar'),
-          status: s.estado
+          status: s.estado,
+          clientName: s.cliente_nombre,
+          advisorName: s.asesor_nombre,
+          modality: s.modalidad
         }))
 
       setEvents([...entrevistas, ...simulacros])
@@ -322,7 +335,7 @@ export default function CalendarPage() {
           {/* Upcoming Events */}
           <Card>
             <h3 className="font-semibold text-gray-900 mb-4">Próximos Eventos</h3>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               {upcomingEvents.length === 0 ? (
                 <div className="text-center py-6">
                   <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -335,19 +348,36 @@ export default function CalendarPage() {
                 const style = getEventTypeStyle(event.type)
                 const eventDate = new Date(event.date + 'T00:00')
                 return (
-                  <div key={event.id} className="flex gap-3">
-                    <div className={`w-10 h-10 rounded-xl ${style.bg} flex items-center justify-center flex-shrink-0`}>
+                  <div key={event.id} className="flex gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <div className={`w-12 h-12 rounded-xl ${style.bg} flex items-center justify-center flex-shrink-0`}>
                       {event.type === 'interview' ? '🔴' :
                        event.type === 'simulation_virtual' ? '📹' : '🏢'}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 text-sm truncate">{event.title}</p>
-                      <p className="text-xs text-gray-500">
-                        {eventDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} • {event.time}
-                      </p>
-                      {event.critical && (
-                        <Badge variant="danger" size="sm" className="mt-1">Hito Crítico</Badge>
+                      {/* Mostrar información según el rol */}
+                      {isAsesor && event.clientName && (
+                        <p className="text-xs text-primary-600 font-medium">👤 {event.clientName}</p>
                       )}
+                      {!isAsesor && event.advisorName && (
+                        <p className="text-xs text-primary-600 font-medium">👨‍💼 {event.advisorName}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-gray-500">
+                          📅 {eventDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          🕐 {event.time?.substring(0, 5) || '--:--'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant={event.type === 'interview' ? 'danger' : 'primary'} size="sm">
+                          {event.visaType}
+                        </Badge>
+                        {event.critical && (
+                          <Badge variant="danger" size="sm">CRÍTICO</Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )
@@ -357,24 +387,27 @@ export default function CalendarPage() {
 
           {/* Timeline - Shows recent activity from events */}
           <Card>
-            <h3 className="font-semibold text-gray-900 mb-4">Próximos Eventos</h3>
-            <div className="relative">
+            <h3 className="font-semibold text-gray-900 mb-4">Línea de Tiempo</h3>
+            <div className="relative max-h-64 overflow-y-auto pr-2">
               <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-gray-200" />
               <div className="space-y-4">
-                {upcomingEvents.slice(0, 5).map((item, index) => (
+                {upcomingEvents.slice(0, 8).map((item, index) => (
                   <div key={index} className="flex gap-3 relative">
                     <div className={`w-4 h-4 rounded-full border-2 border-white z-10 flex-shrink-0 ${
                       item.type === 'interview' ? 'bg-red-500' : 
                       item.type === 'simulation_presential' ? 'bg-amber-500' : 'bg-purple-500'
                     }`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-700">{item.title}</p>
+                      <p className="text-sm text-gray-700 font-medium">{item.title}</p>
+                      {isAsesor && item.clientName && (
+                        <p className="text-xs text-gray-600">Cliente: {item.clientName}</p>
+                      )}
                       <p className="text-xs text-gray-400 mt-0.5">
                         {new Date(item.date + 'T00:00').toLocaleDateString('es-ES', {
+                          weekday: 'short',
                           day: 'numeric',
-                          month: 'short',
-                          year: 'numeric'
-                        })} - {item.time}
+                          month: 'short'
+                        })} - {item.time?.substring(0, 5) || '--:--'}
                       </p>
                     </div>
                   </div>
