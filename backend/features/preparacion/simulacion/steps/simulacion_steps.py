@@ -22,7 +22,11 @@ from backend.apps.preparacion.simulacion.domain.value_objects import (
 )
 
 
-@step('que el sistema tiene configurados los siguientes límites:')
+# ============================================================================
+# CONFIGURACIÓN DEL SISTEMA
+# ============================================================================
+
+@step('que el sistema tiene configurados los siguientes límites')
 def step_configurar_sistema(context):
     context.config_params = {}
     for row in context.table:
@@ -33,7 +37,6 @@ def step_configurar_sistema(context):
     assert context.config_params['máximo_simulacros_por_cliente'] == 2
     assert context.config_params['minutos_anticipación_entrada'] == 15
     assert context.config_params['horas_cancelación_anticipada'] == 24
-
 
 
 @step('que soy el migrante "{nombre}" con ID "{id_migrante}"')
@@ -78,7 +81,7 @@ def step_establecer_tipo_visa(context, tipo_visa):
     assert context.tipo_visado.value == tipo_visa
 
 
-@step('tengo una propuesta de simulacro con los siguientes datos:')
+@step('tengo una propuesta de simulacro con los siguientes datos')
 def step_crear_propuesta_tabla(context):
     row = context.table[0]
 
@@ -134,11 +137,14 @@ def step_crear_propuesta_simple(context, id_sim, fecha, hora):
         horario=HorarioSimulacro(
             fecha=date(int(fecha_parts[0]), int(fecha_parts[1]), int(fecha_parts[2])),
             hora=time(int(hora_parts[0]), int(hora_parts[1]))
-        )
+        ),
+        numero_intento=0  # Propuesta, no cuenta como intento real
     )
 
-    context.gestor.simulacros_con_asesor.append(simulacro)
+    # NO agregar al gestor - es solo una propuesta pendiente
+    # context.gestor.simulacros_con_asesor.append(simulacro)
     context.simulacro_actual = simulacro
+    context.es_propuesta = True  # Marcar que es una propuesta
 
 
 @step('tengo un simulacro confirmado con ID "{id_sim}" para hoy "{fecha} {hora}"')
@@ -306,13 +312,26 @@ def step_completar_cuestionario_con_incorrectas(context, incorrectas):
     tipo_visado = TipoVisado.ESTUDIANTE
     context.sesion_practica = context.gestor.iniciar_practica_individual(tipo_visado)
 
-    # Simular respuestas (7 correctas, 3 incorrectas para un cuestionario de 10)
     total_preguntas = len(context.sesion_practica.preguntas)
     correctas = total_preguntas - incorrectas
 
+    # Crear una lista con los índices de las preguntas que serán incorrectas
+    # Las hacemos incorrectas de forma distribuida (por ejemplo: 7, 8, 9)
+    indices_incorrectas = list(range(correctas, total_preguntas))
+
     for i in range(total_preguntas):
-        # Responder correctamente las primeras 'correctas' preguntas
-        indice_respuesta = 0 if i < correctas else 1
+        pregunta = context.sesion_practica.preguntas[i]
+
+        if i in indices_incorrectas:
+            # Responder INCORRECTAMENTE - elegir un índice diferente al correcto
+            indice_correcto = pregunta.respuesta_correcta
+            # Asegurarnos de elegir una respuesta diferente
+            num_respuestas = len(pregunta.respuestas)
+            indice_respuesta = (indice_correcto + 1) % num_respuestas
+        else:
+            # Responder CORRECTAMENTE
+            indice_respuesta = pregunta.respuesta_correcta
+
         context.sesion_practica.responder_pregunta(indice_respuesta, tiempo_segundos=30)
 
     context.resultado_practica = context.sesion_practica.finalizar_practica()
@@ -329,6 +348,9 @@ def step_completar_cuestionario_con_incorrectas(context, incorrectas):
             )
             context.preguntas_incorrectas.append(pregunta_incorrecta)
 
+    # Verificar que tenemos exactamente el número correcto de incorrectas
+    assert len(context.preguntas_incorrectas) == incorrectas, \
+        f"Se esperaban {incorrectas} incorrectas pero se generaron {len(context.preguntas_incorrectas)}"
 
 
 @step('acepto la propuesta de simulacro "{id_sim}"')
@@ -342,7 +364,12 @@ def step_aceptar_propuesta(context, id_sim):
 
 @step('propongo la fecha alternativa "{nueva_fecha}" para el simulacro "{id_sim}"')
 def step_proponer_fecha_alternativa(context, nueva_fecha, id_sim):
-    simulacro = next((s for s in context.gestor.simulacros_con_asesor if s.id == id_sim), None)
+    # Buscar el simulacro o usar el actual si es una propuesta
+    if hasattr(context, 'es_propuesta') and context.es_propuesta:
+        simulacro = context.simulacro_actual
+    else:
+        simulacro = next((s for s in context.gestor.simulacros_con_asesor if s.id == id_sim), None)
+
     if simulacro:
         # Guardar la fecha propuesta
         context.fecha_propuesta = nueva_fecha
@@ -491,8 +518,6 @@ def step_cancelar_simulacro(context, id_sim):
             context.mensaje_error = "No puedes cancelar con menos de 24 horas de anticipación"
 
         context.simulacro_actual = simulacro
-
-
 
 @step('el estado del simulacro debe cambiar a "{estado}"')
 def step_verificar_cambio_estado(context, estado):
