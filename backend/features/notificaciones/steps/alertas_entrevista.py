@@ -319,21 +319,21 @@ def paso_asignar_asesor(context, asesor):
         assert context.sistema.solicitudes[id_solicitud].asesor == asesor
 
 
-@step("el catálogo de tipos de notificación incluye:")
+@step("el catálogo de tipos de notificación incluye")
 def paso_catalogo_notificaciones(context):
     tipos = [row["tipo"] for row in context.table]
     context.sistema.establecer_tipos_notificacion(tipos)
     assert len(context.sistema.tipos_notificacion) == len(tipos)
 
 
-@step("el sistema tiene configuradas ventanas de recordatorio de entrevista:")
+@step("el sistema tiene configuradas ventanas de recordatorio de entrevista")
 def paso_ventanas_recordatorio(context):
     ventanas = [row["ventana"] for row in context.table]
     context.sistema.establecer_ventanas_recordatorio(ventanas)
     assert len(context.sistema.ventanas_recordatorio) == len(ventanas)
 
 
-@step("el sistema tiene configurada una ventana de control de preparación:")
+@step("el sistema tiene configurada una ventana de control de preparación")
 def paso_ventanas_preparacion(context):
     ventanas = [row["ventana"] for row in context.table]
     context.sistema.establecer_ventanas_preparacion(ventanas)
@@ -352,14 +352,14 @@ def paso_registra_entrevista(context, asesor, id_solicitud, fecha_hora):
     assert context.sistema.solicitudes[id_solicitud].entrevista is not None
 
 
-@step("en el centro de notificaciones del migrante aparece una notificación nueva con:")
+@step("en el centro de notificaciones del migrante aparece una notificación nueva con")
 def paso_notificacion_migrante(context):
     esperado = {heading: context.table[0][heading] for heading in context.table.headings}
     notificacion = context.sistema.notificaciones_migrante.buscar_coincidencia(esperado)
     assert notificacion is not None, f"No se encontró notificación: {esperado}"
 
 
-@step("en el centro de notificaciones del asesor aparece una notificación nueva con:")
+@step("en el centro de notificaciones del asesor aparece una notificación nueva con")
 def paso_notificacion_asesor(context):
     esperado = {heading: context.table[0][heading] for heading in context.table.headings}
     notificacion = context.sistema.notificaciones_asesor.buscar_coincidencia(esperado)
