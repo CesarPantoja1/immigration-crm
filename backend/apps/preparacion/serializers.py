@@ -19,6 +19,7 @@ class SimulacroListSerializer(serializers.ModelSerializer):
     fecha_propuesta = serializers.SerializerMethodField()
     hora_propuesta = serializers.SerializerMethodField()
     solicitud_tipo = serializers.SerializerMethodField()
+    solicitud_id = serializers.SerializerMethodField()
     
     class Meta:
         model = Simulacro
@@ -26,7 +27,7 @@ class SimulacroListSerializer(serializers.ModelSerializer):
             'id', 'fecha', 'hora', 'modalidad', 'modalidad_display',
             'estado', 'estado_display', 'cliente_nombre', 'asesor_nombre',
             'ubicacion', 'puede_cancelar', 'puede_ingresar', 'created_at',
-            'fecha_propuesta', 'hora_propuesta', 'solicitud_tipo'
+            'fecha_propuesta', 'hora_propuesta', 'solicitud_tipo', 'solicitud_id'
         ]
     
     def get_cliente_nombre(self, obj):
@@ -53,6 +54,9 @@ class SimulacroListSerializer(serializers.ModelSerializer):
         if obj.solicitud:
             return obj.solicitud.get_tipo_visa_display()
         return 'Visa'
+    
+    def get_solicitud_id(self, obj):
+        return obj.solicitud_id if obj.solicitud_id else None
 
 
 class SimulacroDetailSerializer(serializers.ModelSerializer):
@@ -64,6 +68,8 @@ class SimulacroDetailSerializer(serializers.ModelSerializer):
     tiene_recomendacion = serializers.SerializerMethodField()
     tiene_recomendaciones = serializers.SerializerMethodField()  # Alias
     solicitud_tipo = serializers.SerializerMethodField()
+    recomendacion = serializers.SerializerMethodField()
+    transcripcion_texto = serializers.CharField(read_only=True)
     
     class Meta:
         model = Simulacro
@@ -73,7 +79,8 @@ class SimulacroDetailSerializer(serializers.ModelSerializer):
             'asesor', 'asesor_nombre', 'solicitud', 'solicitud_tipo', 'ubicacion',
             'fecha_propuesta', 'hora_propuesta', 'fecha_inicio', 'fecha_fin',
             'duracion_minutos', 'grabacion_activa', 'notas',
-            'tiene_recomendacion', 'tiene_recomendaciones', 'created_at', 'updated_at'
+            'tiene_recomendacion', 'tiene_recomendaciones', 'recomendacion',
+            'transcripcion_texto', 'created_at', 'updated_at'
         ]
     
     def get_cliente_nombre(self, obj):
@@ -92,6 +99,29 @@ class SimulacroDetailSerializer(serializers.ModelSerializer):
         if obj.solicitud:
             return obj.solicitud.get_tipo_visa_display()
         return 'Visa'
+    
+    def get_recomendacion(self, obj):
+        """Incluye la recomendación completa si existe."""
+        if hasattr(obj, 'recomendacion'):
+            rec = obj.recomendacion
+            return {
+                'id': rec.id,
+                'nivel_preparacion': rec.nivel_preparacion,
+                'claridad': rec.claridad,
+                'coherencia': rec.coherencia,
+                'seguridad': rec.seguridad,
+                'pertinencia': rec.pertinencia,
+                'fortalezas': rec.fortalezas or [],
+                'puntos_mejora': rec.puntos_mejora or [],
+                'recomendaciones': rec.recomendaciones or [],
+                'resumen_ejecutivo': rec.resumen_ejecutivo,
+                'accion_sugerida': rec.accion_sugerida,
+                'estado_feedback': rec.estado_feedback,
+                'publicada': rec.publicada,
+                'fecha_publicacion': rec.fecha_publicacion,
+                'analisis_raw': rec.analisis_raw
+            }
+        return None
 
 
 class SimulacroCreateSerializer(serializers.ModelSerializer):
@@ -189,13 +219,15 @@ class SimulacroCompletadoSerializer(serializers.ModelSerializer):
     tiene_recomendacion = serializers.SerializerMethodField()
     estado_feedback = serializers.SerializerMethodField()
     solicitud_tipo = serializers.SerializerMethodField()
+    solicitud_id = serializers.SerializerMethodField()
+    recomendacion_id = serializers.SerializerMethodField()
     
     class Meta:
         model = Simulacro
         fields = [
-            'id', 'fecha', 'hora', 'cliente_nombre', 'solicitud_tipo',
+            'id', 'fecha', 'hora', 'cliente_nombre', 'solicitud_tipo', 'solicitud_id',
             'tiene_transcripcion', 'tiene_recomendacion', 'estado_feedback',
-            'analisis_ia_completado', 'fecha_fin', 'created_at'
+            'analisis_ia_completado', 'fecha_fin', 'created_at', 'recomendacion_id'
         ]
     
     def get_cliente_nombre(self, obj):
@@ -216,6 +248,14 @@ class SimulacroCompletadoSerializer(serializers.ModelSerializer):
         if obj.solicitud:
             return obj.solicitud.get_tipo_visa_display()
         return 'Visa'
+    
+    def get_solicitud_id(self, obj):
+        return obj.solicitud_id if obj.solicitud_id else None
+    
+    def get_recomendacion_id(self, obj):
+        if hasattr(obj, 'recomendacion'):
+            return obj.recomendacion.id
+        return None
 
 
 class RecomendacionIASerializer(serializers.ModelSerializer):

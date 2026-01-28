@@ -345,6 +345,104 @@ export const simulacrosService = {
    */
   async testAPIKey(apiKey, modelo = 'gemini-2.5-flash') {
     return apiClient.post('/configuracion-ia/test/', { api_key: apiKey, modelo })
+  },
+
+  /**
+   * Descarga el PDF de una recomendación
+   * @param {number} recomendacionId
+   */
+  async descargarPDFRecomendacion(recomendacionId) {
+    const tokens = JSON.parse(localStorage.getItem('migrafacil_tokens') || '{}')
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/recomendaciones/${recomendacionId}/descargar-pdf/`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokens.access}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('Error al descargar el PDF')
+    }
+    
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `recomendacion_${recomendacionId}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  },
+
+  /**
+   * Descarga el PDF de recomendaciones de un simulacro
+   * @param {number} simulacroId
+   */
+  async descargarPDFSimulacro(simulacroId) {
+    const tokens = JSON.parse(localStorage.getItem('migrafacil_tokens') || '{}')
+    
+    if (!tokens.access) {
+      throw new Error('No hay sesión activa. Por favor inicia sesión.')
+    }
+    
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/simulacros/${simulacroId}/descargar-pdf/`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokens.access}`
+      }
+    })
+    
+    if (!response.ok) {
+      let errorMsg = 'Error al descargar el resumen'
+      try {
+        const error = await response.json()
+        errorMsg = error.error || errorMsg
+      } catch (e) {
+        // Si no es JSON, usar el mensaje por defecto
+      }
+      throw new Error(errorMsg)
+    }
+    
+    const contentType = response.headers.get('content-type') || ''
+    const blob = await response.blob()
+    
+    if (blob.size === 0) {
+      throw new Error('El archivo está vacío')
+    }
+    
+    const url = window.URL.createObjectURL(blob)
+    
+    if (contentType.includes('text/html')) {
+      // Abrir HTML en nueva ventana con botón de imprimir
+      const newWindow = window.open('', '_blank')
+      if (newWindow) {
+        const reader = new FileReader()
+        reader.onload = () => {
+          newWindow.document.write(reader.result)
+          newWindow.document.close()
+        }
+        reader.readAsText(blob)
+      } else {
+        // Si el popup está bloqueado, descargar como archivo
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `resumen_simulacro_${simulacroId}.html`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      }
+    } else {
+      // Descargar como PDF
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `resumen_simulacro_${simulacroId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    }
+    
+    window.URL.revokeObjectURL(url)
   }
 }
 

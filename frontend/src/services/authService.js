@@ -118,7 +118,7 @@ export const authService = {
   },
 
   /**
-   * Obtiene el usuario guardado localmente
+   * Obtiene el usuario guardado en localStorage
    */
   getStoredUser() {
     const userData = localStorage.getItem('migrafacil_user')

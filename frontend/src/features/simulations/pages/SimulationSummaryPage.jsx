@@ -3,6 +3,15 @@ import { Link, useParams } from 'react-router-dom'
 import { Card, Button, Badge } from '../../../components/common'
 import { simulacrosService } from '../../../services/simulacrosService'
 
+// Handler para descargar PDF
+const handleDownloadPDF = async (simulacroId) => {
+  try {
+    await simulacrosService.descargarPDFSimulacro(simulacroId)
+  } catch (error) {
+    alert(error.message || 'Error al descargar el PDF')
+  }
+}
+
 export default function SimulationSummaryPage() {
   const { id } = useParams()
   const [summary, setSummary] = useState(null)
@@ -165,7 +174,7 @@ export default function SimulationSummaryPage() {
               <Button 
                 variant="secondary" 
                 className="flex-1"
-                onClick={() => alert('La descarga de PDF estará disponible próximamente')}
+                onClick={() => handleDownloadPDF(id)}
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

@@ -74,11 +74,13 @@ export default function AdvisorSimulationsPage() {
         date: formatDateForDisplay(c.fecha),
         time: c.hora,
         visaType: c.solicitud_tipo || 'Visa',
+        solicitudId: c.solicitud_id,
         hasTranscription: c.tiene_transcripcion,
         hasRecommendation: c.tiene_recomendacion,
         feedbackStatus: c.estado_feedback || 'pendiente',
         analysisComplete: c.analisis_ia_completado,
-        clientAvatar: getInitials(c.cliente_nombre || 'C')
+        clientAvatar: getInitials(c.cliente_nombre || 'C'),
+        recomendacionId: c.recomendacion_id
       }))
 
       setSimulations(simList)
@@ -106,8 +108,9 @@ export default function AdvisorSimulationsPage() {
   }
 
   const todayStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
-  const todaySimulations = simulations.filter(s => s.date === todayStr)
-  const upcomingSimulations = simulations.filter(s => s.date !== todayStr)
+  // Filter out completed simulacros from today's list
+  const todaySimulations = simulations.filter(s => s.date === todayStr && s.status !== 'completado')
+  const upcomingSimulations = simulations.filter(s => s.date !== todayStr && s.status !== 'completado')
 
   const handleAcceptProposal = async () => {
     if (!selectedTime || !selectedProposal) return
@@ -136,10 +139,21 @@ export default function AdvisorSimulationsPage() {
     try {
       setUploadingFile(true)
       await simulacrosService.subirTranscripcion(selectedSimulacro.id, transcriptionFile)
+      
+      // Actualizar el estado local inmediatamente para mostrar el botón de IA
+      const simId = selectedSimulacro.id
+      setCompletedSimulations(prev => prev.map(sim => 
+        sim.id === simId 
+          ? { ...sim, hasTranscription: true, feedbackStatus: 'pendiente' } 
+          : sim
+      ))
+      
       setShowTranscriptionModal(false)
       setSelectedSimulacro(null)
       setTranscriptionFile(null)
-      fetchSimulationsData()
+      
+      // Nota: NO llamamos fetchSimulationsData() inmediatamente para evitar sobrescribir
+      // el estado local antes de que el usuario pueda ver el botón de IA
     } catch (error) {
       console.error('Error uploading transcription:', error)
       alert('Error al subir la transcripción. Asegúrese de que el archivo sea .txt')
@@ -379,7 +393,17 @@ export default function AdvisorSimulationsPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900">{sim.client}</p>
-                  <p className="text-sm text-gray-500">{sim.visaType}</p>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span>{sim.visaType}</span>
+                    {sim.solicitudId && (
+                      <span className="flex items-center gap-1 text-xs bg-gray-100 px-2 py-0.5 rounded">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        SOL-{sim.solicitudId}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -418,7 +442,17 @@ export default function AdvisorSimulationsPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900">{sim.client}</p>
-                  <p className="text-sm text-gray-500">{sim.visaType}</p>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span>{sim.visaType}</span>
+                    {sim.solicitudId && (
+                      <span className="flex items-center gap-1 text-xs bg-gray-100 px-2 py-0.5 rounded">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        SOL-{sim.solicitudId}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

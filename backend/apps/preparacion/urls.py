@@ -33,6 +33,11 @@ from .views import (
     RecomendacionClienteView,
     RecomendacionDetalleClienteView,
     
+    # Feedback y PDF
+    SimulacroFeedbackView,
+    DescargarPDFRecomendacionView,
+    DescargarPDFSimulacroView,
+    
     # Configuración de IA
     ConfiguracionIAView,
     TestAPIKeyView,
@@ -75,8 +80,11 @@ urlpatterns = [
     path('simulacros/<int:pk>/subir-transcripcion/', SubirTranscripcionView.as_view(), name='subir_transcripcion'),
     path('simulacros/<int:pk>/generar-recomendacion-ia/', GenerarRecomendacionIAView.as_view(), name='generar_recomendacion_ia'),
     path('simulacros/<int:pk>/mi-recomendacion/', RecomendacionClienteView.as_view(), name='mi_recomendacion'),
+    path('simulacros/<int:pk>/feedback/', SimulacroFeedbackView.as_view(), name='simulacro_feedback'),
+    path('simulacros/<int:pk>/descargar-pdf/', DescargarPDFSimulacroView.as_view(), name='descargar_pdf_simulacro'),
     path('mis-recomendaciones/', RecomendacionClienteView.as_view(), name='mis_recomendaciones'),
     path('recomendaciones/<int:pk>/detalle-cliente/', RecomendacionDetalleClienteView.as_view(), name='recomendacion_detalle_cliente'),
+    path('recomendaciones/<int:pk>/descargar-pdf/', DescargarPDFRecomendacionView.as_view(), name='descargar_pdf'),
     
     # Configuración de IA
     path('configuracion-ia/', ConfiguracionIAView.as_view(), name='configuracion_ia'),

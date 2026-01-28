@@ -11,8 +11,10 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 # Configuración por defecto de Gemini API (fallback)
-DEFAULT_API_KEY = "AIzaSyC4zzSsFArh2Dbm8fMS0ZuXok1Eizs297o"
-DEFAULT_MODEL = "gemini-2.5-flash"
+# NOTA: Esta API key por defecto puede no funcionar.
+# Cada asesor debe configurar su propia API key en Configuración IA
+DEFAULT_API_KEY = ""  # Vacío - requiere configuración del asesor
+DEFAULT_MODEL = "gemini-2.0-flash"
 GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
@@ -169,6 +171,11 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni markdown."""
     
     def _call_gemini_api(self, prompt: str) -> Optional[str]:
         """Realiza la llamada a la API de Gemini."""
+        # Verificar que hay API key configurada
+        if not self.api_key:
+            logger.error("No hay API key de Gemini configurada")
+            return None
+            
         try:
             headers = {
                 "Content-Type": "application/json"

@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import LandingPage from './pages/LandingPage'
 import { LoginPage, RegisterPage } from './features/auth'
 import { useAuth } from './contexts/AuthContext'
+import { NotificationToast } from './components/common'
 
 // Layouts
 import ClientLayout from './layouts/ClientLayout'
@@ -295,6 +296,9 @@ function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      
+      {/* Toasts de notificaciones en tiempo real */}
+      <NotificationToast />
     </AnimatePresence>
   )
 }

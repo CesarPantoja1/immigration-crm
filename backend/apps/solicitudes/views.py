@@ -20,6 +20,9 @@ from .serializers import (
     AsignarAsesorSerializer,
 )
 
+# Importar servicio de notificaciones
+from apps.notificaciones.services import NotificacionService
+
 Usuario = get_user_model()
 
 
@@ -80,7 +83,12 @@ class CrearSolicitudView(generics.CreateAPIView):
         return context
     
     def perform_create(self, serializer):
-        serializer.save()
+        solicitud = serializer.save()
+        # Crear notificación de solicitud creada
+        try:
+            NotificacionService.notificar_solicitud_creada(solicitud)
+        except Exception as e:
+            print(f"Error creando notificación: {e}")
 
 
 class SolicitudDetailView(generics.RetrieveAPIView):
@@ -173,6 +181,30 @@ class ActualizarSolicitudView(generics.UpdateAPIView):
         if instance.estado in ['aprobada', 'rechazada']:
             instance.fecha_revision = timezone.now()
             instance.save()
+            
+            # Crear notificación según el nuevo estado
+            try:
+                if instance.estado == 'aprobada':
+                    NotificacionService.notificar_solicitud_aprobada(instance)
+                elif instance.estado == 'rechazada':
+                    motivo = serializer.validated_data.get('observaciones', '')
+                    NotificacionService.notificar_solicitud_rechazada(instance, motivo)
+            except Exception as e:
+                print(f"Error creando notificación: {e}")
+        
+        # Notificar si pasa a revisión
+        if instance.estado == 'en_revision':
+            try:
+                NotificacionService.notificar_solicitud_en_revision(instance)
+            except Exception as e:
+                print(f"Error creando notificación: {e}")
+        
+        # Notificar si se envía a embajada
+        if instance.estado == 'enviada_embajada':
+            try:
+                NotificacionService.notificar_solicitud_enviada_embajada(instance)
+            except Exception as e:
+                print(f"Error creando notificación: {e}")
 
 
 class EnviarSolicitudView(APIView):
@@ -199,6 +231,17 @@ class EnviarSolicitudView(APIView):
         
         solicitud.estado = 'pendiente'
         solicitud.save()
+        
+        # Notificar que la solicitud fue enviada
+        try:
+            NotificacionService.crear_notificacion_general(
+                usuario=request.user,
+                titulo='Solicitud enviada correctamente',
+                mensaje=f'Tu solicitud de visa {solicitud.get_tipo_visa_display()} ha sido enviada y está pendiente de revisión.',
+                url_accion=f'/solicitudes/{solicitud.id}'
+            )
+        except Exception as e:
+            print(f"Error creando notificación: {e}")
         
         return Response({
             'mensaje': 'Solicitud enviada exitosamente',
@@ -238,6 +281,12 @@ class SubirDocumentoView(APIView):
             estado='pendiente'
         )
         
+        # Notificar al asesor que el cliente subió un documento
+        try:
+            NotificacionService.notificar_documento_subido(documento, solicitud)
+        except Exception as e:
+            print(f"Error creando notificación: {e}")
+        
         return Response({
             'mensaje': 'Documento subido exitosamente',
             'documento': DocumentoSerializer(documento, context={'request': request}).data
@@ -271,6 +320,12 @@ class AsignarAsesorView(APIView):
         
         asesor = Usuario.objects.get(id=serializer.validated_data['asesor_id'])
         solicitud.asignar_asesor(asesor)
+        
+        # Notificar asignación a cliente y asesor
+        try:
+            NotificacionService.notificar_solicitud_asignada(solicitud)
+        except Exception as e:
+            print(f"Error creando notificación: {e}")
         
         return Response({
             'mensaje': f'Solicitud asignada a {asesor.nombre_completo()}',
@@ -390,6 +445,12 @@ class AprobarDocumentoView(APIView):
             documento.motivo_rechazo = ''
             documento.save()
             
+            # Notificar al cliente
+            try:
+                NotificacionService.notificar_documento_aprobado(documento, documento.solicitud)
+            except Exception as e:
+                print(f"Error creando notificación: {e}")
+            
             return Response({
                 'mensaje': 'Documento aprobado exitosamente',
                 'documento': DocumentoSerializer(documento, context={'request': request}).data
@@ -432,6 +493,12 @@ class RechazarDocumentoView(APIView):
             documento.fecha_revision = timezone.now()
             documento.motivo_rechazo = motivo
             documento.save()
+            
+            # Notificar al cliente
+            try:
+                NotificacionService.notificar_documento_rechazado(documento, documento.solicitud, motivo)
+            except Exception as e:
+                print(f"Error creando notificación: {e}")
             
             return Response({
                 'mensaje': 'Documento rechazado',

@@ -30,35 +30,13 @@ export default function AdvisorFeedbackViewPage() {
         setLoading(true)
         setError(null)
         
-        // Obtener el simulacro
+        // Obtener el simulacro (ahora incluye la recomendación embebida)
         const simData = await simulacrosService.getSimulacro(id)
         setSimulacro(simData)
         
-        // Obtener la recomendación asociada
-        // La recomendación puede venir embebida en el simulacro o hay que obtenerla aparte
+        // La recomendación ahora viene embebida en el simulacro
         if (simData?.recomendacion) {
-          // Si viene embebida
           setRecomendacion(simData.recomendacion)
-        } else if (simData?.tiene_recomendaciones || simData?.tiene_recomendacion) {
-          // Obtener la recomendación del endpoint de lista
-          try {
-            const recomendaciones = await fetch(
-              `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/recomendaciones/`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${JSON.parse(localStorage.getItem('migrafacil_tokens'))?.access}`
-                }
-              }
-            ).then(r => r.json())
-            
-            // Buscar la recomendación del simulacro específico
-            const recomendacionSimulacro = recomendaciones.find(r => r.simulacro === parseInt(id))
-            if (recomendacionSimulacro) {
-              setRecomendacion(recomendacionSimulacro)
-            }
-          } catch (e) {
-            console.warn('Error obteniendo recomendación:', e)
-          }
         }
       } catch (err) {
         console.error('Error fetching data:', err)
@@ -141,6 +119,8 @@ export default function AdvisorFeedbackViewPage() {
   const recomendaciones = recomendacion?.recomendaciones || []
   const nivelPreparacion = recomendacion?.nivel_preparacion || 'medio'
   const accionSugerida = recomendacion?.accion_sugerida || ''
+  const resumenEjecutivo = recomendacion?.resumen_ejecutivo || ''
+  const esGeneradoPorIA = recomendacion?.analisis_raw?.tipo !== 'manual'
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -218,6 +198,35 @@ export default function AdvisorFeedbackViewPage() {
           ))}
         </div>
       </Card>
+
+      {/* Fuente del feedback */}
+      <div className="flex items-center gap-2">
+        {esGeneradoPorIA ? (
+          <Badge variant="info" className="flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            Generado con IA (Gemini)
+          </Badge>
+        ) : (
+          <Badge variant="secondary" className="flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            Feedback manual del asesor
+          </Badge>
+        )}
+      </div>
+
+      {/* Comentarios del Asesor / Resumen */}
+      {resumenEjecutivo && (
+        <Card>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">💬 Comentarios del Asesor</h3>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-gray-700 whitespace-pre-wrap">{resumenEjecutivo}</p>
+          </div>
+        </Card>
+      )}
 
       {/* Fortalezas */}
       {fortalezas.length > 0 && (

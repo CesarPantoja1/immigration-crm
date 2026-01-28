@@ -654,9 +654,15 @@ class InfoSalaView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # Generar nombre de sala único para Jitsi
-        room_name = f"migrafacil-sim-{simulacro.id}"
+        # Usar un nombre largo y único basado en datos estables del simulacro
+        import hashlib
+        # Usar solo datos que no cambian: id y fecha de creación
+        sala_base = f"migrafacil-simulacro-{simulacro.id}-{simulacro.created_at.isoformat()}"
+        sala_hash = hashlib.sha256(sala_base.encode()).hexdigest()[:16]
+        # Nombre largo sin caracteres especiales
+        room_name = f"MigraFacilSimulacro{simulacro.id}Session{sala_hash}"
         
-        # URL de Jitsi Meet (usando el servidor público gratuito)
+        # Usar meet.jit.si - es más permisivo
         jitsi_domain = "meet.jit.si"
         jitsi_url = f"https://{jitsi_domain}/{room_name}"
         
@@ -709,10 +715,15 @@ class EstadoSalaView(APIView):
         except Simulacro.DoesNotExist:
             return Response({'error': 'Simulacro no encontrado'}, status=status.HTTP_404_NOT_FOUND)
         
+        # Para el asesor, indicar si el cliente ya está en la sala
+        cliente_en_sala = simulacro.estado in ['en_sala_espera', 'en_progreso']
+        
         return Response({
             'simulacro_id': simulacro.id,
             'estado': simulacro.estado,
             'en_progreso': simulacro.estado == 'en_progreso',
+            'en_sala_espera': simulacro.estado == 'en_sala_espera',
+            'cliente_en_sala': cliente_en_sala,
             'fecha_inicio': simulacro.fecha_inicio,
             'duracion_actual': int((timezone.now() - simulacro.fecha_inicio).total_seconds()) if simulacro.fecha_inicio else 0
         })
@@ -917,18 +928,27 @@ class GenerarRecomendacionIAView(APIView):
                 'error': f'No es posible generar recomendaciones: la transcripción del simulacro SIM-{simulacro.id:03d} no está disponible'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Verificar si ya tiene recomendación
+        # Verificar si ya tiene recomendación generada por IA (no manual)
+        recomendacion_existente = None
         if hasattr(simulacro, 'recomendacion'):
-            return Response(
-                {'error': 'El simulacro ya tiene recomendaciones generadas'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            recomendacion_existente = simulacro.recomendacion
+            # Solo bloquear si ya fue generada por IA (tiene analisis_raw con respuesta de IA)
+            if recomendacion_existente.analisis_raw and recomendacion_existente.analisis_raw.get('tipo') != 'manual':
+                return Response(
+                    {'error': 'El simulacro ya tiene recomendaciones generadas por IA'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         
-        # Crear recomendación en estado "generando"
-        recomendacion = Recomendacion.objects.create(
-            simulacro=simulacro,
-            estado_feedback='generando'
-        )
+        # Crear o reutilizar recomendación en estado "generando"
+        if recomendacion_existente:
+            recomendacion = recomendacion_existente
+            recomendacion.estado_feedback = 'generando'
+            recomendacion.save()
+        else:
+            recomendacion = Recomendacion.objects.create(
+                simulacro=simulacro,
+                estado_feedback='generando'
+            )
         
         # Obtener tipo de visa de la solicitud
         tipo_visa = 'general'
@@ -949,8 +969,16 @@ class GenerarRecomendacionIAView(APIView):
                 recomendacion.estado_feedback = 'error'
                 recomendacion.error_mensaje = resultado.error or 'Análisis incompleto'
                 recomendacion.save()
+                
+                # Mensaje más amigable según el error
+                error_msg = resultado.error or 'Error al procesar'
+                if 'API key' in error_msg or 'comunicación' in error_msg.lower():
+                    return Response({
+                        'error': 'No se ha configurado una API key de IA válida. Por favor, ve a Configuración IA y configura tu API key de Gemini.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
                 return Response({
-                    'error': f'No es posible generar recomendaciones: el análisis de IA del simulacro SIM-{simulacro.id:03d} no se ha completado'
+                    'error': f'No es posible generar recomendaciones: {error_msg}'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             # Actualizar recomendación con resultados de IA
@@ -1580,3 +1608,291 @@ class TestAPIKeyView(APIView):
                 'valida': False,
                 'mensaje': f'Error de conexión: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# =====================================================
+# FEEDBACK MANUAL DEL ASESOR
+# =====================================================
+
+class SimulacroFeedbackView(APIView):
+    """
+    POST /api/simulacros/<id>/feedback/
+    Guarda feedback manual del asesor para un simulacro.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsAsesor]
+    
+    def post(self, request, pk):
+        try:
+            simulacro = Simulacro.objects.get(
+                pk=pk,
+                asesor=request.user,
+                is_deleted=False
+            )
+        except Simulacro.DoesNotExist:
+            return Response(
+                {'error': 'Simulacro no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Obtener o crear recomendación
+        recomendacion, created = Recomendacion.objects.get_or_create(
+            simulacro=simulacro
+        )
+        
+        # Extraer datos del feedback
+        data = request.data
+        
+        # Calificación general (1-5 se mapea a nivel)
+        calificacion = data.get('overallScore', 3)
+        if calificacion >= 4:
+            recomendacion.nivel_preparacion = 'alto'
+        elif calificacion >= 2:
+            recomendacion.nivel_preparacion = 'medio'
+        else:
+            recomendacion.nivel_preparacion = 'bajo'
+        
+        # Procesar scores de items
+        scores = data.get('scores', {})
+        if scores:
+            # Calcular promedios por categoría para indicadores
+            basic_scores = [v for k, v in scores.items() if k.startswith('basic_')]
+            comm_scores = [v for k, v in scores.items() if k.startswith('comm_')]
+            interview_scores = [v for k, v in scores.items() if k.startswith('interview_')]
+            
+            def score_to_level(avg):
+                if avg >= 4: return 'alto'
+                elif avg >= 2.5: return 'medio'
+                else: return 'bajo'
+            
+            if basic_scores:
+                recomendacion.claridad = score_to_level(sum(basic_scores) / len(basic_scores))
+            if comm_scores:
+                recomendacion.coherencia = score_to_level(sum(comm_scores) / len(comm_scores))
+                recomendacion.seguridad = score_to_level(sum(comm_scores) / len(comm_scores))
+            if interview_scores:
+                recomendacion.pertinencia = score_to_level(sum(interview_scores) / len(interview_scores))
+        
+        # Checklist completado
+        checklist = data.get('checklist', {})
+        fortalezas = []
+        puntos_mejora = []
+        
+        for item_id, completado in checklist.items():
+            item_data = {
+                'categoria': 'general',
+                'descripcion': item_id.replace('_', ' ').title(),
+                'impacto': 'medio'
+            }
+            if completado:
+                fortalezas.append(item_data)
+            else:
+                puntos_mejora.append(item_data)
+        
+        if fortalezas:
+            recomendacion.fortalezas = fortalezas
+        if puntos_mejora:
+            recomendacion.puntos_mejora = puntos_mejora
+        
+        # Notas y recomendaciones del asesor
+        notas = data.get('notes', '')
+        recomendaciones_texto = data.get('recommendations', '')
+        
+        if notas or recomendaciones_texto:
+            recomendacion.resumen_ejecutivo = f"{notas}\n\n{recomendaciones_texto}".strip()
+        
+        if recomendaciones_texto:
+            recomendacion.recomendaciones = [{
+                'categoria': 'general',
+                'titulo': 'Recomendaciones del Asesor',
+                'descripcion': recomendaciones_texto,
+                'impacto': 'alto',
+                'accion_concreta': recomendaciones_texto
+            }]
+        
+        # Generar acción sugerida
+        recomendacion.accion_sugerida = recomendacion.obtener_accion_sugerida()
+        
+        # Marcar como feedback manual completado
+        recomendacion.estado_feedback = 'generado'
+        recomendacion.publicada = True
+        recomendacion.fecha_publicacion = timezone.now()
+        
+        # Guardar el raw data para referencia
+        recomendacion.analisis_raw = {
+            'tipo': 'manual',
+            'asesor_id': request.user.id,
+            'fecha': timezone.now().isoformat(),
+            'data_original': data
+        }
+        
+        recomendacion.save()
+        
+        return Response({
+            'mensaje': 'Feedback guardado correctamente',
+            'recomendacion_id': recomendacion.id
+        })
+
+
+class DescargarPDFRecomendacionView(APIView):
+    """
+    GET /api/recomendaciones/<id>/descargar-pdf/
+    Genera y descarga un PDF con el feedback y recomendaciones.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        try:
+            recomendacion = Recomendacion.objects.select_related(
+                'simulacro', 
+                'simulacro__cliente', 
+                'simulacro__asesor',
+                'simulacro__solicitud'
+            ).get(pk=pk)
+        except Recomendacion.DoesNotExist:
+            return Response(
+                {'error': 'Recomendación no encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Verificar permisos
+        user = request.user
+        simulacro = recomendacion.simulacro
+        
+        if user.rol == 'cliente' and simulacro.cliente != user:
+            return Response(
+                {'error': 'No autorizado'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        elif user.rol == 'asesor' and simulacro.asesor != user:
+            return Response(
+                {'error': 'No autorizado'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Generar HTML del PDF
+        from django.template.loader import render_to_string
+        from django.http import HttpResponse
+        import io
+        
+        # Preparar datos para el template
+        context = {
+            'recomendacion': recomendacion,
+            'simulacro': simulacro,
+            'cliente': simulacro.cliente,
+            'asesor': simulacro.asesor,
+            'fecha_generacion': recomendacion.fecha_generacion,
+            'nivel_preparacion': dict(Recomendacion.NIVELES_PREPARACION).get(
+                recomendacion.nivel_preparacion, 'Medio'
+            ),
+            'indicadores': {
+                'Claridad en respuestas': recomendacion.claridad,
+                'Coherencia del discurso': recomendacion.coherencia,
+                'Seguridad al responder': recomendacion.seguridad,
+                'Pertinencia de la información': recomendacion.pertinencia,
+            },
+            'fortalezas': recomendacion.fortalezas,
+            'puntos_mejora': recomendacion.puntos_mejora,
+            'recomendaciones': recomendacion.recomendaciones,
+            'accion_sugerida': recomendacion.accion_sugerida or recomendacion.obtener_accion_sugerida(),
+            'resumen_ejecutivo': recomendacion.resumen_ejecutivo,
+        }
+        
+        # Intentar usar weasyprint si está disponible
+        try:
+            from weasyprint import HTML
+            
+            html_content = render_to_string('recomendaciones/pdf_recomendacion.html', context)
+            pdf_file = io.BytesIO()
+            HTML(string=html_content).write_pdf(pdf_file)
+            pdf_file.seek(0)
+            
+            response = HttpResponse(pdf_file, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="recomendacion_simulacro_{simulacro.id}.pdf"'
+            return response
+            
+        except ImportError:
+            # Si no hay weasyprint, devolver HTML para impresión
+            html_content = render_to_string('recomendaciones/pdf_recomendacion.html', context)
+            response = HttpResponse(html_content, content_type='text/html')
+            response['Content-Disposition'] = f'inline; filename="recomendacion_simulacro_{simulacro.id}.html"'
+            return response
+
+
+class DescargarPDFSimulacroView(APIView):
+    """
+    GET /api/simulacros/<id>/descargar-pdf/
+    Descarga PDF de recomendaciones por ID de simulacro.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        try:
+            simulacro = Simulacro.objects.select_related(
+                'cliente', 'asesor', 'solicitud'
+            ).get(pk=pk, is_deleted=False)
+        except Simulacro.DoesNotExist:
+            return Response(
+                {'error': 'Simulacro no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Verificar permisos
+        user = request.user
+        if user.rol == 'cliente' and simulacro.cliente != user:
+            return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
+        elif user.rol == 'asesor' and simulacro.asesor != user:
+            return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Verificar que tenga recomendación
+        if not hasattr(simulacro, 'recomendacion'):
+            return Response(
+                {'error': 'Este simulacro no tiene recomendaciones generadas'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        recomendacion = simulacro.recomendacion
+        
+        # Generar HTML del PDF
+        from django.template.loader import render_to_string
+        from django.http import HttpResponse
+        import io
+        
+        context = {
+            'recomendacion': recomendacion,
+            'simulacro': simulacro,
+            'cliente': simulacro.cliente,
+            'asesor': simulacro.asesor,
+            'fecha_generacion': recomendacion.fecha_generacion,
+            'nivel_preparacion': dict(Recomendacion.NIVELES_PREPARACION).get(
+                recomendacion.nivel_preparacion, 'Medio'
+            ),
+            'indicadores': {
+                'Claridad en respuestas': recomendacion.claridad,
+                'Coherencia del discurso': recomendacion.coherencia,
+                'Seguridad al responder': recomendacion.seguridad,
+                'Pertinencia de la información': recomendacion.pertinencia,
+            },
+            'fortalezas': recomendacion.fortalezas,
+            'puntos_mejora': recomendacion.puntos_mejora,
+            'recomendaciones': recomendacion.recomendaciones,
+            'accion_sugerida': recomendacion.accion_sugerida or recomendacion.obtener_accion_sugerida(),
+            'resumen_ejecutivo': recomendacion.resumen_ejecutivo,
+        }
+        
+        try:
+            from weasyprint import HTML
+            
+            html_content = render_to_string('recomendaciones/pdf_recomendacion.html', context)
+            pdf_file = io.BytesIO()
+            HTML(string=html_content).write_pdf(pdf_file)
+            pdf_file.seek(0)
+            
+            response = HttpResponse(pdf_file, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="recomendacion_simulacro_{simulacro.id}.pdf"'
+            return response
+            
+        except ImportError:
+            html_content = render_to_string('recomendaciones/pdf_recomendacion.html', context)
+            response = HttpResponse(html_content, content_type='text/html')
+            response['Content-Disposition'] = f'inline; filename="recomendacion_simulacro_{simulacro.id}.html"'
+            return response

@@ -27,7 +27,7 @@ class NotificacionService:
             fecha: Fecha de la entrevista (date)
             hora: Hora de la entrevista (time)
         """
-        cliente = solicitud.usuario
+        cliente = solicitud.cliente
         asesor = solicitud.asesor
         
         fecha_formateada = fecha.strftime('%d/%m/%Y')
@@ -61,7 +61,7 @@ class NotificacionService:
             nueva_fecha, nueva_hora: Nueva fecha/hora
             motivo: Motivo de la reprogramación
         """
-        cliente = solicitud.usuario
+        cliente = solicitud.cliente
         
         fecha_ant_fmt = fecha_anterior.strftime('%d/%m/%Y') if fecha_anterior else 'N/A'
         hora_ant_fmt = hora_anterior.strftime('%H:%M') if hora_anterior else 'N/A'
@@ -95,7 +95,7 @@ class NotificacionService:
             solicitud: Instancia de Solicitud
             motivo: Motivo de la cancelación
         """
-        cliente = solicitud.usuario
+        cliente = solicitud.cliente
         
         return Notificacion.objects.create(
             usuario=cliente,
@@ -127,7 +127,7 @@ class NotificacionService:
             fecha_entrevista: Fecha de la entrevista
             hora_entrevista: Hora de la entrevista
         """
-        cliente = solicitud.usuario
+        cliente = solicitud.cliente
         
         if horas_restantes == 24:
             titulo = 'Recordatorio: Tu entrevista es mañana'
@@ -172,7 +172,7 @@ class NotificacionService:
             solicitud: Instancia de Solicitud
             dias_para_entrevista: Días restantes hasta la entrevista
         """
-        cliente = solicitud.usuario
+        cliente = solicitud.cliente
         
         return Notificacion.objects.create(
             usuario=cliente,
@@ -337,7 +337,7 @@ class NotificacionService:
         Crea notificación cuando un documento es aprobado.
         Destinatario: Cliente
         """
-        cliente = solicitud.usuario
+        cliente = solicitud.cliente
         
         return Notificacion.objects.create(
             usuario=cliente,
@@ -359,7 +359,7 @@ class NotificacionService:
         Crea notificación cuando un documento es rechazado.
         Destinatario: Cliente
         """
-        cliente = solicitud.usuario
+        cliente = solicitud.cliente
         
         return Notificacion.objects.create(
             usuario=cliente,
@@ -386,7 +386,7 @@ class NotificacionService:
         Crea notificación cuando una solicitud es aprobada.
         Destinatario: Cliente
         """
-        cliente = solicitud.usuario
+        cliente = solicitud.cliente
         
         return Notificacion.objects.create(
             usuario=cliente,
@@ -407,7 +407,7 @@ class NotificacionService:
         Crea notificación cuando una solicitud es rechazada.
         Destinatario: Cliente
         """
-        cliente = solicitud.usuario
+        cliente = solicitud.cliente
         
         return Notificacion.objects.create(
             usuario=cliente,
@@ -429,7 +429,7 @@ class NotificacionService:
         Crea notificación cuando la solicitud es enviada a la embajada.
         Destinatario: Cliente
         """
-        cliente = solicitud.usuario
+        cliente = solicitud.cliente
         fecha = fecha_envio or timezone.now()
         
         return Notificacion.objects.create(
@@ -471,6 +471,238 @@ class NotificacionService:
             detalle=detalle,
             url_accion=url_accion,
             datos=datos or {}
+        )
+    
+    # =====================================================
+    # SOLICITUDES - CICLO COMPLETO
+    # =====================================================
+    
+    @staticmethod
+    def notificar_solicitud_creada(solicitud):
+        """
+        Crea notificación cuando un cliente crea una nueva solicitud.
+        Destinatario: Asesores disponibles y el cliente
+        """
+        cliente = solicitud.cliente
+        
+        # Notificar al cliente
+        return Notificacion.objects.create(
+            usuario=cliente,
+            tipo='solicitud_creada',
+            titulo='Tu solicitud ha sido registrada',
+            mensaje=f'Tu solicitud de visa {solicitud.get_tipo_visa_display()} ha sido creada exitosamente.',
+            detalle='Pronto un asesor revisará tu solicitud y te contactará.',
+            solicitud=solicitud,
+            url_accion=f'/solicitudes/{solicitud.id}',
+            datos={
+                'tipo_visa': solicitud.tipo_visa,
+                'embajada': solicitud.embajada
+            }
+        )
+    
+    @staticmethod
+    def notificar_solicitud_asignada(solicitud):
+        """
+        Crea notificación cuando una solicitud es asignada a un asesor.
+        Destinatarios: Cliente y Asesor
+        """
+        notificaciones = []
+        cliente = solicitud.cliente
+        asesor = solicitud.asesor
+        
+        # Notificar al cliente
+        notificaciones.append(Notificacion.objects.create(
+            usuario=cliente,
+            tipo='solicitud_asignada',
+            titulo='Se te ha asignado un asesor',
+            mensaje=f'{asesor.get_full_name()} ha sido asignado para ayudarte con tu solicitud de visa {solicitud.get_tipo_visa_display()}.',
+            detalle='Tu asesor revisará tu documentación y te contactará pronto.',
+            solicitud=solicitud,
+            url_accion=f'/solicitudes/{solicitud.id}',
+            datos={
+                'asesor_nombre': asesor.get_full_name(),
+                'asesor_email': asesor.email
+            }
+        ))
+        
+        # Notificar al asesor
+        notificaciones.append(Notificacion.objects.create(
+            usuario=asesor,
+            tipo='solicitud_asignada',
+            titulo='Nueva solicitud asignada',
+            mensaje=f'Se te ha asignado la solicitud de {cliente.get_full_name()} para visa {solicitud.get_tipo_visa_display()}.',
+            detalle='Revisa la documentación del cliente y contacta con él.',
+            solicitud=solicitud,
+            url_accion=f'/asesor/solicitudes/{solicitud.id}',
+            datos={
+                'cliente_nombre': cliente.get_full_name(),
+                'cliente_email': cliente.email,
+                'tipo_visa': solicitud.tipo_visa
+            }
+        ))
+        
+        return notificaciones
+    
+    @staticmethod
+    def notificar_solicitud_en_revision(solicitud):
+        """
+        Crea notificación cuando una solicitud pasa a revisión.
+        Destinatario: Cliente
+        """
+        cliente = solicitud.cliente
+        
+        return Notificacion.objects.create(
+            usuario=cliente,
+            tipo='solicitud_en_revision',
+            titulo='Tu solicitud está en revisión',
+            mensaje=f'Tu asesor está revisando tu solicitud de visa {solicitud.get_tipo_visa_display()}.',
+            detalle='Te notificaremos cuando haya actualizaciones.',
+            solicitud=solicitud,
+            url_accion=f'/solicitudes/{solicitud.id}',
+            datos={
+                'tipo_visa': solicitud.tipo_visa
+            }
+        )
+    
+    # =====================================================
+    # CONTRATOS
+    # =====================================================
+    
+    @staticmethod
+    def notificar_contrato_generado(solicitud, contrato_url=''):
+        """
+        Crea notificación cuando se genera un contrato para el cliente.
+        Destinatario: Cliente
+        """
+        cliente = solicitud.cliente
+        
+        return Notificacion.objects.create(
+            usuario=cliente,
+            tipo='contrato_generado',
+            titulo='Tu contrato está listo',
+            mensaje=f'Se ha generado el contrato de servicios para tu solicitud de visa {solicitud.get_tipo_visa_display()}.',
+            detalle='Revisa los términos y condiciones antes de firmar.',
+            solicitud=solicitud,
+            url_accion=f'/solicitudes/{solicitud.id}/contrato',
+            datos={
+                'tipo_visa': solicitud.tipo_visa,
+                'contrato_url': contrato_url
+            }
+        )
+    
+    @staticmethod
+    def notificar_contrato_pendiente(solicitud):
+        """
+        Crea notificación recordando al cliente que firme el contrato.
+        Destinatario: Cliente
+        """
+        cliente = solicitud.cliente
+        
+        return Notificacion.objects.create(
+            usuario=cliente,
+            tipo='contrato_pendiente',
+            titulo='Recordatorio: Contrato pendiente de firma',
+            mensaje='Tu contrato de servicios aún no ha sido firmado.',
+            detalle='Firma el contrato para continuar con el proceso de tu visa.',
+            solicitud=solicitud,
+            url_accion=f'/solicitudes/{solicitud.id}/contrato',
+            datos={
+                'tipo_visa': solicitud.tipo_visa
+            }
+        )
+    
+    @staticmethod
+    def notificar_contrato_firmado(solicitud):
+        """
+        Crea notificación cuando el cliente firma el contrato.
+        Destinatarios: Cliente y Asesor
+        """
+        notificaciones = []
+        cliente = solicitud.cliente
+        asesor = solicitud.asesor
+        
+        # Notificar al cliente
+        notificaciones.append(Notificacion.objects.create(
+            usuario=cliente,
+            tipo='contrato_firmado',
+            titulo='¡Contrato firmado exitosamente!',
+            mensaje='Has firmado el contrato de servicios.',
+            detalle='Ahora puedes continuar con la documentación requerida.',
+            solicitud=solicitud,
+            url_accion=f'/solicitudes/{solicitud.id}',
+            datos={
+                'tipo_visa': solicitud.tipo_visa
+            }
+        ))
+        
+        # Notificar al asesor
+        if asesor:
+            notificaciones.append(Notificacion.objects.create(
+                usuario=asesor,
+                tipo='contrato_firmado',
+                titulo=f'{cliente.get_full_name()} firmó el contrato',
+                mensaje=f'El cliente ha firmado el contrato para su solicitud de visa {solicitud.get_tipo_visa_display()}.',
+                detalle='Puedes continuar con el proceso de la solicitud.',
+                solicitud=solicitud,
+                url_accion=f'/asesor/solicitudes/{solicitud.id}',
+                datos={
+                    'cliente_nombre': cliente.get_full_name(),
+                    'tipo_visa': solicitud.tipo_visa
+                }
+            ))
+        
+        return notificaciones
+    
+    @staticmethod
+    def notificar_contrato_aprobado(solicitud):
+        """
+        Crea notificación cuando el asesor/admin aprueba el contrato.
+        Destinatario: Cliente
+        """
+        cliente = solicitud.cliente
+        
+        return Notificacion.objects.create(
+            usuario=cliente,
+            tipo='contrato_aprobado',
+            titulo='Tu contrato ha sido aprobado',
+            mensaje=f'El contrato para tu solicitud de visa {solicitud.get_tipo_visa_display()} ha sido aprobado.',
+            detalle='Ya puedes comenzar a subir tu documentación.',
+            solicitud=solicitud,
+            url_accion=f'/solicitudes/{solicitud.id}/documentos',
+            datos={
+                'tipo_visa': solicitud.tipo_visa
+            }
+        )
+    
+    # =====================================================
+    # DOCUMENTOS - ADICIONALES
+    # =====================================================
+    
+    @staticmethod
+    def notificar_documento_subido(documento, solicitud):
+        """
+        Crea notificación cuando un cliente sube un documento.
+        Destinatario: Asesor
+        """
+        asesor = solicitud.asesor
+        cliente = solicitud.cliente
+        
+        if not asesor:
+            return None
+        
+        return Notificacion.objects.create(
+            usuario=asesor,
+            tipo='documento_subido',
+            titulo=f'Nuevo documento de {cliente.get_full_name()}',
+            mensaje=f'El cliente ha subido el documento "{documento.nombre}".',
+            detalle='Revisa el documento cuando tengas oportunidad.',
+            solicitud=solicitud,
+            url_accion=f'/asesor/solicitudes/{solicitud.id}/documentos',
+            datos={
+                'documento_id': documento.id,
+                'documento_nombre': documento.nombre,
+                'cliente_nombre': cliente.get_full_name()
+            }
         )
 
 

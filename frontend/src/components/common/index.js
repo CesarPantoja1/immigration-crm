@@ -13,3 +13,6 @@ export { default as SplitViewModal } from './SplitViewModal'
 export { default as PhaseProgressBar, PhaseProgressBarCompact } from './PhaseProgressBar'
 export { default as EmptyState, EmptyStateIcons } from './EmptyState'
 export { default as ModalityFilter, ModalityBadge } from './ModalityFilter'
+
+// Notificaciones
+export { default as NotificationToast } from './NotificationToast'

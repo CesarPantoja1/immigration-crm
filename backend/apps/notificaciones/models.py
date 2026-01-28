@@ -31,21 +31,41 @@ class Notificacion(TimeStampedModel):
     """
     
     TIPOS = [
+        # Solicitudes
+        ('solicitud_creada', 'Solicitud Creada'),
+        ('solicitud_asignada', 'Solicitud Asignada'),
+        ('solicitud_aprobada', 'Solicitud Aprobada'),
+        ('solicitud_rechazada', 'Solicitud Rechazada'),
+        ('solicitud_enviada', 'Solicitud Enviada a Embajada'),
+        ('solicitud_en_revision', 'Solicitud en Revisión'),
+        
+        # Contratos
+        ('contrato_generado', 'Contrato Generado'),
+        ('contrato_pendiente', 'Contrato Pendiente de Firma'),
+        ('contrato_firmado', 'Contrato Firmado'),
+        ('contrato_aprobado', 'Contrato Aprobado'),
+        
+        # Documentos
+        ('documento_subido', 'Documento Subido'),
+        ('documento_aprobado', 'Documento Aprobado'),
+        ('documento_rechazado', 'Documento Rechazado'),
+        
+        # Entrevistas
         ('entrevista_agendada', 'Entrevista Agendada'),
         ('entrevista_reprogramada', 'Entrevista Reprogramada'),
         ('entrevista_cancelada', 'Entrevista Cancelada'),
         ('recordatorio_entrevista', 'Recordatorio de Entrevista'),
+        
+        # Preparación y Simulacros
         ('preparacion_recomendada', 'Preparación Recomendada'),
-        ('simulacion_completada', 'Simulación Completada'),
-        ('recomendaciones_listas', 'Recomendaciones Listas'),
-        ('documento_aprobado', 'Documento Aprobado'),
-        ('documento_rechazado', 'Documento Rechazado'),
-        ('solicitud_aprobada', 'Solicitud Aprobada'),
-        ('solicitud_rechazada', 'Solicitud Rechazada'),
-        ('solicitud_enviada', 'Solicitud Enviada a Embajada'),
         ('simulacro_propuesto', 'Simulacro Propuesto'),
         ('simulacro_confirmado', 'Simulacro Confirmado'),
+        ('simulacion_completada', 'Simulación Completada'),
+        ('recomendaciones_listas', 'Recomendaciones Listas'),
+        
+        # General
         ('general', 'General'),
+        ('mensaje', 'Mensaje'),
     ]
     
     # Destinatario

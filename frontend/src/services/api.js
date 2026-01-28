@@ -14,6 +14,7 @@ class ApiClient {
 
   /**
    * Obtiene el token de acceso del localStorage
+   * localStorage persiste incluso al cerrar el navegador
    */
   getAccessToken() {
     const tokens = localStorage.getItem('migrafacil_tokens')
@@ -99,7 +100,7 @@ class ApiClient {
 
       return data.access
     } catch (error) {
-      this.clearTokens()
+      // NO limpiar tokens automáticamente - dejar que el AuthContext lo maneje
       throw error
     }
   }
@@ -146,10 +147,11 @@ class ApiClient {
           fetchOptions.headers = this.buildHeaders(true, contentType)
           response = await fetch(url, fetchOptions)
         } catch (refreshError) {
-          // Si falla el refresh, limpiar tokens y lanzar error
-          this.clearTokens()
-          window.location.href = '/login'
-          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.')
+          // Si falla el refresh, lanzar error pero NO limpiar tokens automáticamente
+          const error = new Error('Sesión expirada. Por favor, inicia sesión nuevamente.')
+          error.status = 401
+          error.sessionExpired = true
+          throw error
         }
       }
 
