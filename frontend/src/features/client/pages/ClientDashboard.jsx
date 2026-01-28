@@ -77,8 +77,10 @@ export default function ClientDashboard() {
         setRecentApplications(solicitudes.slice(0, 2).map(s => ({
           id: `SOL-${s.id}`,
           rawId: s.id,
-          type: s.tipo_visa || s.tipo_visa_display,
-          embassy: s.embajada || s.embajada_display,
+          type: s.tipo_visa,
+          typeDisplay: s.tipo_visa_display,
+          embassy: s.embajada,
+          embajadaDisplay: s.embajada_display,
           status: s.estado,
           date: s.created_at?.split('T')[0]
         })))
@@ -244,20 +246,20 @@ export default function ClientDashboard() {
               <div key={app.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                    app.type === 'study' ? 'bg-blue-100' :
-                    app.type === 'work' ? 'bg-green-100' : 'bg-purple-100'
+                    app.type === 'estudio' ? 'bg-blue-100' :
+                    app.type === 'trabajo' ? 'bg-green-100' : 'bg-purple-100'
                   }`}>
-                    {app.type === 'study' && (
+                    {app.type === 'estudio' && (
                       <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                       </svg>
                     )}
-                    {app.type === 'work' && (
+                    {app.type === 'trabajo' && (
                       <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     )}
-                    {app.type === 'residence' && (
+                    {app.type === 'vivienda' && (
                       <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                       </svg>
@@ -266,19 +268,27 @@ export default function ClientDashboard() {
                   <div>
                     <p className="font-medium text-gray-900">{app.id}</p>
                     <p className="text-sm text-gray-500">
-                      {app.type === 'study' ? 'Visa de Estudio' : 
-                       app.type === 'work' ? 'Visa de Trabajo' : 'Visa de Vivienda'} 
-                      {' • '} Embajada {app.embassy === 'USA' ? 'Estados Unidos' : 'Brasil'}
+                      {app.typeDisplay} {' • '} {app.embajadaDisplay}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <Badge 
-                    variant={app.status === 'pending' ? 'warning' : app.status === 'reviewing' ? 'info' : 'success'}
+                    variant={
+                      app.status === 'borrador' || app.status === 'pendiente' ? 'warning' : 
+                      app.status === 'en_revision' ? 'info' : 
+                      app.status === 'aprobada' ? 'success' : 'default'
+                    }
                     dot
                   >
-                    {app.status === 'pending' ? 'Pendiente' : 
-                     app.status === 'reviewing' ? 'En revisión' : 'Aprobada'}
+                    {app.status === 'borrador' ? 'Borrador' :
+                     app.status === 'pendiente' ? 'Pendiente' : 
+                     app.status === 'en_revision' ? 'En revisión' : 
+                     app.status === 'aprobada' ? 'Aprobada' :
+                     app.status === 'rechazada' ? 'Rechazada' :
+                     app.status === 'enviada_embajada' ? 'Enviada' :
+                     app.status === 'entrevista_agendada' ? 'Entrevista agendada' :
+                     app.status === 'completada' ? 'Completada' : app.status}
                   </Badge>
                   <Link 
                     to={`/solicitudes/${app.rawId}`}
