@@ -2,6 +2,14 @@
 Steps BDD para Seguimiento de Solicitudes.
 Implementación usando el dominio de Seguimiento con estilo declarativo.
 """
+import os
+import sys
+
+# Agregar el directorio backend al path para importar los módulos
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from behave import given, when, then, step, use_step_matcher
 from datetime import datetime, date, timedelta
 from unittest.mock import patch
@@ -59,9 +67,15 @@ def step_autenticado_con_email(context, email):
 # DASHBOARD - Visualización del portafolio
 # ============================================================
 
+<<<<<<< HEAD
 @step("que tengo registrados los siguientes trámites:")
 def step_tramites_registrados(context):
     """Setup: cargar trámites desde la tabla de datos."""
+=======
+@step("que gestiono los siguientes trámites activos")
+def step_impl(context):
+    """Setup: cargar trámites activos desde la tabla."""
+>>>>>>> 8eef31228e22fadb267aab3bfd8526f7ce060626
     for row in context.table:
         fecha_creacion = datetime.strptime(row['fecha_creacion'], "%Y-%m-%d")
         
@@ -149,10 +163,37 @@ def step_detalle_muestra_estado_verde(context, estado):
     assert context.detalle.get('indicador_color', 'verde') == 'verde'
 
 
+<<<<<<< HEAD
 @step('se muestra la sección "{seccion}" con al menos {cantidad:d} registro')
 def step_seccion_con_registros(context, seccion, cantidad):
     """Verificar sección con registros."""
     seccion_key = seccion.lower().replace(" ", "_").replace("á", "a").replace("é", "e")
+=======
+@step("garantiza el acceso a la trazabilidad documental y validaciones de la embajada")
+def step_impl(context):
+    """Verificar acceso a trazabilidad."""
+    assert 'documentos' in context.detalle
+    assert 'progreso' in context.detalle
+
+
+# ============================================================
+# CRONOLOGÍA / HISTORIAL
+# ============================================================
+
+@step('que la solicitud "(?P<codigo>.+)" registra los siguientes hitos')
+def step_impl(context, codigo):
+    """Setup: solicitud con historial de eventos."""
+    seguimiento = SeguimientoSolicitud(
+        solicitud_id=codigo,
+        codigo=codigo,
+        tipo_visa="ESTUDIO",
+        embajada="ESPAÑOLA",
+        estado=EstadoSolicitudSeguimiento.APROBADA,
+        migrante_id=context.migrante_id,
+        migrante_email=context.migrante_email,
+        fecha_creacion=datetime.now() - timedelta(days=30)
+    )
+>>>>>>> 8eef31228e22fadb267aab3bfd8526f7ce060626
     
     # Mapear nombres de sección a claves del diccionario
     mapeo_secciones = {
@@ -179,8 +220,76 @@ def step_seccion_resultado_documentos(context, seccion):
 # GESTIÓN DE PROGRESO
 # ============================================================
 
+<<<<<<< HEAD
 @step('que la solicitud "{codigo}" de tipo "{tipo}" requiere {cantidad:d} documentos validados')
 def step_solicitud_requiere_documentos(context, codigo, tipo, cantidad):
+=======
+@step('que la solicitud "(?P<codigo>.+)" se encuentra en estado "REQUIERE_CORRECCIONES"')
+def step_impl(context, codigo):
+    """Setup: solicitud que requiere correcciones."""
+    seguimiento = SeguimientoSolicitud(
+        solicitud_id=codigo,
+        codigo=codigo,
+        tipo_visa="TRABAJO",
+        embajada="CANADIENSE",
+        estado=EstadoSolicitudSeguimiento.REQUIERE_CORRECCIONES,
+        migrante_id=context.migrante_id,
+        migrante_email=context.migrante_email,
+        fecha_creacion=datetime.now() - timedelta(days=20),
+        total_documentos_requeridos=2
+    )
+    context.seguimiento = seguimiento
+
+
+@step("presenta las siguientes validaciones documentales")
+def step_impl(context):
+    """Setup: cargar validaciones de documentos."""
+    for row in context.table:
+        context.seguimiento.agregar_validacion_documento(
+            nombre=row['nombre'],
+            estado=row['estado'],
+            motivo_rechazo=row.get('motivo_rechazo', '')
+        )
+
+
+@step("analizo los requisitos pendientes de mi solicitud")
+def step_impl(context):
+    """El usuario analiza requisitos pendientes."""
+    context.documentos_rechazados = context.seguimiento.obtener_documentos_rechazados()
+    context.tiene_rechazados = context.seguimiento.tiene_documentos_rechazados()
+
+
+@step('el sistema me alerta sobre el estado "RECHAZADO" de "(?P<documento>.+)"')
+def step_impl(context, documento):
+    """Verificar alerta de documento rechazado."""
+    assert context.tiene_rechazados
+    rechazados = [d.nombre for d in context.documentos_rechazados]
+    assert documento in rechazados
+
+
+@step('justifica la incidencia como: "(?P<motivo>.+)"')
+def step_impl(context, motivo):
+    """Verificar motivo de rechazo."""
+    for doc in context.documentos_rechazados:
+        if doc.motivo_rechazo:
+            assert motivo in doc.motivo_rechazo
+            break
+
+
+@step("permite la carga inmediata de una nueva versión del documento")
+def step_impl(context):
+    """Verificar que permite cargar nueva versión."""
+    for doc in context.documentos_rechazados:
+        assert doc.permite_nueva_carga()
+
+
+# ============================================================
+# MONITOREO DE PROGRESO
+# ============================================================
+
+@step('que la solicitud "(?P<codigo>.+)" de tipo "(?P<tipo>.+)" requiere (?P<cantidad>\\d+) documentos validados')
+def step_impl(context, codigo, tipo, cantidad):
+>>>>>>> 8eef31228e22fadb267aab3bfd8526f7ce060626
     """Setup: solicitud con requisitos de documentos."""
     seguimiento = SeguimientoSolicitud(
         solicitud_id=codigo,
