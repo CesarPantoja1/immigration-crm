@@ -1,0 +1,134 @@
+Característica: Recepción de solicitudes # features/solicitudes/recepcion/recepcion_solicitud.feature:3
+  Como migrante de la agencia de migración
+  quiero registrar mi solicitud de visa
+  para garantizar una entrevista con la embajada
+  Antecedentes:   # features/solicitudes/recepcion/recepcion_solicitud.feature:11
+
+  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.1   # features/solicitudes/recepcion/recepcion_solicitud.feature:34
+    Dado que existen los siguientes checklists de documentos por tipo de visa        # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
+    Y que existen las embajadas                                                      # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILEÑA      |
+    Dado que un migrante solicita visa VIVIENDA para embajada ESTADOUNIDENSE         # None
+    Cuando carga todos los documentos obligatorios                                   # None
+      | documentos                                                    |
+      | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad |
+    Entonces todos los documentos tienen estado "EN_REVISION"                        # None
+    Y el estado de la solicitud es "EN_REVISION"                                     # None
+    Y el sistema registra la solicitud                                               # None
+
+  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.2   # features/solicitudes/recepcion/recepcion_solicitud.feature:35
+    Dado que existen los siguientes checklists de documentos por tipo de visa        # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
+    Y que existen las embajadas                                                      # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILEÑA      |
+    Dado que un migrante solicita visa TRABAJO para embajada BRASILEÑA               # None
+    Cuando carga todos los documentos obligatorios                                   # None
+      | documentos                                                 |
+      | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo |
+    Entonces todos los documentos tienen estado "EN_REVISION"                        # None
+    Y el estado de la solicitud es "EN_REVISION"                                     # None
+    Y el sistema registra la solicitud                                               # None
+
+  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.3   # features/solicitudes/recepcion/recepcion_solicitud.feature:36
+    Dado que existen los siguientes checklists de documentos por tipo de visa        # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
+    Y que existen las embajadas                                                      # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILEÑA      |
+    Dado que un migrante solicita visa ESTUDIO para embajada ESTADOUNIDENSE          # None
+    Cuando carga todos los documentos obligatorios                                   # None
+      | documentos                                                      |
+      | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
+    Entonces todos los documentos tienen estado "EN_REVISION"                        # None
+    Y el estado de la solicitud es "EN_REVISION"                                     # None
+    Y el sistema registra la solicitud                                               # None
+
+  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.1   # features/solicitudes/recepcion/recepcion_solicitud.feature:63
+    Dado que existen los siguientes checklists de documentos por tipo de visa                          # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
+    Y que existen las embajadas                                                                        # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILEÑA      |
+    Dado que existe una solicitud de visa VIVIENDA con embajada ESTADOUNIDENSE con id VVE01            # None
+    Y todos los documentos están en estado "EN_REVISION"                                               # None
+    Cuando el asesor revisa todos los documentos de la solicitud                                       # None
+    Y todos los documentos son "Correcto"                                                              # None
+    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # None
+    Y el estado de la solicitud debe ser "APROBADO"                                                    # None
+    Y los documentos quedan almacenados en el sistema                                                  # None
+    Y el migrante recibe la notificación "VISA_VIVIENDA_APROBADA"                                      # None
+
+  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.2   # features/solicitudes/recepcion/recepcion_solicitud.feature:64
+    Dado que existen los siguientes checklists de documentos por tipo de visa                          # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
+    Y que existen las embajadas                                                                        # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILEÑA      |
+    Dado que existe una solicitud de visa TRABAJO con embajada BRASILEÑA con id VTB01                  # None
+    Y todos los documentos están en estado "EN_REVISION"                                               # None
+    Cuando el asesor revisa todos los documentos de la solicitud                                       # None
+    Y todos los documentos son "Correcto"                                                              # None
+    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # None
+    Y el estado de la solicitud debe ser "APROBADO"                                                    # None
+    Y los documentos quedan almacenados en el sistema                                                  # None
+    Y el migrante recibe la notificación "VISA_TRABAJO_APROBADA"                                       # None
+
+  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.3   # features/solicitudes/recepcion/recepcion_solicitud.feature:65
+    Dado que existen los siguientes checklists de documentos por tipo de visa                          # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
+    Y que existen las embajadas                                                                        # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILEÑA      |
+    Dado que existe una solicitud de visa ESTUDIO con embajada BRASILEÑA con id VEB01                  # None
+    Y todos los documentos están en estado "EN_REVISION"                                               # None
+    Cuando el asesor revisa todos los documentos de la solicitud                                       # None
+    Y todos los documentos son "Correcto"                                                              # None
+    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # None
+    Y el estado de la solicitud debe ser "APROBADO"                                                    # None
+    Y los documentos quedan almacenados en el sistema                                                  # None
+    Y el migrante recibe la notificación "VISA_ESTUDIO_APROBADA"                                       # None
+
+  Esquema del escenario: Asesor rechaza solicitud por documento incorrecto -- @1.1            # features/solicitudes/recepcion/recepcion_solicitud.feature:81
+    Dado que existen los siguientes checklists de documentos por tipo de visa                 # None
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
+    Y que existen las embajadas                                                               # None
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILEÑA      |
+    Dado que existe una solicitud de visa VIVIENDA con embajada ESTADOUNIDENSE con id "VVE01" # None
+    Y todos los documentos están en estado "EN_REVISION"                                      # None
+    Cuando el asesor revisa todos los documentos de la solicitud                              # None
+    Y el documento "Pasaporte" es "Incorrecto"                                                # None
+    Entonces el documento "Pasaporte" debe cambiar a estado "DESAPROBADO"                     # None
+    Y el estado de la solicitud debe ser "DESAPROBADO"                                        # None
+    Y el migrante recibe la notificación "DOCUMENTO_RECHAZADO: Pasaporte"                     # None
