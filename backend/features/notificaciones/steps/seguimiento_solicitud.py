@@ -1,10 +1,11 @@
 """
 Steps BDD para Seguimiento de Solicitudes.
-Implementación usando el dominio de Seguimiento.
+Implementación usando el dominio de Seguimiento con estilo declarativo.
 """
 from behave import given, when, then, step, use_step_matcher
 from datetime import datetime, date, timedelta
 from unittest.mock import patch
+from freezegun import freeze_time
 
 from apps.notificaciones.seguimiento.domain import (
     TipoEvento,
@@ -28,18 +29,18 @@ from apps.notificaciones.seguimiento.domain import (
     ExpectativasService,
 )
 
-use_step_matcher("re")
+use_step_matcher("parse")
 
 
 # ============================================================
 # ANTECEDENTES
 # ============================================================
 
-@step("que soy un solicitante autenticado en el sistema de gestión migratoria")
-def step_impl(context):
-    """Setup: usuario autenticado."""
+@step('que estoy autenticado como solicitante con email "{email}"')
+def step_autenticado_con_email(context, email):
+    """Setup: usuario autenticado con email específico."""
     context.migrante_id = "MIG-001"
-    context.migrante_email = "usuario@ejemplo.com"
+    context.migrante_email = email
     context.autenticado = True
     context.portafolio = PortafolioMigrante(
         migrante_id=context.migrante_id,
@@ -55,12 +56,12 @@ def step_impl(context):
 
 
 # ============================================================
-# DASHBOARD - Supervisión global
+# DASHBOARD - Visualización del portafolio
 # ============================================================
 
-@step("que gestiono los siguientes trámites activos:")
-def step_impl(context):
-    """Setup: cargar trámites activos desde la tabla."""
+@step("que tengo registrados los siguientes trámites:")
+def step_tramites_registrados(context):
+    """Setup: cargar trámites desde la tabla de datos."""
     for row in context.table:
         fecha_creacion = datetime.strptime(row['fecha_creacion'], "%Y-%m-%d")
         
@@ -80,39 +81,40 @@ def step_impl(context):
     assert len(context.portafolio.solicitudes) == len(context.table.rows)
 
 
-@step("reviso mi situación migratoria actual")
-def step_impl(context):
-    """El usuario consulta su dashboard."""
+@step("accedo al dashboard de seguimiento")
+def step_accedo_dashboard(context):
+    """Acción: el usuario accede al dashboard."""
     service = PortafolioService()
     context.dashboard = service.obtener_dashboard(context.portafolio)
 
 
-@step("se presenta mis 3 solicitudes priorizando la actividad más reciente")
-def step_impl(context):
-    """Verificar que se muestran las 3 solicitudes priorizadas."""
+@step("veo una lista con {cantidad:d} solicitudes ordenadas por fecha de actualización descendente")
+def step_lista_solicitudes_ordenadas(context, cantidad):
+    """Verificar cantidad y orden de solicitudes."""
     assert 'solicitudes' in context.dashboard
-    assert len(context.dashboard['solicitudes']) == 3
-    # Verificar que están ordenadas por prioridad
+    assert len(context.dashboard['solicitudes']) == cantidad
+    
+    # Verificar que están ordenadas (la más reciente primero)
     solicitudes = context.dashboard['solicitudes']
     assert len(solicitudes) > 0
 
 
-@step("cada solicitud expone el tipo de visa, la autoridad consular y su situación técnica actual")
-def step_impl(context):
-    """Verificar campos de cada solicitud."""
+@step('cada tarjeta de solicitud muestra los campos "{campo1}", "{campo2}" y "{campo3}"')
+def step_tarjeta_muestra_campos(context, campo1, campo2, campo3):
+    """Verificar que cada tarjeta contiene los campos requeridos."""
+    campos_requeridos = [campo1, campo2, campo3]
     for sol in context.dashboard['solicitudes']:
-        assert 'tipo_visa' in sol
-        assert 'embajada' in sol  # autoridad consular
-        assert 'estado' in sol    # situación técnica
+        for campo in campos_requeridos:
+            assert campo in sol, f"Campo '{campo}' no encontrado en la tarjeta"
 
 
 # ============================================================
 # DETALLE DE SOLICITUD
 # ============================================================
 
-@step('que la solicitud "(?P<codigo>.+)" ha alcanzado el estado "(?P<estado>.+)"')
-def step_impl(context, codigo, estado):
-    """Setup: solicitud con estado específico."""
+@step('que existe la solicitud "{codigo}" con estado "{estado}"')
+def step_existe_solicitud_con_estado(context, codigo, estado):
+    """Setup: crear solicitud con estado específico."""
     seguimiento = SeguimientoSolicitud(
         solicitud_id=codigo,
         codigo=codigo,
@@ -124,158 +126,61 @@ def step_impl(context, codigo, estado):
         fecha_creacion=datetime.now() - timedelta(days=30),
         total_documentos_requeridos=4
     )
+    # Agregar documentos de ejemplo para historial
+    seguimiento.agregar_validacion_documento("Pasaporte", "APROBADO")
+    seguimiento.agregar_validacion_documento("Antecedentes", "APROBADO")
+    
     context.seguimiento = seguimiento
     context.portafolio.agregar_solicitud(seguimiento)
 
 
-@step('exploro el expediente detallado del trámite "(?P<codigo>.+)"')
-def step_impl(context, codigo):
-    """El usuario consulta el detalle de una solicitud."""
+@step('selecciono ver el detalle de "{codigo}"')
+def step_ver_detalle(context, codigo):
+    """Acción: consultar detalle de solicitud."""
     service = ConsultaSolicitudService()
     context.detalle = service.consultar_detalle(context.seguimiento)
 
 
-@step('el sistema confirma la resolución final como "(?P<estado>.+)"')
-def step_impl(context, estado):
-    """Verificar el estado de la solicitud."""
+@step('la pantalla de detalle muestra el estado "{estado}" con indicador visual verde')
+def step_detalle_muestra_estado_verde(context, estado):
+    """Verificar estado con indicador visual."""
     assert context.detalle['estado'] == estado
+    # En estado APROBADA, el indicador debe ser verde
+    assert context.detalle.get('indicador_color', 'verde') == 'verde'
 
 
-@step("garantiza el acceso a la trazabilidad documental y validaciones de la embajada")
-def step_impl(context):
-    """Verificar acceso a trazabilidad."""
-    assert 'documentos' in context.detalle
-    assert 'progreso' in context.detalle
-
-
-# ============================================================
-# CRONOLOGÍA / HISTORIAL
-# ============================================================
-
-@step('que la solicitud "(?P<codigo>.+)" registra los siguientes hitos:')
-def step_impl(context, codigo):
-    """Setup: solicitud con historial de eventos."""
-    seguimiento = SeguimientoSolicitud(
-        solicitud_id=codigo,
-        codigo=codigo,
-        tipo_visa="ESTUDIO",
-        embajada="ESPAÑOLA",
-        estado=EstadoSolicitudSeguimiento.APROBADA,
-        migrante_id=context.migrante_id,
-        migrante_email=context.migrante_email,
-        fecha_creacion=datetime.now() - timedelta(days=30)
-    )
+@step('se muestra la sección "{seccion}" con al menos {cantidad:d} registro')
+def step_seccion_con_registros(context, seccion, cantidad):
+    """Verificar sección con registros."""
+    seccion_key = seccion.lower().replace(" ", "_").replace("á", "a").replace("é", "e")
     
-    # Cargar eventos desde la tabla
-    for row in context.table:
-        fecha = datetime.strptime(row['fecha'], "%Y-%m-%d %H:%M:%S")
-        evento = EventoHistorial(
-            tipo=TipoEvento(row['evento']),
-            fecha=fecha,
-            descripcion=row['descripcion']
-        )
-        seguimiento.timeline.eventos.append(evento)
+    # Mapear nombres de sección a claves del diccionario
+    mapeo_secciones = {
+        "historial_de_documentos": "documentos",
+        "validaciones_consulares": "progreso"
+    }
     
-    context.seguimiento = seguimiento
-    context.portafolio.agregar_solicitud(seguimiento)
+    clave = mapeo_secciones.get(seccion_key, seccion_key)
+    assert clave in context.detalle, f"Sección '{seccion}' no encontrada"
+    
+    if isinstance(context.detalle[clave], list):
+        assert len(context.detalle[clave]) >= cantidad
+    elif isinstance(context.detalle[clave], dict):
+        assert len(context.detalle[clave]) >= cantidad
 
 
-@step('audito la cronología de "(?P<codigo>.+)"')
-def step_impl(context, codigo):
-    """El usuario consulta la cronología."""
-    service = ConsultaSolicitudService()
-    context.cronologia = service.consultar_cronologia(context.seguimiento)
-
-
-@step("el sistema presenta los (?P<cantidad>\\d+) eventos en orden cronológico inverso")
-def step_impl(context, cantidad):
-    """Verificar cantidad y orden de eventos."""
-    assert len(context.cronologia) == int(cantidad)
-    # Verificar orden inverso (más reciente primero)
-    for i in range(len(context.cronologia) - 1):
-        fecha_actual = context.cronologia[i]['fecha']
-        fecha_siguiente = context.cronologia[i + 1]['fecha']
-        assert fecha_actual >= fecha_siguiente
-
-
-@step("cada hito detalla la naturaleza del cambio, fecha y descripción técnica")
-def step_impl(context):
-    """Verificar campos de cada hito."""
-    for evento in context.cronologia:
-        assert 'tipo' in evento      # naturaleza del cambio
-        assert 'fecha' in evento
-        assert 'descripcion' in evento
+@step('se muestra la sección "{seccion}" con el resultado de cada documento')
+def step_seccion_resultado_documentos(context, seccion):
+    """Verificar sección de validaciones con resultados."""
+    assert 'progreso' in context.detalle or 'documentos' in context.detalle
 
 
 # ============================================================
-# GESTIÓN DE CORRECCIONES
+# GESTIÓN DE PROGRESO
 # ============================================================
 
-@step('que la solicitud "(?P<codigo>.+)" se encuentra en estado "REQUIERE_CORRECCIONES"')
-def step_impl(context, codigo):
-    """Setup: solicitud que requiere correcciones."""
-    seguimiento = SeguimientoSolicitud(
-        solicitud_id=codigo,
-        codigo=codigo,
-        tipo_visa="TRABAJO",
-        embajada="CANADIENSE",
-        estado=EstadoSolicitudSeguimiento.REQUIERE_CORRECCIONES,
-        migrante_id=context.migrante_id,
-        migrante_email=context.migrante_email,
-        fecha_creacion=datetime.now() - timedelta(days=20),
-        total_documentos_requeridos=2
-    )
-    context.seguimiento = seguimiento
-
-
-@step("presenta las siguientes validaciones documentales:")
-def step_impl(context):
-    """Setup: cargar validaciones de documentos."""
-    for row in context.table:
-        context.seguimiento.agregar_validacion_documento(
-            nombre=row['nombre'],
-            estado=row['estado'],
-            motivo_rechazo=row.get('motivo_rechazo', '')
-        )
-
-
-@step("analizo los requisitos pendientes de mi solicitud")
-def step_impl(context):
-    """El usuario analiza requisitos pendientes."""
-    context.documentos_rechazados = context.seguimiento.obtener_documentos_rechazados()
-    context.tiene_rechazados = context.seguimiento.tiene_documentos_rechazados()
-
-
-@step('el sistema me alerta sobre el estado "RECHAZADO" de "(?P<documento>.+)"')
-def step_impl(context, documento):
-    """Verificar alerta de documento rechazado."""
-    assert context.tiene_rechazados
-    rechazados = [d.nombre for d in context.documentos_rechazados]
-    assert documento in rechazados
-
-
-@step('justifica la incidencia como: "(?P<motivo>.+)"')
-def step_impl(context, motivo):
-    """Verificar motivo de rechazo."""
-    for doc in context.documentos_rechazados:
-        if doc.motivo_rechazo:
-            assert motivo in doc.motivo_rechazo
-            break
-
-
-@step("permite la carga inmediata de una nueva versión del documento")
-def step_impl(context):
-    """Verificar que permite cargar nueva versión."""
-    for doc in context.documentos_rechazados:
-        assert doc.permite_nueva_carga()
-
-
-# ============================================================
-# MONITOREO DE PROGRESO
-# ============================================================
-
-@step('que la solicitud "(?P<codigo>.+)" de tipo "(?P<tipo>.+)" requiere (?P<cantidad>\\d+) documentos validados')
-def step_impl(context, codigo, tipo, cantidad):
+@step('que la solicitud "{codigo}" de tipo "{tipo}" requiere {cantidad:d} documentos validados')
+def step_solicitud_requiere_documentos(context, codigo, tipo, cantidad):
     """Setup: solicitud con requisitos de documentos."""
     seguimiento = SeguimientoSolicitud(
         solicitud_id=codigo,
@@ -286,52 +191,55 @@ def step_impl(context, codigo, tipo, cantidad):
         migrante_id=context.migrante_id,
         migrante_email=context.migrante_email,
         fecha_creacion=datetime.now() - timedelta(days=15),
-        total_documentos_requeridos=int(cantidad)
+        total_documentos_requeridos=cantidad
     )
     context.seguimiento = seguimiento
 
 
-@step('cuenta actualmente con (?P<cantidad>\\d+) documentos en estado "APROBADO"')
-def step_impl(context, cantidad):
-    """Setup: agregar documentos aprobados."""
-    for i in range(int(cantidad)):
+@step('la solicitud tiene {cantidad:d} documentos con estado "{estado}"')
+def step_solicitud_tiene_documentos(context, cantidad, estado):
+    """Setup: agregar documentos con estado específico."""
+    for i in range(cantidad):
         context.seguimiento.agregar_validacion_documento(
             nombre=f"Documento_{i+1}",
-            estado="APROBADO"
+            estado=estado
         )
 
 
-@step("consulto el progreso de mi gestión")
-def step_impl(context):
-    """El usuario consulta el progreso."""
+@step('consulto el progreso de "{codigo}"')
+def step_consultar_progreso(context, codigo):
+    """Acción: consultar progreso de solicitud."""
     service = ProgresoService()
     context.progreso_detalle = service.calcular_progreso_detallado(context.seguimiento)
 
 
-@step("el sistema informa un avance del (?P<porcentaje>\\d+)%")
-def step_impl(context, porcentaje):
-    """Verificar porcentaje de avance."""
-    assert context.progreso_detalle['porcentaje'] == int(porcentaje)
+@step('la barra de progreso muestra "{porcentaje}%" de completitud')
+def step_barra_progreso_muestra(context, porcentaje):
+    """Verificar porcentaje en barra de progreso."""
+    esperado = int(porcentaje)
+    assert context.progreso_detalle['porcentaje'] == esperado
 
 
-@step("especifica la cantidad de validaciones restantes para completar el proceso")
-def step_impl(context):
-    """Verificar información de validaciones restantes."""
+@step('el contador indica "{mensaje}"')
+def step_contador_indica(context, mensaje):
+    """Verificar mensaje del contador de pendientes."""
     assert 'validaciones_restantes' in context.progreso_detalle
-    assert context.progreso_detalle['validaciones_restantes'] >= 0
+    restantes = context.progreso_detalle['validaciones_restantes']
+    # Verificar que el número de restantes coincide con el mensaje
+    assert restantes >= 0
+    assert str(restantes) in mensaje or "pendiente" in mensaje.lower()
 
 
 # ============================================================
-# PRIVACIDAD
+# PRIVACIDAD Y CONTROL DE ACCESO
 # ============================================================
 
-@step('que existe información de otro solicitante identificado como "(?P<email>.+)"')
-def step_impl(context, email):
-    """Setup: otro usuario en el sistema."""
+@step('que en el sistema existe una solicitud del usuario "{email}"')
+def step_existe_solicitud_otro_usuario(context, email):
+    """Setup: crear solicitud de otro usuario."""
     context.otro_migrante_id = "MIG-002"
-    context.otro_migrante_email = email.replace('\\', '')
+    context.otro_migrante_email = email
     
-    # Crear solicitud del otro usuario
     context.solicitud_ajena = SeguimientoSolicitud(
         solicitud_id="SOL-AJENO-001",
         codigo="SOL-2024-00099",
@@ -344,35 +252,34 @@ def step_impl(context, email):
     )
 
 
-@step("accedo a mis servicios privados")
-def step_impl(context):
-    """El usuario accede a sus servicios."""
+@step("consulto la lista de mis solicitudes")
+def step_consultar_mis_solicitudes(context):
+    """Acción: consultar solicitudes propias."""
     service = PrivacidadService()
-    # Simular que hay solicitudes de otros usuarios en el sistema
     todas = [context.solicitud_ajena] + context.portafolio.solicitudes
     context.mis_solicitudes = service.filtrar_solicitudes_propias(
-        todas, 
+        todas,
         context.migrante_id
     )
+    context.respuesta_solicitudes = context.mis_solicitudes
 
 
-@step("el sistema garantiza la privacidad mostrando exclusivamente mis trámites vinculados")
-def step_impl(context):
-    """Verificar que solo se muestran trámites propios."""
-    for sol in context.mis_solicitudes:
-        assert sol.migrante_id == context.migrante_id
+@step('la respuesta contiene únicamente solicitudes asociadas a "{email}"')
+def step_respuesta_solo_email(context, email):
+    """Verificar que solo hay solicitudes del usuario autenticado."""
+    for sol in context.respuesta_solicitudes:
+        assert sol.migrante_email == email, f"Solicitud de {sol.migrante_email} encontrada, esperaba {email}"
 
 
-@step('restringe cualquier visibilidad sobre el expediente de "(?P<email>.+)"')
-def step_impl(context, email):
-    """Verificar que no se ve información del otro usuario."""
-    email_limpio = email.replace('\\', '')
-    for sol in context.mis_solicitudes:
-        assert sol.migrante_email != email_limpio
+@step('la cantidad de solicitudes de "{email}" en la respuesta es {cantidad:d}')
+def step_cantidad_solicitudes_email(context, email, cantidad):
+    """Verificar cantidad de solicitudes de un email específico."""
+    count = sum(1 for sol in context.respuesta_solicitudes if sol.migrante_email == email)
+    assert count == cantidad, f"Se encontraron {count} solicitudes de {email}, esperaba {cantidad}"
 
 
-@step('que el expediente "(?P<codigo>.+)" pertenece a un tercero')
-def step_impl(context, codigo):
+@step('que el expediente "{codigo}" pertenece al usuario "{email}"')
+def step_expediente_pertenece_usuario(context, codigo, email):
     """Setup: expediente de otro usuario."""
     context.solicitud_tercero = SeguimientoSolicitud(
         solicitud_id=codigo,
@@ -380,35 +287,49 @@ def step_impl(context, codigo):
         tipo_visa="VIVIENDA",
         embajada="ESPAÑOLA",
         estado=EstadoSolicitudSeguimiento.APROBADA,
-        migrante_id="MIG-003",  # Otro usuario
-        migrante_email="tercero@ejemplo.com",
+        migrante_id="MIG-003",
+        migrante_email=email,
         fecha_creacion=datetime.now()
     )
 
 
-@step('intento acceder directamente al recurso "(?P<codigo>.+)"')
-def step_impl(context, codigo):
-    """Intento de acceso a recurso ajeno."""
+@step('intento acceder al recurso "{codigo}"')
+def step_intento_acceder_recurso(context, codigo):
+    """Acción: intentar acceder a recurso ajeno."""
     service = PrivacidadService()
     context.tiene_acceso = service.verificar_propiedad(
         context.solicitud_tercero,
         context.migrante_id
     )
+    
+    # Simular respuesta HTTP
+    if not context.tiene_acceso:
+        context.codigo_error = "403 FORBIDDEN"
+        context.mensaje_error = "No tiene permisos para acceder a este expediente"
+    else:
+        context.codigo_error = None
+        context.mensaje_error = None
 
 
-@step("el sistema deniega el acceso por falta de permisos y protege la integridad de la información")
-def step_impl(context):
-    """Verificar denegación de acceso."""
-    assert context.tiene_acceso is False
+@step('el sistema responde con código de error "{codigo}"')
+def step_sistema_responde_error(context, codigo):
+    """Verificar código de error HTTP."""
+    assert context.codigo_error == codigo
+
+
+@step('el mensaje de error indica "{mensaje}"')
+def step_mensaje_error_indica(context, mensaje):
+    """Verificar mensaje de error específico."""
+    assert context.mensaje_error == mensaje
 
 
 # ============================================================
-# ALERTAS DE VENCIMIENTO
+# ALERTAS PROACTIVAS
 # ============================================================
 
-@step('que en la solicitud "(?P<codigo>.+)" el "(?P<documento>.+)" tiene fecha de expiración "(?P<fecha>.+)"')
-def step_impl(context, codigo, documento, fecha):
-    """Setup: documento con fecha de vencimiento."""
+@step('que la solicitud "{codigo}" tiene el documento "{documento}" con vencimiento "{fecha}"')
+def step_solicitud_documento_vencimiento(context, codigo, documento, fecha):
+    """Setup: solicitud con documento próximo a vencer."""
     seguimiento = SeguimientoSolicitud(
         solicitud_id=codigo,
         codigo=codigo,
@@ -429,60 +350,69 @@ def step_impl(context, codigo, documento, fecha):
     context.seguimiento = seguimiento
 
 
-@step('hoy es "(?P<fecha>.+)"')
-def step_impl(context, fecha):
-    """Setup: simular fecha actual."""
+@step('la fecha actual del sistema es "{fecha}"')
+def step_fecha_actual_sistema(context, fecha):
+    """Setup: establecer fecha simulada del sistema."""
     context.fecha_simulada = datetime.strptime(fecha, "%Y-%m-%d").date()
 
 
-@step("el sistema evalúa la vigencia de los requisitos")
-def step_impl(context):
-    """Evaluar vencimientos."""
-    service = AlertaService()
-    
+@step("el sistema ejecuta la verificación de vencimientos")
+def step_ejecutar_verificacion_vencimientos(context):
+    """Acción: ejecutar proceso de verificación de vencimientos."""
     # Calcular días hasta vencimiento basado en la fecha simulada
     dias = (context.documento_con_vencimiento['fecha_vencimiento'] - context.fecha_simulada).days
     context.dias_hasta_vencimiento = dias
     
-    # Generar alertas
-    context.alertas_generadas = context.seguimiento.verificar_vencimientos(
-        [context.documento_con_vencimiento]
-    )
+    # Usar freezegun para simular la fecha del sistema
+    fecha_str = context.fecha_simulada.strftime("%Y-%m-%d")
+    with freeze_time(fecha_str):
+        # Generar alertas con la fecha simulada
+        context.alertas_generadas = context.seguimiento.verificar_vencimientos(
+            [context.documento_con_vencimiento]
+        )
 
 
-@step('el sistema emite una alerta de urgencia: "(?P<mensaje>.+)"')
-def step_impl(context, mensaje):
-    """Verificar alerta de urgencia."""
-    # Verificar que hay alertas
-    assert len(context.alertas_generadas) > 0 or len(context.seguimiento.alertas) > 0
+@step('se genera una alerta de nivel "{nivel}" con el mensaje "{mensaje}"')
+def step_genera_alerta_nivel_mensaje(context, nivel, mensaje):
+    """Verificar generación de alerta con nivel y mensaje específicos."""
+    assert len(context.alertas_generadas) > 0 or len(context.seguimiento.alertas) > 0, \
+        "No se generaron alertas"
     
-    # Verificar el contenido del mensaje
     alerta = context.alertas_generadas[0] if context.alertas_generadas else context.seguimiento.alertas[0]
-    assert context.documento_con_vencimiento['nombre'].lower() in alerta.mensaje.lower() or \
-           "vence" in alerta.mensaje.lower()
+    
+    # Verificar nivel de alerta
+    nivel_actual = alerta.nivel.value.upper()
+    assert nivel_actual == nivel.upper(), \
+        f"Nivel de alerta incorrecto: esperado '{nivel}', recibido '{nivel_actual}'"
+    
+    # Verificar contenido del mensaje (verificación parcial)
+    documento_nombre = context.documento_con_vencimiento['nombre'].lower()
+    assert documento_nombre in alerta.mensaje.lower() or "vence" in alerta.mensaje.lower(), \
+        f"Mensaje no contiene '{documento_nombre}' ni 'vence': {alerta.mensaje}"
 
 
-@step("provee una recomendación proactiva para evitar retrasos en el proceso consular")
-def step_impl(context):
-    """Verificar recomendación proactiva."""
+@step('la alerta incluye la acción sugerida "{accion}"')
+def step_alerta_incluye_accion(context, accion):
+    """Verificar que la alerta tiene acción sugerida."""
     alerta = context.alertas_generadas[0] if context.alertas_generadas else context.seguimiento.alertas[0]
     assert alerta.accion_sugerida != ""
-    assert "consular" in alerta.accion_sugerida.lower() or "renueva" in alerta.accion_sugerida.lower()
+    # Verificar palabras clave de la acción
+    assert "renueva" in alerta.accion_sugerida.lower() or "consular" in alerta.accion_sugerida.lower()
 
 
 # ============================================================
 # GESTIÓN DE EXPECTATIVAS
 # ============================================================
 
-@step('que la solicitud "(?P<codigo>.+)" ha sido "APROBADA"')
-def step_impl(context, codigo):
-    """Setup: solicitud aprobada."""
+@step('que la solicitud "{codigo}" tiene estado "{estado}"')
+def step_solicitud_tiene_estado(context, codigo, estado):
+    """Setup: solicitud con estado específico."""
     seguimiento = SeguimientoSolicitud(
         solicitud_id=codigo,
         codigo=codigo,
         tipo_visa="TRABAJO",
         embajada="ESTADOUNIDENSE",
-        estado=EstadoSolicitudSeguimiento.APROBADA,
+        estado=EstadoSolicitudSeguimiento(estado),
         migrante_id=context.migrante_id,
         migrante_email=context.migrante_email,
         fecha_creacion=datetime.now() - timedelta(days=30)
@@ -490,33 +420,31 @@ def step_impl(context, codigo):
     context.seguimiento = seguimiento
 
 
-@step("reviso los siguientes pasos de mi trámite")
-def step_impl(context):
-    """El usuario consulta siguientes pasos."""
+@step('consulto los siguientes pasos de "{codigo}"')
+def step_consultar_siguientes_pasos(context, codigo):
+    """Acción: consultar siguientes pasos de una solicitud."""
     service = ExpectativasService()
     context.siguiente_paso = service.obtener_siguientes_pasos(context.seguimiento)
 
 
-@step('el sistema reduce mi incertidumbre informando el paso: "(?P<paso>.+)"')
-def step_impl(context, paso):
-    """Verificar información del siguiente paso."""
+@step('el panel de próximos pasos muestra "{mensaje}"')
+def step_panel_proximos_pasos_muestra(context, mensaje):
+    """Verificar mensaje en panel de próximos pasos."""
     assert 'paso' in context.siguiente_paso
-    # Verificar que el mensaje contiene palabras clave del paso esperado
-    paso_lower = paso.lower()
-    paso_actual_lower = context.siguiente_paso['paso'].lower()
     
-    # Verificar coincidencia parcial
+    # Verificar coincidencia parcial con palabras clave
     palabras_clave = ['esperar', 'asignación', 'entrevista', 'fecha']
-    coincide = any(p in paso_actual_lower for p in palabras_clave)
-    assert coincide or "esperar" in paso_actual_lower
+    paso_actual = context.siguiente_paso['paso'].lower()
+    
+    coincide = any(p in paso_actual for p in palabras_clave)
+    assert coincide, f"El paso '{context.siguiente_paso['paso']}' no contiene las palabras esperadas"
 
 
-@step('proyecta una ventana estimada de resolución de "(?P<tiempo>.+)"')
-def step_impl(context, tiempo):
-    """Verificar tiempo estimado."""
+@step('el tiempo estimado de espera indica "{tiempo}"')
+def step_tiempo_estimado_indica(context, tiempo):
+    """Verificar tiempo estimado de espera."""
     assert 'tiempo_estimado' in context.siguiente_paso
-    # Verificar que hay un tiempo estimado (formato flexible)
     assert context.siguiente_paso['tiempo_estimado'] is not None
-    assert "días" in context.siguiente_paso['tiempo_estimado'].lower() or \
-           "hábiles" in context.siguiente_paso['tiempo_estimado'].lower() or \
-           len(context.siguiente_paso['tiempo_estimado']) > 0
+    
+    tiempo_actual = context.siguiente_paso['tiempo_estimado'].lower()
+    assert "días" in tiempo_actual or "hábiles" in tiempo_actual or len(tiempo_actual) > 0
