@@ -147,15 +147,20 @@ export default function AdvisorLayout({ children }) {
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
-                <span className={isActive ? 'text-primary-600' : 'text-gray-400'}>
+                <span className={`relative ${isActive ? 'text-primary-600' : 'text-gray-400'}`}>
                   {item.icon}
+                  {!sidebarOpen && item.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 text-[10px] font-bold bg-red-500 text-white rounded-full flex items-center justify-center">
+                      {item.badge > 9 ? '9+' : item.badge}
+                    </span>
+                  )}
                 </span>
                 {sidebarOpen && (
                   <span className="flex-1">{item.name}</span>
                 )}
-                {sidebarOpen && item.badge && (
+                {sidebarOpen && item.badge > 0 && (
                   <span className="px-2 py-0.5 text-xs font-medium bg-red-500 text-white rounded-full">
-                    {item.badge}
+                    {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
               </Link>

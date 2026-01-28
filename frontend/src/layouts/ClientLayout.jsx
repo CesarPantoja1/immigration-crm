@@ -68,9 +68,9 @@ export default function ClientLayout({ children }) {
                     }`}
                   >
                     {item.name}
-                    {item.badge && item.badge > 0 && (
-                      <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-xs font-medium bg-red-500 text-white rounded-full min-w-[18px] text-center">
-                        {item.badge > 9 ? '9+' : item.badge}
+                    {item.badge > 0 && (
+                      <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full min-w-[18px] text-center animate-pulse">
+                        {item.badge > 99 ? '99+' : item.badge}
                       </span>
                     )}
                   </Link>
