@@ -103,4 +103,20 @@
         | TRABAJO   | VTB01        | BRASILEÑA      |
         | ESTUDIO   | VEB01        | BRASILEÑA      |
 
+    #=====================================
+  #  ASIGNACIÓN DE SOLICITUD A ASESOR
+  #=====================================
+
+    Escenario: Asignación automática de solicitud a asesor con disponibilidad
+      Dado que existen los siguientes asesores con solicitudes asignadas hoy:
+        | asesor       | solicitudes_hoy |
+        | Juan Pérez   | 8               |
+        | María García | 3               |
+        | Carlos López | 5               |
+      Y cada asesor tiene un límite de 10 solicitudes diarias
+      Cuando se registra una nueva solicitud
+      Entonces el sistema asigna la solicitud al asesor con menos carga
+      Y el asesor "María García" tiene 4 solicitudes asignadas hoy
+      Y la solicitud queda en estado "pendiente"
+
   ## ESCENARIO CUANDO NOS DA ERROR?

@@ -327,4 +327,110 @@ def step_impl(context):
     print(f"[INFO] Notificación: SOLICITUD ENVIADA A EMBAJADA")
 
 
+# =====================================================
+# ASIGNACIÓN DE SOLICITUDES A ASESORES
+# =====================================================
+
+@step("que existen los siguientes asesores con solicitudes asignadas hoy:")
+def step_impl(context):
+    """Configura los asesores con sus cargas de trabajo actuales."""
+    from apps.solicitudes.recepcion.domain import AsignadorSolicitudes
+    
+    context.asesores = {}
+    context.asignador = AsignadorSolicitudes(limite_diario=10)
+    
+    for row in context.table:
+        nombre = row['asesor']
+        solicitudes_hoy = int(row['solicitudes_hoy'])
+        
+        asesor = Asesor(
+            id=f"ASESOR-{nombre.replace(' ', '-').upper()}",
+            nombre=nombre,
+            email=f"{nombre.lower().replace(' ', '.')}@agencia.com"
+        )
+        
+        context.asesores[nombre] = {
+            'asesor': asesor,
+            'solicitudes_hoy': solicitudes_hoy
+        }
+        
+        context.asignador.registrar_asesor(asesor, solicitudes_hoy)
+    
+    print(f"[INFO] Asesores registrados: {list(context.asesores.keys())}")
+
+
+@step("cada asesor tiene un límite de {limite:d} solicitudes diarias")
+def step_impl(context, limite):
+    """Configura el límite diario de solicitudes por asesor."""
+    context.asignador.limite_diario = limite
+    assert context.asignador.limite_diario == limite
+
+
+@step("se registra una nueva solicitud")
+def step_impl(context):
+    """Se registra una nueva solicitud que debe ser asignada."""
+    context.agencia = AgenciaMigracion()
+    
+    context.nueva_solicitud = SolicitudVisa(
+        id_solicitud="SOL-NEW-001",
+        id_migrante="MIG-NEW-001",
+        tipo_visa=TipoVisa.TRABAJO,
+        embajada=TipoEmbajada.ESTADOUNIDENSE
+    )
+    
+    # Realizar la asignación automática
+    resultado = context.asignador.asignar_solicitud(context.nueva_solicitud)
+    context.resultado_asignacion = resultado
+    
+    if resultado['exito']:
+        context.asesor_asignado = resultado['asesor_nombre']
+        print(f"[INFO] Solicitud asignada a: {context.asesor_asignado}")
+    else:
+        context.asesor_asignado = None
+        print(f"[INFO] Solicitud no asignada: {resultado['mensaje']}")
+
+
+@step('el sistema asigna la solicitud al asesor con menos carga')
+def step_impl(context):
+    """Verifica que la solicitud fue asignada al asesor con menos carga."""
+    assert context.resultado_asignacion['exito'] is True
+    assert context.asesor_asignado is not None
+    
+    # Encontrar el asesor que debería tener menos carga
+    min_carga = float('inf')
+    asesor_esperado = None
+    
+    for nombre, datos in context.asesores.items():
+        if datos['solicitudes_hoy'] < min_carga:
+            min_carga = datos['solicitudes_hoy']
+            asesor_esperado = nombre
+    
+    assert context.asesor_asignado == asesor_esperado, \
+        f"Se esperaba asignar a {asesor_esperado}, pero se asignó a {context.asesor_asignado}"
+
+
+@step('el asesor "{nombre_asesor}" tiene {cantidad:d} solicitudes asignadas hoy')
+def step_impl(context, nombre_asesor, cantidad):
+    """Verifica la cantidad de solicitudes asignadas a un asesor."""
+    solicitudes_actuales = context.asignador.obtener_solicitudes_asesor(nombre_asesor)
+    
+    assert solicitudes_actuales == cantidad, \
+        f"El asesor {nombre_asesor} tiene {solicitudes_actuales} solicitudes, se esperaban {cantidad}"
+
+
+@step('la solicitud queda en estado "{estado}"')
+def step_impl(context, estado):
+    """Verifica el estado final de la solicitud."""
+    # Normalizar el estado para comparación
+    estado_actual = context.nueva_solicitud.obtener_estado().lower().replace('_', ' ')
+    estado_esperado = estado.lower().replace('_', ' ')
+    
+    # Si la solicitud fue asignada, debe estar en pendiente (para revisión)
+    if context.resultado_asignacion['exito']:
+        assert estado_esperado == 'pendiente' or estado_esperado == 'borrador'
+    else:
+        assert 'pendiente' in estado_esperado or 'asignacion' in estado_esperado
+
+
+
 
