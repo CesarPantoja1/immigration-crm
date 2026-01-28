@@ -11,17 +11,25 @@ import AdvisorLayout from './layouts/AdvisorLayout'
 // Paginas cliente
 import { ClientDashboard } from './features/client'
 import { NewApplicationPage, ApplicationsListPage, ApplicationDetailPage } from './features/applications'
-import { SimulationsPage, MeetingRoomPage, SimulationSummaryPage } from './features/simulations'
+import { SimulationsPage, MeetingRoomPage, SimulationSummaryPage, PresentialInfoPage } from './features/simulations'
 import { PracticePage, QuizPage } from './features/practice'
+
+// Nuevas páginas cliente
+import { InboxPage } from './features/inbox'
+import { CalendarPage } from './features/calendar'
 
 // Paginas asesor
 import {
   AdvisorDashboard,
+  AdvisorApplicationsListPage,
   ApplicationReviewPage,
   DocumentExplorerPage,
   AdvisorSimulationsPage,
   AdvisorMeetingRoomPage
 } from './features/advisor'
+
+// Pagina asesor - Presencial Feedback
+import { PresentialFeedbackPage } from './features/simulations'
 // Rutas protegidas
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, isAuthenticated } = useAuth()
@@ -115,6 +123,33 @@ function App() {
           </ProtectedRoute>
         } />
 
+        {/* Client Inbox (Centro de Notificaciones) */}
+        <Route path="/inbox" element={
+          <ProtectedRoute allowedRoles={['client']}>
+            <ClientLayout>
+              <InboxPage />
+            </ClientLayout>
+          </ProtectedRoute>
+        } />
+
+        {/* Client Calendar (Calendario Maestro) */}
+        <Route path="/calendario" element={
+          <ProtectedRoute allowedRoles={['client']}>
+            <ClientLayout>
+              <CalendarPage />
+            </ClientLayout>
+          </ProtectedRoute>
+        } />
+
+        {/* Client Presential Simulation Info */}
+        <Route path="/simulacros/:id/presencial" element={
+          <ProtectedRoute allowedRoles={['client']}>
+            <ClientLayout>
+              <PresentialInfoPage />
+            </ClientLayout>
+          </ProtectedRoute>
+        } />
+
         {/* Advisor Routes */}
         <Route path="/asesor" element={
           <ProtectedRoute allowedRoles={['advisor']}>
@@ -127,7 +162,7 @@ function App() {
         <Route path="/asesor/solicitudes" element={
           <ProtectedRoute allowedRoles={['advisor']}>
             <AdvisorLayout>
-              <ApplicationsListPage />
+              <AdvisorApplicationsListPage />
             </AdvisorLayout>
           </ProtectedRoute>
         } />
@@ -160,6 +195,31 @@ function App() {
           <ProtectedRoute allowedRoles={['advisor']}>
             <AdvisorLayout>
               <AdvisorMeetingRoomPage />
+            </AdvisorLayout>
+          </ProtectedRoute>
+        } />
+
+        {/* Advisor Presential Feedback */}
+        <Route path="/asesor/simulacros/:id/presencial" element={
+          <ProtectedRoute allowedRoles={['advisor']}>
+            <PresentialFeedbackPage />
+          </ProtectedRoute>
+        } />
+
+        {/* Advisor Inbox (Centro de Notificaciones) */}
+        <Route path="/asesor/inbox" element={
+          <ProtectedRoute allowedRoles={['advisor']}>
+            <AdvisorLayout>
+              <InboxPage />
+            </AdvisorLayout>
+          </ProtectedRoute>
+        } />
+
+        {/* Advisor Calendar (Calendario Maestro) */}
+        <Route path="/asesor/calendario" element={
+          <ProtectedRoute allowedRoles={['advisor']}>
+            <AdvisorLayout>
+              <CalendarPage />
             </AdvisorLayout>
           </ProtectedRoute>
         } />

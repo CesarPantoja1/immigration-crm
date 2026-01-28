@@ -7,3 +7,9 @@ export { default as Badge } from './Badge'
 export { default as FileUpload } from './FileUpload'
 export { default as Spinner, LoadingScreen, SkeletonCard, SkeletonTable } from './Loading'
 export { ToastProvider, useToast } from './Toast'
+
+// Nuevos componentes v2.0
+export { default as SplitViewModal } from './SplitViewModal'
+export { default as PhaseProgressBar, PhaseProgressBarCompact } from './PhaseProgressBar'
+export { default as EmptyState, EmptyStateIcons } from './EmptyState'
+export { default as ModalityFilter, ModalityBadge } from './ModalityFilter'

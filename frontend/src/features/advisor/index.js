@@ -1,4 +1,5 @@
 export { default as AdvisorDashboard } from './pages/AdvisorDashboard'
+export { default as AdvisorApplicationsListPage } from './pages/AdvisorApplicationsListPage'
 export { default as ApplicationReviewPage } from './pages/ApplicationReviewPage'
 export { default as DocumentExplorerPage } from './pages/DocumentExplorerPage'
 export { default as AdvisorSimulationsPage } from './pages/AdvisorSimulationsPage'

@@ -1,48 +1,18 @@
 import { Link } from 'react-router-dom'
 import { Card, Button, Badge } from '../../../components/common'
+import { VISA_TYPES } from '../../../store'
 
-const visaTypes = [
-  {
-    id: 'estudio',
-    title: 'Visa de Estudio',
-    icon: '🎓',
-    description: 'Prepárate para preguntas sobre tu programa académico, financiamiento y planes de retorno',
-    questions: 25,
-    duration: '20 min',
-    difficulty: 'Intermedio',
-    color: 'from-blue-500 to-blue-600'
-  },
-  {
-    id: 'trabajo',
-    title: 'Visa de Trabajo',
-    icon: '💼',
-    description: 'Practica respuestas sobre tu experiencia laboral, empresa patrocinadora y especialización',
-    questions: 30,
-    duration: '25 min',
-    difficulty: 'Avanzado',
-    color: 'from-purple-500 to-purple-600'
-  },
-  {
-    id: 'vivienda',
-    title: 'Visa de Vivienda',
-    icon: '🏠',
-    description: 'Domina preguntas sobre inversión inmobiliaria, fuentes de ingreso y permanencia',
-    questions: 20,
-    duration: '15 min',
-    difficulty: 'Básico',
-    color: 'from-green-500 to-green-600'
-  },
-  {
-    id: 'turismo',
-    title: 'Visa de Turismo',
-    icon: '✈️',
-    description: 'Practica el itinerario, lazos con tu país y demostración de solvencia económica',
-    questions: 15,
-    duration: '12 min',
-    difficulty: 'Básico',
-    color: 'from-orange-500 to-orange-600'
-  }
-]
+// Transformar los tipos de visa del store al formato esperado por este componente
+const visaTypes = Object.values(VISA_TYPES).map(visa => ({
+  id: visa.id,
+  title: visa.name,
+  icon: visa.icon,
+  description: visa.description,
+  questions: visa.practiceQuestions,
+  duration: visa.practiceDuration,
+  difficulty: visa.difficulty,
+  color: visa.color
+}))
 
 const stats = [
   { value: '500+', label: 'Preguntas reales' },

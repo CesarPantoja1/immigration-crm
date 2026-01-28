@@ -1,3 +1,5 @@
 export { default as SimulationsPage } from './pages/SimulationsPage'
 export { default as MeetingRoomPage } from './pages/MeetingRoomPage'
 export { default as SimulationSummaryPage } from './pages/SimulationSummaryPage'
+export { default as PresentialInfoPage } from './pages/PresentialInfoPage'
+export { default as PresentialFeedbackPage } from './pages/PresentialFeedbackPage'

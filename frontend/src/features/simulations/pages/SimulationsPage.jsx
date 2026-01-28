@@ -1,18 +1,28 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Card, Badge, Button, Modal, ConfirmModal } from '../../../components/common'
+import { Link, useNavigate } from 'react-router-dom'
+import { Card, Badge, Button, Modal, ConfirmModal, ModalityFilter, ModalityBadge } from '../../../components/common'
 import { useAuth } from '../../../contexts/AuthContext'
 
-// Mock data
+// Mock data - Ahora con presencial
 const MOCK_PROPOSALS = [
   {
     id: 1,
     date: '2026-01-30',
     time: '10:00 AM',
     advisor: 'María González',
-    modality: 'Virtual',
+    modality: 'virtual',
     visaType: 'Estudio',
     status: 'pending'
+  },
+  {
+    id: 4,
+    date: '2026-02-02',
+    time: '11:00 AM',
+    advisor: 'María González',
+    modality: 'presential',
+    visaType: 'Trabajo',
+    status: 'pending',
+    location: 'Oficina MigraFácil - Sede Norte'
   }
 ]
 
@@ -22,20 +32,31 @@ const MOCK_UPCOMING = [
     date: '2026-02-05',
     time: '03:00 PM',
     advisor: 'María González',
-    modality: 'Virtual',
+    modality: 'virtual',
     visaType: 'Estudio',
     status: 'confirmed',
     hoursUntil: 192
+  },
+  {
+    id: 3,
+    date: '2026-02-07',
+    time: '10:00 AM',
+    advisor: 'María González',
+    modality: 'presential',
+    visaType: 'Trabajo',
+    status: 'confirmed',
+    hoursUntil: 240,
+    location: 'Oficina MigraFácil - Sede Norte'
   }
 ]
 
 const MOCK_COMPLETED = [
   {
-    id: 3,
+    id: 5,
     date: '2026-01-15',
     time: '11:00 AM',
     advisor: 'María González',
-    modality: 'Virtual',
+    modality: 'virtual',
     visaType: 'Estudio',
     duration: '28 min',
     feedbackStatus: 'received'
@@ -44,6 +65,7 @@ const MOCK_COMPLETED = [
 
 export default function SimulationsPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('proposals')
   const [showProposeModal, setShowProposeModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
@@ -51,9 +73,29 @@ export default function SimulationsPage() {
   const [proposedDate, setProposedDate] = useState('')
   const [proposedTime, setProposedTime] = useState('')
   const [proposeReason, setProposeReason] = useState('')
+  const [modalityFilter, setModalityFilter] = useState('all')
 
   const simulationsUsed = user?.simulationsUsed || 1
   const simulationsTotal = user?.simulationsTotal || 2
+
+  // Filtrar por modalidad
+  const filterByModality = (items) => {
+    if (modalityFilter === 'all') return items
+    return items.filter(item => item.modality === modalityFilter)
+  }
+
+  const filteredProposals = filterByModality(MOCK_PROPOSALS)
+  const filteredUpcoming = filterByModality(MOCK_UPCOMING)
+  const filteredCompleted = filterByModality(MOCK_COMPLETED)
+
+  // Handler para ir a la sala o a info presencial
+  const handleGoToSimulation = (simulation) => {
+    if (simulation.modality === 'presential') {
+      navigate(`/simulacros/${simulation.id}/presencial`)
+    } else {
+      navigate(`/simulacros/${simulation.id}/room`)
+    }
+  }
 
   const handleAcceptSimulation = (simulation) => {
     console.log('Accepted:', simulation)
@@ -139,11 +181,11 @@ export default function SimulationsPage() {
       </Card>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200">
+      <div className="flex gap-2 mb-4 border-b border-gray-200">
         {[
-          { id: 'proposals', label: 'Propuestas Pendientes', count: MOCK_PROPOSALS.length },
-          { id: 'upcoming', label: 'Próximos Simulacros', count: MOCK_UPCOMING.length },
-          { id: 'completed', label: 'Completados', count: MOCK_COMPLETED.length }
+          { id: 'proposals', label: 'Propuestas Pendientes', count: filteredProposals.length },
+          { id: 'upcoming', label: 'Próximos Simulacros', count: filteredUpcoming.length },
+          { id: 'completed', label: 'Completados', count: filteredCompleted.length }
         ].map((tab) => (
           <button
             key={tab.id}
@@ -166,10 +208,15 @@ export default function SimulationsPage() {
         ))}
       </div>
 
+      {/* Modality Filter */}
+      <div className="mb-6">
+        <ModalityFilter value={modalityFilter} onChange={setModalityFilter} />
+      </div>
+
       {/* Proposals Tab */}
       {activeTab === 'proposals' && (
         <div className="space-y-4">
-          {MOCK_PROPOSALS.length === 0 ? (
+          {filteredProposals.length === 0 ? (
             <Card className="text-center py-12">
               <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -178,7 +225,7 @@ export default function SimulationsPage() {
               <p className="text-gray-500">No tienes propuestas de simulacro por revisar</p>
             </Card>
           ) : (
-            MOCK_PROPOSALS.map((proposal) => (
+            filteredProposals.map((proposal) => (
               <Card key={proposal.id}>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-4">
@@ -239,7 +286,7 @@ export default function SimulationsPage() {
       {/* Upcoming Tab */}
       {activeTab === 'upcoming' && (
         <div className="space-y-4">
-          {MOCK_UPCOMING.length === 0 ? (
+          {filteredUpcoming.length === 0 ? (
             <Card className="text-center py-12">
               <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -252,20 +299,28 @@ export default function SimulationsPage() {
               {/* Timeline line */}
               <div className="absolute left-7 top-0 bottom-0 w-0.5 bg-gray-200" />
               
-              {MOCK_UPCOMING.map((simulation, index) => (
+              {filteredUpcoming.map((simulation, index) => (
                 <div key={simulation.id} className="relative flex gap-6 pb-8">
                   {/* Timeline dot */}
-                  <div className="relative z-10 w-14 h-14 bg-primary-100 rounded-xl flex items-center justify-center border-4 border-white">
-                    <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
+                  <div className={`relative z-10 w-14 h-14 rounded-xl flex items-center justify-center border-4 border-white ${
+                    simulation.modality === 'presential' ? 'bg-amber-100' : 'bg-primary-100'
+                  }`}>
+                    {simulation.modality === 'presential' ? (
+                      <span className="text-2xl">🏢</span>
+                    ) : (
+                      <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    )}
                   </div>
 
                   <Card className="flex-1">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-3">
-                          <h3 className="font-semibold text-gray-900">Simulacro Confirmado</h3>
+                          <h3 className="font-semibold text-gray-900">
+                            Simulacro {simulation.modality === 'presential' ? 'Presencial' : 'Virtual'}
+                          </h3>
                           <Badge variant="success" dot>Confirmado</Badge>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
@@ -288,8 +343,18 @@ export default function SimulationsPage() {
                             {simulation.advisor}
                           </span>
                         </div>
+                        {/* Location for presential */}
+                        {simulation.location && (
+                          <div className="flex items-center gap-1 mt-2 text-sm text-amber-700 bg-amber-50 px-2 py-1 rounded-lg w-fit">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            {simulation.location}
+                          </div>
+                        )}
                         <div className="flex gap-2 mt-3">
-                          <Badge variant="primary">{simulation.modality}</Badge>
+                          <ModalityBadge modality={simulation.modality} />
                           <Badge variant="info">{simulation.visaType}</Badge>
                         </div>
                       </div>
@@ -303,14 +368,23 @@ export default function SimulationsPage() {
                         >
                           Cancelar
                         </Button>
-                        <Link to={`/simulacros/${simulation.id}/sala`}>
-                          <Button>
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                            Ingresar a Reunión
-                          </Button>
-                        </Link>
+                        <Button onClick={() => handleGoToSimulation(simulation)}>
+                          {simulation.modality === 'presential' ? (
+                            <>
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Ver Información
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                              Ingresar a Reunión
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </div>
                   </Card>
@@ -324,37 +398,53 @@ export default function SimulationsPage() {
       {/* Completed Tab */}
       {activeTab === 'completed' && (
         <div className="space-y-4">
-          {MOCK_COMPLETED.map((simulation) => (
-            <Card key={simulation.id}>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
-                    <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold text-gray-900">Simulacro Completado</h3>
-                      <Badge 
-                        variant={simulation.feedbackStatus === 'received' ? 'success' : 'warning'}
-                      >
-                        {simulation.feedbackStatus === 'received' ? 'Feedback recibido' : 'Pendiente feedback'}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
-                      <span>{simulation.date} • {simulation.time}</span>
-                      <span>Duración: {simulation.duration}</span>
-                      <span>Asesor: {simulation.advisor}</span>
-                    </div>
-                  </div>
-                </div>
-                <Button variant="secondary">
-                  Ver Resumen
-                </Button>
-              </div>
+          {filteredCompleted.length === 0 ? (
+            <Card className="text-center py-12">
+              <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Sin simulacros completados</h3>
+              <p className="text-gray-500">Aún no has completado ningún simulacro</p>
             </Card>
-          ))}
+          ) : (
+            filteredCompleted.map((simulation) => (
+              <Card key={simulation.id}>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
+                      <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-semibold text-gray-900">Simulacro Completado</h3>
+                        <Badge 
+                          variant={simulation.feedbackStatus === 'received' ? 'success' : 'warning'}
+                        >
+                          {simulation.feedbackStatus === 'received' ? 'Feedback recibido' : 'Pendiente feedback'}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
+                        <span>{simulation.date} • {simulation.time}</span>
+                        <span>Duración: {simulation.duration}</span>
+                        <span>Asesor: {simulation.advisor}</span>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <ModalityBadge modality={simulation.modality} />
+                        <Badge variant="info">{simulation.visaType}</Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <Link to={`/simulacros/${simulation.id}/resumen`}>
+                    <Button variant="secondary">
+                      Ver Resumen
+                    </Button>
+                  </Link>
+                </div>
+              </Card>
+            ))
+          )}
         </div>
       )}
 
