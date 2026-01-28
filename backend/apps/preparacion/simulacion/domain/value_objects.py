@@ -531,5 +531,7 @@ BANCO_PREGUNTAS = {
 
 
 def obtener_preguntas_por_visado(tipo: TipoVisado) -> List[Pregunta]:
-    """Obtiene las preguntas para un tipo de visado."""
-    return BANCO_PREGUNTAS.get(tipo, [])
+    """Obtiene las preguntas para un tipo de visado (máximo 10)."""
+    preguntas = BANCO_PREGUNTAS.get(tipo, [])
+    # Retornar solo las primeras 10 preguntas
+    return preguntas[:10]
