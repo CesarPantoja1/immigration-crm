@@ -11,7 +11,7 @@ Característica: Seguimiento de Solicitudes Migratorias
 # Consulta de dashboard
 
   Escenario: Supervisión global del portafolio de solicitudes
-    Dado que gestiono los siguientes trámites activos:
+    Dado que gestiono los siguientes trámites activos
       | tipo_visa | embajada        | estado                 | fecha_creacion |
       | TRABAJO   | ESTADOUNIDENSE  | APROBADA               | 2024-01-15     |
       | ESTUDIO   | ESPAÑOLA        | REQUIERE_CORRECCIONES  | 2024-02-10     |
@@ -27,7 +27,7 @@ Característica: Seguimiento de Solicitudes Migratorias
     Y garantiza el acceso a la trazabilidad documental y validaciones de la embajada
 
   Escenario: Reconstrucción histórica de hitos operativos
-    Dado que la solicitud "SOL-2024-00002" registra los siguientes hitos:
+    Dado que la solicitud "SOL-2024-00002" registra los siguientes hitos
       | evento                | fecha               | descripcion               |
       | SOLICITUD_CREADA      | 2024-02-01 10:00:00 | Solicitud creada          |
       | DOCUMENTO_CARGADO     | 2024-02-01 10:15:00 | Pasaporte cargado         |
@@ -43,7 +43,7 @@ Característica: Seguimiento de Solicitudes Migratorias
 
   Escenario: Identificación de bloqueos y motivos de rechazo documental
     Dado que la solicitud "SOL-2024-00003" se encuentra en estado "REQUIERE_CORRECCIONES"
-    Y presenta las siguientes validaciones documentales:
+    Y presenta las siguientes validaciones documentales
       | nombre               | estado                | motivo_rechazo                                    |
       | Pasaporte            | APROBADO              |                                                   |
       | Antecedentes penales | RECHAZADO             | Documento vencido, fecha de emisión muy antigua   |
