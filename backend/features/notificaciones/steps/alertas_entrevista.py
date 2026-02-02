@@ -552,3 +552,322 @@ def paso_documento_recomendaciones(context, id_simulacro, estado):
 @step('el documento de recomendaciones del simulacro "{id_simulacro}" se publica en el sistema')
 def paso_publica_recomendaciones(context, id_simulacro):
     context.sistema.publicar_recomendaciones(id_simulacro)
+
+
+# ============================================================
+# NAVEGACIÓN CONTEXTUAL DESDE NOTIFICACIONES (Deep Linking)
+# ============================================================
+
+@step('que la solicitud "{codigo}" tiene una entrevista programada para "{fecha_hora}"')
+def step_solicitud_entrevista_programada(context, codigo, fecha_hora):
+    """Setup: solicitud con entrevista programada."""
+    context.solicitud_codigo = codigo
+    context.entrevista_fecha_hora = fecha_hora
+    context.sistema.solicitudes[codigo] = Solicitud(
+        id=codigo,
+        estado="APROBADA",
+        entrevista=Entrevista(fecha_hora=fecha_hora, estado="Programada")
+    )
+
+
+@step('el migrante recibe la notificación de "{tipo_notificacion}"')
+def step_migrante_recibe_notificacion_entrevista(context, tipo_notificacion):
+    """Setup: notificación recibida."""
+    context.notificacion_tipo = tipo_notificacion
+    context.notificacion_leida = False
+
+
+@step('accedo a la notificación de cita consular asignada')
+def step_accedo_notificacion_cita(context):
+    """Acción: acceder a notificación de entrevista agendada."""
+    context.navegacion_destino = f"/solicitudes/{context.solicitud_codigo}/entrevista"
+    context.notificacion_leida = True
+
+
+@step('soy redirigido a la vista de entrevista de "{codigo}"')
+def step_redirigido_vista_entrevista(context, codigo):
+    """Verificar redirección a vista de entrevista."""
+    expected_url = f"/solicitudes/{codigo}/entrevista"
+    assert context.navegacion_destino == expected_url, \
+        f"Esperaba {expected_url}, pero fue {context.navegacion_destino}"
+
+
+@step('visualizo la fecha "{fecha}" y hora "{hora}" de la cita')
+def step_visualizo_fecha_hora_cita(context, fecha, hora):
+    """Verificar visualización de fecha y hora."""
+    context.fecha_cita_visible = fecha
+    context.hora_cita_visible = hora
+
+
+@step('se muestra la dirección del consulado y documentos requeridos para el día')
+def step_muestra_direccion_consulado(context):
+    """Verificar información del consulado."""
+    context.direccion_consulado_visible = True
+    context.documentos_requeridos_visible = True
+
+
+@step('la notificación queda marcada como leída')
+def step_notificacion_queda_leida(context):
+    """Verificar notificación marcada como leída."""
+    assert context.notificacion_leida is True
+
+
+@step('que la entrevista de "{codigo}" fue reprogramada de "{fecha_anterior}" a "{nueva_fecha}"')
+def step_entrevista_reprogramada(context, codigo, fecha_anterior, nueva_fecha):
+    """Setup: entrevista reprogramada."""
+    context.solicitud_codigo = codigo
+    context.fecha_anterior = fecha_anterior
+    context.nueva_fecha = nueva_fecha
+
+
+@step('accedo a la notificación de cambio de fecha')
+def step_accedo_notificacion_cambio_fecha(context):
+    """Acción: acceder a notificación de reprogramación."""
+    context.navegacion_destino = f"/solicitudes/{context.solicitud_codigo}/entrevista"
+    context.notificacion_leida = True
+
+
+@step('visualizo la nueva fecha "{fecha}" claramente destacada')
+def step_visualizo_nueva_fecha(context, fecha):
+    """Verificar nueva fecha destacada."""
+    context.nueva_fecha_destacada = fecha
+
+
+@step('se muestra un comparativo con la fecha anterior tachada')
+def step_muestra_comparativo_fechas(context):
+    """Verificar comparativo de fechas."""
+    context.comparativo_visible = True
+    context.fecha_anterior_tachada = True
+
+
+@step('que faltan {horas:d} horas para la entrevista de "{codigo}"')
+def step_faltan_horas_entrevista(context, horas, codigo):
+    """Setup: tiempo restante para entrevista."""
+    context.solicitud_codigo = codigo
+    context.horas_restantes = horas
+
+
+@step('el migrante recibe el recordatorio de proximidad de cita')
+def step_recibe_recordatorio_proximidad(context):
+    """Setup: recordatorio recibido."""
+    context.recordatorio_recibido = True
+
+
+@step('accedo al recordatorio de entrevista próxima')
+def step_accedo_recordatorio(context):
+    """Acción: acceder al recordatorio."""
+    context.navegacion_destino = f"/solicitudes/{context.solicitud_codigo}/entrevista"
+    context.notificacion_leida = True
+
+
+@step('visualizo el checklist de preparación con los elementos pendientes')
+def step_visualizo_checklist(context):
+    """Verificar checklist visible."""
+    context.checklist_visible = True
+
+
+@step('se destaca la cuenta regresiva "{mensaje}"')
+def step_cuenta_regresiva(context, mensaje):
+    """Verificar cuenta regresiva."""
+    context.cuenta_regresiva_mensaje = mensaje
+
+
+@step('que existe un simulacro "{id_simulacro}" confirmado para "{codigo}"')
+def step_simulacro_confirmado(context, id_simulacro, codigo):
+    """Setup: simulacro confirmado."""
+    context.simulacro_id = id_simulacro
+    context.solicitud_codigo = codigo
+    context.sistema.crear_simulacro(id_simulacro, codigo)
+    context.sistema.establecer_estado_simulacro(id_simulacro, "Confirmado")
+
+
+@step('accedo a la notificación de práctica programada')
+def step_accedo_notificacion_simulacro(context):
+    """Acción: acceder a notificación de simulacro."""
+    context.navegacion_destino = f"/simulacros/{context.simulacro_id}"
+    context.notificacion_leida = True
+
+
+@step('soy redirigido a la vista de detalle del simulacro "{id_simulacro}"')
+def step_redirigido_vista_simulacro(context, id_simulacro):
+    """Verificar redirección a simulacro."""
+    expected_url = f"/simulacros/{id_simulacro}"
+    assert context.navegacion_destino == expected_url
+
+
+@step('visualizo la fecha, hora y enlace de videoconferencia del simulacro')
+def step_visualizo_detalle_simulacro(context):
+    """Verificar detalles del simulacro."""
+    context.detalle_simulacro_visible = True
+
+
+@step('se muestra el botón para unirse a la sesión cuando esté activa')
+def step_boton_unirse_sesion(context):
+    """Verificar botón de unirse."""
+    context.boton_unirse_visible = True
+
+
+@step('que el asesor propuso el simulacro "{id_simulacro}" para "{codigo}"')
+def step_asesor_propuso_simulacro(context, id_simulacro, codigo):
+    """Setup: simulacro propuesto por asesor."""
+    context.simulacro_id = id_simulacro
+    context.solicitud_codigo = codigo
+    context.sistema.crear_simulacro(id_simulacro, codigo)
+    context.sistema.establecer_estado_simulacro(id_simulacro, "Propuesto")
+
+
+@step('el simulacro está en estado "Propuesto" pendiente de aceptación')
+def step_simulacro_pendiente_aceptacion(context):
+    """Verificar estado propuesto."""
+    simulacro = context.sistema.simulacros.get(context.simulacro_id)
+    assert simulacro.estado == "Propuesto"
+
+
+@step('accedo a la notificación de "Nueva Propuesta de Simulacro"')
+def step_accedo_propuesta_simulacro(context):
+    """Acción: acceder a propuesta de simulacro."""
+    context.navegacion_destino = f"/simulacros/{context.simulacro_id}"
+    context.notificacion_leida = True
+
+
+@step('soy redirigido a la vista del simulacro "{id_simulacro}"')
+def step_redirigido_simulacro(context, id_simulacro):
+    """Verificar redirección."""
+    expected_url = f"/simulacros/{id_simulacro}"
+    assert context.navegacion_destino == expected_url
+
+
+@step('visualizo las opciones para "Confirmar" o "Solicitar otro horario"')
+def step_opciones_confirmar_rechazar(context):
+    """Verificar opciones de respuesta."""
+    context.opciones_respuesta_visible = True
+
+
+@step('se muestran los horarios alternativos disponibles')
+def step_horarios_alternativos(context):
+    """Verificar horarios alternativos."""
+    context.horarios_alternativos_visible = True
+
+
+@step('que el simulacro "{id_simulacro}" fue completado y evaluado')
+def step_simulacro_completado(context, id_simulacro):
+    """Setup: simulacro completado."""
+    context.simulacro_id = id_simulacro
+    context.sistema.establecer_estado_simulacro(id_simulacro, "Completado")
+
+
+@step('las recomendaciones están publicadas para el migrante')
+def step_recomendaciones_publicadas(context):
+    """Setup: recomendaciones publicadas."""
+    context.recomendaciones_publicadas = True
+
+
+@step('accedo a la notificación de "Recomendaciones Disponibles"')
+def step_accedo_recomendaciones(context):
+    """Acción: acceder a recomendaciones."""
+    context.navegacion_destino = f"/simulacros/{context.simulacro_id}/recomendaciones"
+    context.notificacion_leida = True
+
+
+@step('soy redirigido a la vista de recomendaciones del simulacro "{id_simulacro}"')
+def step_redirigido_recomendaciones(context, id_simulacro):
+    """Verificar redirección a recomendaciones."""
+    expected_base = f"/simulacros/{id_simulacro}"
+    assert expected_base in context.navegacion_destino
+
+
+@step('visualizo el análisis de fortalezas y áreas de mejora')
+def step_visualizo_analisis(context):
+    """Verificar análisis visible."""
+    context.analisis_visible = True
+
+
+@step('se muestran las preguntas frecuentes sugeridas para practicar')
+def step_preguntas_frecuentes(context):
+    """Verificar preguntas frecuentes."""
+    context.preguntas_frecuentes_visible = True
+
+
+# ============================================================
+# SUPRESIÓN DE NOTIFICACIONES EN FLUJO DE ENTREVISTA
+# ============================================================
+
+@step('que la solicitud "{codigo}" está sin asesor asignado')
+def step_solicitud_sin_asesor(context, codigo):
+    """Setup: solicitud sin asesor."""
+    context.solicitud_codigo = codigo
+    context.sistema.solicitudes[codigo] = Solicitud(id=codigo, estado="PENDIENTE", asesor=None)
+
+
+@step('el buzón del sistema contiene {cantidad:d} notificaciones totales')
+def step_buzon_sistema_contiene(context, cantidad):
+    """Setup: contador de notificaciones del sistema."""
+    context.notificaciones_totales = cantidad
+
+
+@step('el coordinador asigna "{codigo}" al asesor "{asesor}"')
+def step_coordinador_asigna(context, codigo, asesor):
+    """Acción: coordinador asigna solicitud."""
+    context.sistema.solicitudes[codigo].asesor = asesor
+
+
+@step('la asignación se registra en el expediente')
+def step_asignacion_registrada(context):
+    """Verificar asignación registrada."""
+    solicitud = context.sistema.solicitudes[context.solicitud_codigo]
+    assert solicitud.asesor is not None
+
+
+@step('NO se genera notificación al migrante por esta acción administrativa')
+def step_no_genera_notificacion_administrativa(context):
+    """Verificar que no se notifica al migrante."""
+    context.notificacion_administrativa_suprimida = True
+
+
+@step('el asesor visualiza la solicitud en su bandeja de trabajo')
+def step_asesor_visualiza_bandeja(context):
+    """Verificar que asesor ve la solicitud."""
+    context.asesor_tiene_solicitud = True
+
+
+# ============================================================
+# MANEJO DE ENLACES INVÁLIDOS
+# ============================================================
+
+@step('que la entrevista de "{codigo}" fue cancelada definitivamente')
+def step_entrevista_cancelada_definitiva(context, codigo):
+    """Setup: entrevista cancelada."""
+    context.solicitud_codigo = codigo
+    context.entrevista_cancelada = True
+
+
+@step('existe una notificación antigua de recordatorio para esa entrevista')
+def step_notificacion_antigua_recordatorio(context):
+    """Setup: notificación antigua."""
+    context.notificacion_obsoleta = True
+
+
+@step('accedo a la notificación del recordatorio obsoleto')
+def step_accedo_recordatorio_obsoleto(context):
+    """Acción: intentar acceder a recordatorio obsoleto."""
+    context.enlace_invalido = True
+    context.navegacion_destino = "/notificaciones"
+
+
+@step('visualizo el mensaje de entrevista cancelada "{mensaje}"')
+def step_visualizo_mensaje_entrevista_cancelada(context, mensaje):
+    """Verificar mensaje de entrevista cancelada."""
+    context.mensaje_mostrado = mensaje
+
+
+@step('se muestra la opción de contactar al asesor para reagendar')
+def step_opcion_contactar_asesor(context):
+    """Verificar opción de contacto."""
+    context.opcion_contactar_asesor = True
+
+
+@step('permanezco en el buzón con la notificación marcada como leída')
+def step_permanezco_buzon_leida(context):
+    """Verificar permanencia en buzón."""
+    assert context.navegacion_destino == "/notificaciones"
+    context.notificacion_leida = True

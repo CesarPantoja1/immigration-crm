@@ -118,8 +118,33 @@ class SimulacroService:
             return None, 'Ha alcanzado el límite de 2 simulacros permitidos.'
         
         # Crear simulacro (CLIENTE solicita -> propuesto_por='cliente')
-        fecha_default = date.today() if not fecha_propuesta else fecha_propuesta
-        hora_default = time(9, 0) if not hora_propuesta else hora_propuesta
+        fecha_default = date.today()
+        hora_default = time(9, 0)
+        
+        # Parse fecha_propuesta if it's a string
+        if fecha_propuesta:
+            if isinstance(fecha_propuesta, str):
+                try:
+                    fecha_propuesta = datetime.strptime(fecha_propuesta, '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    return None, 'Formato de fecha inválido. Use YYYY-MM-DD'
+                fecha_default = fecha_propuesta
+            elif isinstance(fecha_propuesta, date):
+                fecha_default = fecha_propuesta
+        
+        # Parse hora_propuesta if it's a string
+        if hora_propuesta:
+            if isinstance(hora_propuesta, str):
+                try:
+                    hora_propuesta = datetime.strptime(hora_propuesta, '%H:%M').time()
+                except (ValueError, TypeError):
+                    try:
+                        hora_propuesta = datetime.strptime(hora_propuesta, '%H:%M:%S').time()
+                    except (ValueError, TypeError):
+                        return None, 'Formato de hora inválido. Use HH:MM o HH:MM:SS'
+                hora_default = hora_propuesta
+            elif isinstance(hora_propuesta, time):
+                hora_default = hora_propuesta
 
         simulacro = Simulacro.objects.create(
             cliente=cliente,
@@ -128,8 +153,8 @@ class SimulacroService:
             modalidad=modalidad,
             fecha=fecha_default,
             hora=hora_default,
-            fecha_propuesta=fecha_propuesta,
-            hora_propuesta=hora_propuesta,
+            fecha_propuesta=fecha_propuesta if isinstance(fecha_propuesta, date) else None,
+            hora_propuesta=hora_propuesta if isinstance(hora_propuesta, time) else None,
             estado='solicitado',
             propuesto_por='cliente',  # El cliente inició la propuesta
             notas=f"Solicitud del cliente: {observaciones}" if observaciones else ""
@@ -146,6 +171,23 @@ class SimulacroService:
             cliente = Usuario.objects.get(id=cliente_id, rol='cliente')
         except Usuario.DoesNotExist:
             return None, 'Cliente no encontrado'
+
+        # Parse fecha if it's a string
+        if isinstance(fecha, str):
+            try:
+                fecha = datetime.strptime(fecha, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                return None, 'Formato de fecha inválido. Use YYYY-MM-DD'
+        
+        # Parse hora if it's a string
+        if isinstance(hora, str):
+            try:
+                hora = datetime.strptime(hora, '%H:%M').time()
+            except (ValueError, TypeError):
+                try:
+                    hora = datetime.strptime(hora, '%H:%M:%S').time()
+                except (ValueError, TypeError):
+                    return None, 'Formato de hora inválido. Use HH:MM o HH:MM:SS'
 
         simulacro = Simulacro.objects.create(
             cliente=cliente,
@@ -198,6 +240,23 @@ class SimulacroService:
         """Propone fecha alternativa."""
         if simulacro.estado != 'pendiente_respuesta':
             return False, 'El simulacro no está pendiente de respuesta'
+        
+        # Parse fecha if it's a string
+        if isinstance(fecha, str):
+            try:
+                fecha = datetime.strptime(fecha, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                return False, 'Formato de fecha inválido. Use YYYY-MM-DD'
+        
+        # Parse hora if it's a string
+        if isinstance(hora, str):
+            try:
+                hora = datetime.strptime(hora, '%H:%M').time()
+            except (ValueError, TypeError):
+                try:
+                    hora = datetime.strptime(hora, '%H:%M:%S').time()
+                except (ValueError, TypeError):
+                    return False, 'Formato de hora inválido. Use HH:MM o HH:MM:SS'
         
         simulacro.fecha_propuesta = fecha
         simulacro.hora_propuesta = hora

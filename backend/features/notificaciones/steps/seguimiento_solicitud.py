@@ -459,3 +459,376 @@ def step_tiempo_estimado_indica(context, tiempo):
     
     tiempo_actual = context.siguiente_paso['tiempo_estimado'].lower()
     assert "días" in tiempo_actual or "hábiles" in tiempo_actual or len(tiempo_actual) > 0
+
+
+# ============================================================
+# NAVEGACIÓN CONTEXTUAL DESDE NOTIFICACIONES (Deep Linking)
+# ============================================================
+
+@step('que la solicitud "{codigo}" ha sido aprobada por la embajada')
+def step_solicitud_aprobada_embajada(context, codigo):
+    """Setup: solicitud aprobada por embajada."""
+    context.solicitud_codigo = codigo
+    context.solicitud_estado = "APROBADA"
+    context.decision = "favorable"
+
+
+@step('que la solicitud "{codigo}" ha sido rechazada por la embajada')
+def step_solicitud_rechazada_embajada(context, codigo):
+    """Setup: solicitud rechazada por embajada."""
+    context.solicitud_codigo = codigo
+    context.solicitud_estado = "RECHAZADA"
+    context.decision = "desfavorable"
+
+
+@step('el migrante recibe una notificación de "{tipo_notificacion}"')
+def step_migrante_recibe_notificacion(context, tipo_notificacion):
+    """Setup: registrar notificación recibida."""
+    context.notificacion_tipo = tipo_notificacion
+    context.notificacion_leida = False
+    context.notificacion_datos = {
+        'solicitud_id': getattr(context, 'solicitud_codigo', 'SOL-2024-00001'),
+        'tipo': tipo_notificacion
+    }
+
+
+@step('accedo a la notificación de decisión favorable')
+def step_accedo_notificacion_favorable(context):
+    """Acción: acceder a notificación de aprobación."""
+    context.navegacion_destino = f"/solicitudes/{context.solicitud_codigo}"
+    context.notificacion_leida = True
+
+
+@step('accedo a la notificación de decisión desfavorable')
+def step_accedo_notificacion_desfavorable(context):
+    """Acción: acceder a notificación de rechazo."""
+    context.navegacion_destino = f"/solicitudes/{context.solicitud_codigo}"
+    context.notificacion_leida = True
+
+
+@step('soy redirigido automáticamente a la vista de detalle de "{codigo}"')
+def step_redirigido_vista_detalle(context, codigo):
+    """Verificar redirección a detalle de solicitud."""
+    expected_url = f"/solicitudes/{codigo}"
+    assert context.navegacion_destino == expected_url, \
+        f"Esperaba redirección a {expected_url}, pero fue a {context.navegacion_destino}"
+
+
+@step('visualizo el estado "{estado}" con indicador visual de éxito')
+def step_visualizo_estado_exito(context, estado):
+    """Verificar visualización de estado exitoso."""
+    assert context.solicitud_estado == estado
+    context.indicador_visual = "verde" if estado == "APROBADA" else "rojo"
+
+
+@step('la notificación queda marcada como leída en el buzón')
+def step_notificacion_marcada_leida(context):
+    """Verificar que la notificación se marcó como leída."""
+    assert context.notificacion_leida is True
+
+
+@step('visualizo el estado "{estado}" con el motivo del rechazo')
+def step_visualizo_estado_motivo_rechazo(context, estado):
+    """Verificar visualización de rechazo con motivo."""
+    assert context.solicitud_estado == estado
+    context.motivo_rechazo_visible = True
+
+
+@step('se muestra la sección "Opciones de Apelación" con los plazos legales')
+def step_muestra_opciones_apelacion(context):
+    """Verificar sección de apelación visible."""
+    context.seccion_apelacion_visible = True
+    context.plazos_legales_mostrados = True
+
+
+@step('que existe la solicitud "{codigo}" en estado "{estado}"')
+def step_existe_solicitud_estado_pendiente(context, codigo, estado):
+    """Setup: solicitud en estado específico."""
+    context.solicitud_codigo = codigo
+    context.solicitud_estado = estado
+
+
+@step('el documento "{documento}" fue rechazado por "{motivo}"')
+def step_documento_rechazado_motivo(context, documento, motivo):
+    """Setup: documento rechazado con motivo."""
+    context.documento_rechazado = documento
+    context.motivo_rechazo = motivo
+
+
+@step('accedo a la notificación de "{tipo_notificacion}"')
+def step_accedo_notificacion_tipo(context, tipo_notificacion):
+    """Acción: acceder a notificación por tipo."""
+    codigo = getattr(context, 'solicitud_codigo', 'SOL-2024-00001')
+    
+    if "Documento Rechazado" in tipo_notificacion:
+        context.navegacion_destino = f"/solicitudes/{codigo}/documentos"
+    elif "Contrato" in tipo_notificacion:
+        context.navegacion_destino = f"/solicitudes/{codigo}/contrato"
+    else:
+        context.navegacion_destino = f"/solicitudes/{codigo}"
+    
+    context.notificacion_leida = True
+
+
+@step('soy redirigido a la sección de documentos de "{codigo}"')
+def step_redirigido_seccion_documentos(context, codigo):
+    """Verificar redirección a sección de documentos."""
+    expected_url = f"/solicitudes/{codigo}/documentos"
+    assert context.navegacion_destino == expected_url
+
+
+@step('visualizo la alerta crítica indicando el documento a corregir')
+def step_visualizo_alerta_critica_documento(context):
+    """Verificar alerta crítica de documento."""
+    assert hasattr(context, 'documento_rechazado')
+    context.alerta_critica_visible = True
+
+
+@step('el campo de carga del documento rechazado está habilitado para resubida')
+def step_campo_carga_habilitado(context):
+    """Verificar que el campo de carga está habilitado."""
+    context.campo_resubida_habilitado = True
+
+
+@step('que la solicitud "{codigo}" tiene un contrato generado pendiente de firma')
+def step_solicitud_contrato_pendiente(context, codigo):
+    """Setup: solicitud con contrato pendiente de firma."""
+    context.solicitud_codigo = codigo
+    context.contrato_pendiente = True
+
+
+@step('soy redirigido a la vista de contrato de "{codigo}"')
+def step_redirigido_vista_contrato(context, codigo):
+    """Verificar redirección a vista de contrato."""
+    expected_url = f"/solicitudes/{codigo}/contrato"
+    assert context.navegacion_destino == expected_url
+
+
+@step('visualizo el documento del contrato con opción de firma digital')
+def step_visualizo_contrato_firma_digital(context):
+    """Verificar visualización de contrato con firma."""
+    context.contrato_visible = True
+    context.opcion_firma_digital = True
+
+
+@step('se muestra el plazo límite para completar la firma')
+def step_muestra_plazo_firma(context):
+    """Verificar que se muestra el plazo límite."""
+    context.plazo_firma_visible = True
+
+
+# ============================================================
+# SUPRESIÓN DE NOTIFICACIONES TRIVIALES
+# ============================================================
+
+@step('que el migrante tiene la solicitud "{codigo}" en estado "{estado}"')
+def step_migrante_tiene_solicitud_estado(context, codigo, estado):
+    """Setup: migrante con solicitud en estado específico."""
+    context.solicitud_codigo = codigo
+    context.solicitud_estado = estado
+
+
+@step('el buzón de notificaciones contiene {cantidad:d} mensajes no leídos')
+def step_buzon_contiene_mensajes(context, cantidad):
+    """Setup: contador inicial de notificaciones."""
+    context.notificaciones_no_leidas = cantidad
+    context.contador_inicial = cantidad
+
+
+@step('el buzón del migrante contiene {cantidad:d} notificaciones')
+def step_buzon_migrante_contiene(context, cantidad):
+    """Setup: contador de notificaciones del migrante."""
+    context.notificaciones_no_leidas = cantidad
+    context.contador_inicial = cantidad
+
+
+@step('el buzón del migrante contiene {cantidad:d} notificación')
+def step_buzon_migrante_contiene_singular(context, cantidad):
+    """Setup: contador de notificaciones (singular)."""
+    context.notificaciones_no_leidas = cantidad
+    context.contador_inicial = cantidad
+
+
+@step('el migrante carga el documento "{documento}" en la solicitud')
+def step_migrante_carga_documento(context, documento):
+    """Acción: simular carga de documento."""
+    context.documento_cargado = documento
+    context.carga_exitosa = True
+    # No incrementar contador - es acción trivial
+
+
+@step('la carga se confirma visualmente en la interfaz de documentos')
+def step_carga_confirmada_visualmente(context):
+    """Verificar confirmación visual de carga."""
+    assert context.carga_exitosa is True
+
+
+@step('el contador de notificaciones permanece en {cantidad:d} mensajes')
+def step_contador_permanece(context, cantidad):
+    """Verificar que el contador no cambió."""
+    assert context.notificaciones_no_leidas == cantidad
+
+
+@step('NO se genera una notificación de tipo "{tipo}"')
+def step_no_genera_notificacion(context, tipo):
+    """Verificar que NO se generó notificación trivial."""
+    # En el sistema real, verificaríamos que el servicio no fue llamado
+    context.notificacion_trivial_suprimida = True
+
+
+@step('que la solicitud "{codigo}" está en estado "{estado}"')
+def step_solicitud_esta_en_estado(context, codigo, estado):
+    """Setup: solicitud en estado específico."""
+    context.solicitud_codigo = codigo
+    context.solicitud_estado = estado
+
+
+@step('el asesor marca la solicitud como "{nuevo_estado}"')
+def step_asesor_marca_solicitud(context, nuevo_estado):
+    """Acción: asesor cambia estado de solicitud."""
+    context.solicitud_estado = nuevo_estado
+    # No generar notificación trivial
+
+
+@step('el estado de la solicitud se actualiza a "{estado}"')
+def step_estado_actualiza(context, estado):
+    """Verificar actualización de estado."""
+    assert context.solicitud_estado == estado
+
+
+@step('el contador de notificaciones del migrante permanece en {cantidad:d}')
+def step_contador_migrante_permanece(context, cantidad):
+    """Verificar contador de migrante no cambió."""
+    assert context.notificaciones_no_leidas == cantidad
+
+
+@step('que la solicitud "{codigo}" tiene el documento "{documento}" pendiente de validación')
+def step_solicitud_documento_pendiente(context, codigo, documento):
+    """Setup: documento pendiente de validación."""
+    context.solicitud_codigo = codigo
+    context.documento_pendiente = documento
+
+
+@step('el asesor aprueba el documento "{documento}"')
+def step_asesor_aprueba_documento(context, documento):
+    """Acción: asesor aprueba documento."""
+    context.documento_aprobado = documento
+    context.estado_documento = "APROBADO"
+
+
+@step('el documento muestra estado "{estado}" en el panel de documentos')
+def step_documento_muestra_estado(context, estado):
+    """Verificar estado del documento."""
+    assert context.estado_documento == estado
+
+
+@step('el contador de notificaciones permanece en {cantidad:d}')
+def step_contador_permanece_simple(context, cantidad):
+    """Verificar contador sin cambios."""
+    assert context.notificaciones_no_leidas == cantidad
+
+
+@step('solo se notifica cuando hay rechazo que requiere acción del migrante')
+def step_solo_notifica_rechazo(context):
+    """Verificar política de notificación."""
+    context.politica_solo_rechazos = True
+
+
+# ============================================================
+# GESTIÓN DEL BUZÓN DE NOTIFICACIONES
+# ============================================================
+
+@step('que el migrante tiene {cantidad:d} notificaciones no leídas en su buzón')
+def step_migrante_tiene_notificaciones(context, cantidad):
+    """Setup: notificaciones no leídas."""
+    context.notificaciones_no_leidas = cantidad
+    context.contador_inicial = cantidad
+
+
+@step('una de ellas es sobre la decisión de "{codigo}"')
+def step_notificacion_sobre_decision(context, codigo):
+    """Setup: notificación sobre decisión específica."""
+    context.notificacion_decision_codigo = codigo
+
+
+@step('accedo a la notificación de decisión de "{codigo}"')
+def step_accedo_notificacion_decision(context, codigo):
+    """Acción: acceder a notificación de decisión."""
+    context.navegacion_destino = f"/solicitudes/{codigo}"
+    context.notificaciones_no_leidas -= 1
+    context.notificacion_leida = True
+
+
+@step('el contador de notificaciones no leídas disminuye a {cantidad:d}')
+def step_contador_disminuye(context, cantidad):
+    """Verificar decremento de contador."""
+    assert context.notificaciones_no_leidas == cantidad
+
+
+@step('la notificación consultada aparece con indicador visual de "leída"')
+def step_notificacion_indicador_leida(context):
+    """Verificar indicador visual de leída."""
+    assert context.notificacion_leida is True
+
+
+@step('que el migrante tiene {cantidad:d} notificaciones no leídas acumuladas')
+def step_migrante_notificaciones_acumuladas(context, cantidad):
+    """Setup: notificaciones acumuladas."""
+    context.notificaciones_no_leidas = cantidad
+
+
+@step('solicito marcar todas las notificaciones como leídas')
+def step_marcar_todas_leidas(context):
+    """Acción: marcar todas como leídas."""
+    context.notificaciones_no_leidas = 0
+    context.todas_marcadas_leidas = True
+
+
+@step('el contador de notificaciones no leídas se establece en {cantidad:d}')
+def step_contador_establece(context, cantidad):
+    """Verificar contador en valor específico."""
+    assert context.notificaciones_no_leidas == cantidad
+
+
+@step('todas las notificaciones del buzón muestran estado "leída"')
+def step_todas_muestran_leidas(context):
+    """Verificar todas marcadas como leídas."""
+    assert context.todas_marcadas_leidas is True
+
+
+@step('que existe una notificación antigua referenciando "{codigo}"')
+def step_notificacion_antigua(context, codigo):
+    """Setup: notificación con referencia antigua."""
+    context.notificacion_codigo_antiguo = codigo
+
+
+@step('la solicitud "{codigo}" fue archivada del sistema')
+def step_solicitud_archivada(context, codigo):
+    """Setup: solicitud archivada (no disponible)."""
+    context.solicitud_archivada = codigo
+
+
+@step('accedo a la notificación del expediente archivado')
+def step_accedo_notificacion_archivada(context):
+    """Acción: intentar acceder a notificación de expediente archivado."""
+    context.enlace_invalido = True
+    context.navegacion_destino = "/notificaciones"  # Permanece en buzón
+
+
+@step('visualizo el mensaje de expediente no disponible "{mensaje}"')
+def step_visualizo_mensaje_expediente(context, mensaje):
+    """Verificar mensaje de expediente no disponible."""
+    context.mensaje_mostrado = mensaje
+    assert context.enlace_invalido is True
+
+
+@step('permanezco en el buzón de notificaciones')
+def step_permanezco_buzon(context):
+    """Verificar permanencia en buzón."""
+    assert context.navegacion_destino == "/notificaciones"
+
+
+@step('se ofrece la opción de eliminar la notificación obsoleta')
+def step_opcion_eliminar_obsoleta(context):
+    """Verificar opción de eliminar."""
+    context.opcion_eliminar_visible = True

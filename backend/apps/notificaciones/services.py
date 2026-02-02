@@ -1,6 +1,29 @@
 """
 Servicios de Notificaciones.
 Centraliza la lógica de creación de notificaciones automáticas.
+
+POLÍTICA DE NOTIFICACIONES (Sprint Refactorización):
+=====================================================
+Solo se generan notificaciones para eventos CRÍTICOS o ACCIONABLES:
+
+✅ MANTENER (requieren acción o son críticos):
+   - simulacro_propuesto, simulacro_confirmado, simulacion_completada
+   - recomendaciones_listas
+   - solicitud_aprobada, solicitud_rechazada
+   - embajada_aprobada, embajada_rechazada
+   - documento_rechazado (requiere corrección)
+   - contrato_generado, contrato_pendiente, contrato_aprobado
+   - entrevista_agendada, entrevista_reprogramada, entrevista_cancelada
+   - recordatorio_entrevista
+   - preparacion_recomendada
+
+❌ ELIMINADOS (ruido, no requieren acción):
+   - documento_subido (informativo, no accionable)
+   - solicitud_asignada (informativo, no crítico)
+   - solicitud_en_revision (informativo, no accionable)
+   - solicitud_creada (confirmación, no accionable)
+   - contrato_firmado (confirmación, no accionable)
+   - documento_aprobado (confirmación positiva, no accionable)
 """
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -10,10 +33,12 @@ from .models import Notificacion
 class NotificacionService:
     """
     Servicio para crear notificaciones de forma centralizada.
+    
+    Solo genera notificaciones para eventos críticos o que requieren acción.
     """
     
     # =====================================================
-    # NOTIFICACIONES DE ENTREVISTA
+    # NOTIFICACIONES DE ENTREVISTA (CRÍTICAS)
     # =====================================================
     
     @staticmethod
@@ -21,11 +46,7 @@ class NotificacionService:
         """
         Crea notificación cuando una entrevista es agendada.
         Destinatario: Cliente
-        
-        Args:
-            solicitud: Instancia de Solicitud
-            fecha: Fecha de la entrevista (date o string 'YYYY-MM-DD')
-            hora: Hora de la entrevista (time o string 'HH:MM')
+        CRÍTICO: El cliente debe prepararse para la entrevista.
         """
         cliente = solicitud.cliente
         asesor = solicitud.asesor
@@ -55,7 +76,8 @@ class NotificacionService:
                 'fecha': str(fecha),
                 'hora': str(hora),
                 'tipo_visa': solicitud.tipo_visa,
-                'asesor_nombre': asesor.get_full_name() if asesor else None
+                'asesor_nombre': asesor.get_full_name() if asesor else None,
+                'solicitud_id': solicitud.id
             }
         )
     
@@ -64,12 +86,7 @@ class NotificacionService:
         """
         Crea notificación cuando una entrevista es reprogramada.
         Destinatario: Cliente
-        
-        Args:
-            solicitud: Instancia de Solicitud
-            fecha_anterior, hora_anterior: Fecha/hora original
-            nueva_fecha, nueva_hora: Nueva fecha/hora
-            motivo: Motivo de la reprogramación
+        CRÍTICO: El cliente debe actualizar su agenda.
         """
         cliente = solicitud.cliente
         
@@ -91,7 +108,8 @@ class NotificacionService:
                 'hora_anterior': str(hora_anterior) if hora_anterior else None,
                 'nueva_fecha': str(nueva_fecha),
                 'nueva_hora': str(nueva_hora),
-                'motivo': motivo
+                'motivo': motivo,
+                'solicitud_id': solicitud.id
             }
         )
     
@@ -100,10 +118,7 @@ class NotificacionService:
         """
         Crea notificación cuando una entrevista es cancelada.
         Destinatario: Cliente
-        
-        Args:
-            solicitud: Instancia de Solicitud
-            motivo: Motivo de la cancelación
+        CRÍTICO: El cliente debe saber que se canceló.
         """
         cliente = solicitud.cliente
         
@@ -117,12 +132,13 @@ class NotificacionService:
             url_accion=f'/solicitudes/{solicitud.id}',
             datos={
                 'motivo': motivo,
-                'tipo_visa': solicitud.tipo_visa
+                'tipo_visa': solicitud.tipo_visa,
+                'solicitud_id': solicitud.id
             }
         )
     
     # =====================================================
-    # RECORDATORIOS
+    # RECORDATORIOS (CRÍTICOS)
     # =====================================================
     
     @staticmethod
@@ -130,12 +146,7 @@ class NotificacionService:
         """
         Crea recordatorio de entrevista.
         Destinatario: Cliente
-        
-        Args:
-            solicitud: Instancia de Solicitud
-            horas_restantes: Horas que faltan para la entrevista (24 o 2)
-            fecha_entrevista: Fecha de la entrevista
-            hora_entrevista: Hora de la entrevista
+        CRÍTICO: El cliente debe estar preparado.
         """
         cliente = solicitud.cliente
         
@@ -163,24 +174,21 @@ class NotificacionService:
             datos={
                 'horas_restantes': horas_restantes,
                 'fecha_entrevista': str(fecha_entrevista),
-                'hora_entrevista': str(hora_entrevista)
+                'hora_entrevista': str(hora_entrevista),
+                'solicitud_id': solicitud.id
             }
         )
     
     # =====================================================
-    # PREPARACIÓN Y SIMULACROS
+    # PREPARACIÓN Y SIMULACROS (ACCIONABLES)
     # =====================================================
     
     @staticmethod
     def notificar_preparacion_recomendada(solicitud, dias_para_entrevista):
         """
-        Crea notificación recomendando preparación si el cliente no ha hecho simulacro
-        y la entrevista es en 7 días o menos.
+        Crea notificación recomendando preparación.
         Destinatario: Cliente
-        
-        Args:
-            solicitud: Instancia de Solicitud
-            dias_para_entrevista: Días restantes hasta la entrevista
+        ACCIONABLE: El cliente debería agendar un simulacro.
         """
         cliente = solicitud.cliente
         
@@ -194,7 +202,8 @@ class NotificacionService:
             url_accion='/simulacros',
             datos={
                 'dias_para_entrevista': dias_para_entrevista,
-                'tipo_visa': solicitud.tipo_visa
+                'tipo_visa': solicitud.tipo_visa,
+                'solicitud_id': solicitud.id
             }
         )
     
@@ -203,9 +212,7 @@ class NotificacionService:
         """
         Crea notificación cuando un simulacro es completado.
         Destinatario: Asesor
-        
-        Args:
-            simulacro: Instancia de Simulacro
+        ACCIONABLE: El asesor debe agregar recomendaciones.
         """
         asesor = simulacro.asesor
         cliente = simulacro.cliente
@@ -218,6 +225,7 @@ class NotificacionService:
             detalle='Recuerda agregar las recomendaciones para el cliente.',
             url_accion=f'/asesor/simulacros/{simulacro.id}',
             datos={
+                'simulacro_id': simulacro.id,
                 'cliente_nombre': cliente.get_full_name(),
                 'cliente_email': cliente.email,
                 'duracion_minutos': simulacro.duracion_minutos,
@@ -230,9 +238,7 @@ class NotificacionService:
         """
         Crea notificación cuando las recomendaciones del simulacro están listas.
         Destinatario: Cliente
-        
-        Args:
-            simulacro: Instancia de Simulacro (con recomendaciones publicadas)
+        ACCIONABLE: El cliente debe revisar las recomendaciones.
         """
         cliente = simulacro.cliente
         asesor = simulacro.asesor
@@ -245,25 +251,22 @@ class NotificacionService:
             detalle='Revisa las recomendaciones para prepararte mejor para tu entrevista.',
             url_accion=f'/simulacros/{simulacro.id}/resumen',
             datos={
-                'asesor_nombre': asesor.get_full_name(),
                 'simulacro_id': simulacro.id,
+                'asesor_nombre': asesor.get_full_name(),
                 'fecha_simulacro': str(simulacro.fecha) if simulacro.fecha else None
             }
         )
     
     # =====================================================
-    # SIMULACROS - PROPUESTAS Y CONFIRMACIONES
+    # SIMULACROS - PROPUESTAS Y CONFIRMACIONES (CRÍTICOS)
     # =====================================================
     
     @staticmethod
     def notificar_simulacro_propuesto(simulacro, propuesto_por='asesor'):
         """
         Crea notificación cuando se propone un simulacro.
-        Destinatario: El otro participante (cliente si propone asesor, y viceversa)
-        
-        Args:
-            simulacro: Instancia de Simulacro
-            propuesto_por: 'asesor' o 'cliente'
+        Destinatario: El otro participante
+        ACCIONABLE: El destinatario debe aceptar o rechazar.
         """
         if propuesto_por == 'asesor':
             destinatario = simulacro.cliente
@@ -281,7 +284,7 @@ class NotificacionService:
             titulo='Nueva propuesta de simulacro',
             mensaje=f'{proponente} te ha propuesto un simulacro para el {fecha_fmt} a las {hora_fmt}.',
             detalle='Revisa la propuesta y confirma o propón una nueva fecha.',
-            url_accion='/simulacros',
+            url_accion=f'/simulacros/{simulacro.id}',
             datos={
                 'simulacro_id': simulacro.id,
                 'fecha_propuesta': str(simulacro.fecha) if simulacro.fecha else None,
@@ -295,9 +298,7 @@ class NotificacionService:
         """
         Crea notificación cuando un simulacro es confirmado.
         Destinatarios: Cliente y Asesor
-        
-        Args:
-            simulacro: Instancia de Simulacro
+        CRÍTICO: Ambos deben prepararse para la sesión.
         """
         fecha_fmt = simulacro.fecha.strftime('%d/%m/%Y') if simulacro.fecha else 'Por definir'
         hora_fmt = simulacro.hora.strftime('%H:%M') if simulacro.hora else 'Por definir'
@@ -338,36 +339,17 @@ class NotificacionService:
         return notificaciones
     
     # =====================================================
-    # DOCUMENTOS
+    # DOCUMENTOS - SOLO RECHAZOS (ACCIONABLE)
     # =====================================================
-    
-    @staticmethod
-    def notificar_documento_aprobado(documento, solicitud):
-        """
-        Crea notificación cuando un documento es aprobado.
-        Destinatario: Cliente
-        """
-        cliente = solicitud.cliente
-        
-        return Notificacion.objects.create(
-            usuario=cliente,
-            tipo='documento_aprobado',
-            titulo=f'Documento aprobado: {documento.tipo}',
-            mensaje=f'Tu documento "{documento.tipo}" ha sido revisado y aprobado.',
-            detalle='Buen trabajo. Continúa con los demás documentos requeridos.',
-            solicitud=solicitud,
-            url_accion=f'/solicitudes/{solicitud.id}',
-            datos={
-                'documento_id': documento.id,
-                'documento_tipo': documento.tipo
-            }
-        )
+    # NOTA: documento_subido y documento_aprobado fueron ELIMINADOS
+    # porque son informativos y generan ruido innecesario.
     
     @staticmethod
     def notificar_documento_rechazado(documento, solicitud, observaciones=''):
         """
         Crea notificación cuando un documento es rechazado.
         Destinatario: Cliente
+        ACCIONABLE: El cliente DEBE corregir y volver a subir.
         """
         cliente = solicitud.cliente
         
@@ -378,23 +360,27 @@ class NotificacionService:
             mensaje=f'Tu documento "{documento.tipo}" necesita correcciones.',
             detalle=observaciones if observaciones else 'Por favor, revisa las observaciones y vuelve a subir el documento corregido.',
             solicitud=solicitud,
-            url_accion=f'/solicitudes/{solicitud.id}',
+            url_accion=f'/solicitudes/{solicitud.id}/documentos',
             datos={
                 'documento_id': documento.id,
                 'documento_tipo': documento.tipo,
-                'observaciones': observaciones
+                'observaciones': observaciones,
+                'solicitud_id': solicitud.id
             }
         )
     
     # =====================================================
-    # SOLICITUDES
+    # SOLICITUDES - SOLO DECISIONES CRÍTICAS
     # =====================================================
+    # NOTA: solicitud_creada, solicitud_asignada, solicitud_en_revision
+    # fueron ELIMINADOS porque son informativos y generan ruido.
     
     @staticmethod
     def notificar_solicitud_aprobada(solicitud):
         """
         Crea notificación cuando una solicitud es aprobada.
         Destinatario: Cliente
+        CRÍTICO: El cliente debe conocer la decisión positiva.
         """
         cliente = solicitud.cliente
         
@@ -407,7 +393,8 @@ class NotificacionService:
             solicitud=solicitud,
             url_accion=f'/solicitudes/{solicitud.id}',
             datos={
-                'tipo_visa': solicitud.tipo_visa
+                'tipo_visa': solicitud.tipo_visa,
+                'solicitud_id': solicitud.id
             }
         )
     
@@ -416,6 +403,7 @@ class NotificacionService:
         """
         Crea notificación cuando una solicitud es rechazada.
         Destinatario: Cliente
+        CRÍTICO: El cliente debe conocer la decisión y las opciones.
         """
         cliente = solicitud.cliente
         
@@ -429,160 +417,23 @@ class NotificacionService:
             url_accion=f'/solicitudes/{solicitud.id}',
             datos={
                 'tipo_visa': solicitud.tipo_visa,
-                'motivo': motivo
-            }
-        )
-    
-    @staticmethod
-    def notificar_solicitud_enviada_embajada(solicitud, fecha_envio=None):
-        """
-        Crea notificación cuando la solicitud es enviada a la embajada.
-        Destinatario: Cliente
-        """
-        cliente = solicitud.cliente
-        fecha = fecha_envio or timezone.now()
-        
-        return Notificacion.objects.create(
-            usuario=cliente,
-            tipo='solicitud_enviada',
-            titulo='Tu solicitud ha sido enviada a la embajada',
-            mensaje=f'Tu solicitud de visa {solicitud.tipo_visa} ha sido formalmente presentada.',
-            detalle=f'Fecha de envío: {fecha.strftime("%d/%m/%Y")}. El tiempo de respuesta puede variar.',
-            solicitud=solicitud,
-            url_accion=f'/solicitudes/{solicitud.id}',
-            datos={
-                'tipo_visa': solicitud.tipo_visa,
-                'fecha_envio': str(fecha.date())
+                'motivo': motivo,
+                'solicitud_id': solicitud.id
             }
         )
     
     # =====================================================
-    # UTILIDADES
+    # CONTRATOS - SOLO ACCIONABLES
     # =====================================================
-    
-    @staticmethod
-    def crear_notificacion_general(usuario, titulo, mensaje, detalle='', url_accion='', datos=None):
-        """
-        Crea una notificación general.
-        
-        Args:
-            usuario: Usuario destinatario
-            titulo: Título de la notificación
-            mensaje: Mensaje principal
-            detalle: Detalle adicional
-            url_accion: URL para acción
-            datos: Datos adicionales (dict)
-        """
-        return Notificacion.objects.create(
-            usuario=usuario,
-            tipo='general',
-            titulo=titulo,
-            mensaje=mensaje,
-            detalle=detalle,
-            url_accion=url_accion,
-            datos=datos or {}
-        )
-    
-    # =====================================================
-    # SOLICITUDES - CICLO COMPLETO
-    # =====================================================
-    
-    @staticmethod
-    def notificar_solicitud_creada(solicitud):
-        """
-        Crea notificación cuando un cliente crea una nueva solicitud.
-        Destinatario: Asesores disponibles y el cliente
-        """
-        cliente = solicitud.cliente
-        
-        # Notificar al cliente
-        return Notificacion.objects.create(
-            usuario=cliente,
-            tipo='solicitud_creada',
-            titulo='Tu solicitud ha sido registrada',
-            mensaje=f'Tu solicitud de visa {solicitud.get_tipo_visa_display()} ha sido creada exitosamente.',
-            detalle='Pronto un asesor revisará tu solicitud y te contactará.',
-            solicitud=solicitud,
-            url_accion=f'/solicitudes/{solicitud.id}',
-            datos={
-                'tipo_visa': solicitud.tipo_visa,
-                'embajada': solicitud.embajada
-            }
-        )
-    
-    @staticmethod
-    def notificar_solicitud_asignada(solicitud):
-        """
-        Crea notificación cuando una solicitud es asignada a un asesor.
-        Destinatarios: Cliente y Asesor
-        """
-        notificaciones = []
-        cliente = solicitud.cliente
-        asesor = solicitud.asesor
-        
-        # Notificar al cliente
-        notificaciones.append(Notificacion.objects.create(
-            usuario=cliente,
-            tipo='solicitud_asignada',
-            titulo='Se te ha asignado un asesor',
-            mensaje=f'{asesor.get_full_name()} ha sido asignado para ayudarte con tu solicitud de visa {solicitud.get_tipo_visa_display()}.',
-            detalle='Tu asesor revisará tu documentación y te contactará pronto.',
-            solicitud=solicitud,
-            url_accion=f'/solicitudes/{solicitud.id}',
-            datos={
-                'asesor_nombre': asesor.get_full_name(),
-                'asesor_email': asesor.email
-            }
-        ))
-        
-        # Notificar al asesor
-        notificaciones.append(Notificacion.objects.create(
-            usuario=asesor,
-            tipo='solicitud_asignada',
-            titulo='Nueva solicitud asignada',
-            mensaje=f'Se te ha asignado la solicitud de {cliente.get_full_name()} para visa {solicitud.get_tipo_visa_display()}.',
-            detalle='Revisa la documentación del cliente y contacta con él.',
-            solicitud=solicitud,
-            url_accion=f'/asesor/solicitudes/{solicitud.id}',
-            datos={
-                'cliente_nombre': cliente.get_full_name(),
-                'cliente_email': cliente.email,
-                'tipo_visa': solicitud.tipo_visa
-            }
-        ))
-        
-        return notificaciones
-    
-    @staticmethod
-    def notificar_solicitud_en_revision(solicitud):
-        """
-        Crea notificación cuando una solicitud pasa a revisión.
-        Destinatario: Cliente
-        """
-        cliente = solicitud.cliente
-        
-        return Notificacion.objects.create(
-            usuario=cliente,
-            tipo='solicitud_en_revision',
-            titulo='Tu solicitud está en revisión',
-            mensaje=f'Tu asesor está revisando tu solicitud de visa {solicitud.get_tipo_visa_display()}.',
-            detalle='Te notificaremos cuando haya actualizaciones.',
-            solicitud=solicitud,
-            url_accion=f'/solicitudes/{solicitud.id}',
-            datos={
-                'tipo_visa': solicitud.tipo_visa
-            }
-        )
-    
-    # =====================================================
-    # CONTRATOS
-    # =====================================================
+    # NOTA: contrato_firmado fue ELIMINADO porque es confirmación,
+    # no requiere acción adicional.
     
     @staticmethod
     def notificar_contrato_generado(solicitud, contrato_url=''):
         """
         Crea notificación cuando se genera un contrato para el cliente.
         Destinatario: Cliente
+        ACCIONABLE: El cliente debe revisar y firmar.
         """
         cliente = solicitud.cliente
         
@@ -596,7 +447,8 @@ class NotificacionService:
             url_accion=f'/solicitudes/{solicitud.id}/contrato',
             datos={
                 'tipo_visa': solicitud.tipo_visa,
-                'contrato_url': contrato_url
+                'contrato_url': contrato_url,
+                'solicitud_id': solicitud.id
             }
         )
     
@@ -605,6 +457,7 @@ class NotificacionService:
         """
         Crea notificación recordando al cliente que firme el contrato.
         Destinatario: Cliente
+        ACCIONABLE: El cliente DEBE firmar para continuar.
         """
         cliente = solicitud.cliente
         
@@ -617,57 +470,17 @@ class NotificacionService:
             solicitud=solicitud,
             url_accion=f'/solicitudes/{solicitud.id}/contrato',
             datos={
-                'tipo_visa': solicitud.tipo_visa
+                'tipo_visa': solicitud.tipo_visa,
+                'solicitud_id': solicitud.id
             }
         )
-    
-    @staticmethod
-    def notificar_contrato_firmado(solicitud):
-        """
-        Crea notificación cuando el cliente firma el contrato.
-        Destinatarios: Cliente y Asesor
-        """
-        notificaciones = []
-        cliente = solicitud.cliente
-        asesor = solicitud.asesor
-        
-        # Notificar al cliente
-        notificaciones.append(Notificacion.objects.create(
-            usuario=cliente,
-            tipo='contrato_firmado',
-            titulo='¡Contrato firmado exitosamente!',
-            mensaje='Has firmado el contrato de servicios.',
-            detalle='Ahora puedes continuar con la documentación requerida.',
-            solicitud=solicitud,
-            url_accion=f'/solicitudes/{solicitud.id}',
-            datos={
-                'tipo_visa': solicitud.tipo_visa
-            }
-        ))
-        
-        # Notificar al asesor
-        if asesor:
-            notificaciones.append(Notificacion.objects.create(
-                usuario=asesor,
-                tipo='contrato_firmado',
-                titulo=f'{cliente.get_full_name()} firmó el contrato',
-                mensaje=f'El cliente ha firmado el contrato para su solicitud de visa {solicitud.get_tipo_visa_display()}.',
-                detalle='Puedes continuar con el proceso de la solicitud.',
-                solicitud=solicitud,
-                url_accion=f'/asesor/solicitudes/{solicitud.id}',
-                datos={
-                    'cliente_nombre': cliente.get_full_name(),
-                    'tipo_visa': solicitud.tipo_visa
-                }
-            ))
-        
-        return notificaciones
     
     @staticmethod
     def notificar_contrato_aprobado(solicitud):
         """
         Crea notificación cuando el asesor/admin aprueba el contrato.
         Destinatario: Cliente
+        ACCIONABLE: El cliente puede comenzar a subir documentación.
         """
         cliente = solicitud.cliente
         
@@ -680,43 +493,13 @@ class NotificacionService:
             solicitud=solicitud,
             url_accion=f'/solicitudes/{solicitud.id}/documentos',
             datos={
-                'tipo_visa': solicitud.tipo_visa
+                'tipo_visa': solicitud.tipo_visa,
+                'solicitud_id': solicitud.id
             }
         )
     
     # =====================================================
-    # DOCUMENTOS - ADICIONALES
-    # =====================================================
-    
-    @staticmethod
-    def notificar_documento_subido(documento, solicitud):
-        """
-        Crea notificación cuando un cliente sube un documento.
-        Destinatario: Asesor
-        """
-        asesor = solicitud.asesor
-        cliente = solicitud.cliente
-        
-        if not asesor:
-            return None
-        
-        return Notificacion.objects.create(
-            usuario=asesor,
-            tipo='documento_subido',
-            titulo=f'Nuevo documento de {cliente.get_full_name()}',
-            mensaje=f'El cliente ha subido el documento "{documento.nombre}".',
-            detalle='Revisa el documento cuando tengas oportunidad.',
-            solicitud=solicitud,
-            url_accion=f'/asesor/solicitudes/{solicitud.id}/documentos',
-            datos={
-                'documento_id': documento.id,
-                'documento_nombre': documento.nombre,
-                'cliente_nombre': cliente.get_full_name()
-            }
-        )
-    
-    # =====================================================
-    # EMBAJADA - DECISIONES
+    # EMBAJADA - DECISIONES (CRÍTICAS)
     # =====================================================
     
     @staticmethod
@@ -724,6 +507,7 @@ class NotificacionService:
         """
         Crea notificación cuando la embajada aprueba una solicitud.
         Destinatario: Cliente
+        CRÍTICO: Decisión final positiva.
         """
         cliente = solicitud.cliente
         
@@ -738,7 +522,8 @@ class NotificacionService:
             datos={
                 'tipo_visa': solicitud.tipo_visa,
                 'embajada': solicitud.embajada,
-                'fecha_aprobacion': str(timezone.now().date())
+                'fecha_aprobacion': str(timezone.now().date()),
+                'solicitud_id': solicitud.id
             }
         )
     
@@ -747,6 +532,7 @@ class NotificacionService:
         """
         Crea notificación cuando la embajada rechaza una solicitud.
         Destinatario: Cliente
+        CRÍTICO: Decisión final negativa.
         """
         cliente = solicitud.cliente
         
@@ -762,8 +548,29 @@ class NotificacionService:
                 'tipo_visa': solicitud.tipo_visa,
                 'embajada': solicitud.embajada,
                 'motivo': motivo,
-                'fecha_rechazo': str(timezone.now().date())
+                'fecha_rechazo': str(timezone.now().date()),
+                'solicitud_id': solicitud.id
             }
+        )
+    
+    # =====================================================
+    # UTILIDADES
+    # =====================================================
+    
+    @staticmethod
+    def crear_notificacion_general(usuario, titulo, mensaje, detalle='', url_accion='', datos=None):
+        """
+        Crea una notificación general.
+        Usar con moderación - preferir tipos específicos.
+        """
+        return Notificacion.objects.create(
+            usuario=usuario,
+            tipo='general',
+            titulo=titulo,
+            mensaje=mensaje,
+            detalle=detalle,
+            url_accion=url_accion,
+            datos=datos or {}
         )
 
 
