@@ -1,28 +1,64 @@
-#language: es
-Característica: Simulación de entrevista para migrantes
-  Como migrante en proceso de preparación
+# language: es
+Característica: Simulacion de entrevista para migrantes
+  Como migrante en proceso de preparacion
   quiero realizar simulacros de entrevistas adaptados a mi visado
   para familiarizarme con el formato de preguntas antes de la cita con la embajada
 
   Antecedentes:
-    Dado que el sistema tiene configurados los siguientes límites:
-      | parámetro                    | valor |
-      | máximo_simulacros_por_cliente| 2     |
-      | minutos_anticipación_entrada | 15    |
-      | horas_cancelación_anticipada | 24    |
+    Dado que el sistema tiene configurados los siguientes limites:
+      | parametro                     | valor |
+      | maximo_simulacros_por_cliente | 2     |
+      | minutos_anticipacion_entrada  | 15    |
+      | horas_cancelacion_anticipada  | 24    |
 
-  Escenario: Aceptar propuesta de simulacro del asesor
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"
+#=====================================
+#  ROLES Y PERMISOS EN SIMULACROS
+#=====================================
+
+  Escenario: Asesor crea propuesta de simulacro para cliente
+    Dado que soy el asesor "Carlos Ruiz" con ID "ASE-001"
+    Y tengo asignado al cliente "Oscar Perez" con ID "MIG-12345"
+    Cuando creo una propuesta de simulacro con los siguientes datos
+      | fecha      | hora  | modalidad |
+      | 2026-02-10 | 15:00 | Virtual   |
+    Entonces se crea el simulacro con estado "Pendiente de respuesta"
+    Y el cliente "Oscar Perez" recibe la notificacion "Nueva propuesta de simulacro"
+
+  Escenario: Cliente acepta propuesta de simulacro del asesor
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
     Y mi contador de simulacros realizados es 0
-    Y tengo una propuesta de simulacro con los siguientes datos:
-      | id      | fecha      | hora  | modalidad | estado                 |
-      | SIM-001 | 2026-02-10 | 15:00 | Virtual   | Pendiente de respuesta |
+    Y tengo una propuesta de simulacro con los siguientes datos
+      | id      | fecha      | hora  | modalidad | estado                 | propuesto_por |
+      | SIM-001 | 2026-02-10 | 15:00 | Virtual   | Pendiente de respuesta | asesor        |
     Cuando acepto la propuesta de simulacro "SIM-001"
     Entonces el estado del simulacro debe cambiar a "Confirmado"
     Y mi contador de simulacros debe ser 1
 
+  Escenario: Cliente NO puede aceptar propuesta que el mismo creo
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
+    Y tengo una propuesta de simulacro con los siguientes datos
+      | id      | fecha      | hora  | modalidad | estado    | propuesto_por |
+      | SIM-002 | 2026-02-12 | 10:00 | Virtual   | Solicitado| cliente       |
+    Cuando intento aceptar la propuesta de simulacro "SIM-002"
+    Entonces el sistema rechaza la accion
+    Y muestra el mensaje "No puedes aceptar una propuesta que tu mismo creaste"
+    Y el estado del simulacro permanece "Solicitado"
+
+  Escenario: Asesor acepta solicitud de simulacro del cliente
+    Dado que soy el asesor "Carlos Ruiz" con ID "ASE-001"
+    Y existe una solicitud de simulacro del cliente "Oscar Perez" con los siguientes datos
+      | id      | fecha      | hora  | modalidad | estado    | propuesto_por |
+      | SIM-002 | 2026-02-12 | 10:00 | Virtual   | Solicitado| cliente       |
+    Cuando acepto la propuesta de simulacro "SIM-002"
+    Entonces el estado del simulacro debe cambiar a "Confirmado"
+    Y el cliente recibe la notificacion "Tu solicitud de simulacro fue confirmada"
+
+#=====================================
+#  PROPUESTAS Y CONTRAPROPUESTAS
+#=====================================
+
   Escenario: Proponer fecha alternativa para simulacro
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
     Y mi contador de simulacros realizados es 0
     Y tengo una propuesta de simulacro con ID "SIM-001" para "2026-02-10 15:00"
     Cuando propongo la fecha alternativa "2026-02-12 16:00" para el simulacro "SIM-001"
@@ -30,8 +66,12 @@ Característica: Simulación de entrevista para migrantes
     Y la fecha propuesta debe ser "2026-02-12 16:00"
     Y mi contador de simulacros debe permanecer en 0
 
-  Esquema del escenario: Consultar disponibilidad según simulacros realizados
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"
+#=====================================
+#  DISPONIBILIDAD DE SIMULACROS
+#=====================================
+
+  Esquema del escenario: Consultar disponibilidad segun simulacros realizados
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
     Y mi contador de simulacros realizados es <simulacros_realizados>
     Cuando consulto la disponibilidad para nuevo simulacro
     Entonces la disponibilidad debe ser "<disponibilidad>"
@@ -41,10 +81,52 @@ Característica: Simulación de entrevista para migrantes
       | simulacros_realizados | disponibilidad | mensaje                                            |
       | 0                     | disponible     | Puede solicitar hasta 2 simulacros en total        |
       | 1                     | disponible     | Tiene 1 simulacro disponible restante              |
-      | 2                     | no_disponible  | Ha alcanzado el límite de 2 simulacros por proceso |
+      | 2                     | no_disponible  | Ha alcanzado el limite de 2 simulacros por proceso |
+
+#=====================================
+#  REQUISITO: SOLICITUD APROBADA POR EMBAJADA
+#=====================================
+
+  Escenario: Cliente puede solicitar simulacro con solicitud aprobada por embajada
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
+    Y tengo una solicitud de visa con estado "aprobada_embajada"
+    Y mi contador de simulacros realizados es 0
+    Cuando solicito un simulacro de entrevista para esa solicitud
+    Entonces el simulacro debe crearse correctamente con estado "Solicitado"
+    Y el asesor debe recibir la notificacion "Nueva solicitud de simulacro"
+
+  Escenario: Cliente puede solicitar simulacro cuando la entrevista esta agendada
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
+    Y tengo una solicitud de visa con estado "entrevista_agendada"
+    Y mi contador de simulacros realizados es 0
+    Cuando solicito un simulacro de entrevista para esa solicitud
+    Entonces el simulacro debe crearse correctamente con estado "Solicitado"
+    Y el asesor debe recibir la notificacion "Nueva solicitud de simulacro"
+
+  Esquema del escenario: Cliente NO puede solicitar simulacro si solicitud no esta aprobada por embajada
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
+    Y tengo una solicitud de visa con estado "<estado_solicitud>"
+    Y mi contador de simulacros realizados es 0
+    Cuando intento solicitar un simulacro de entrevista para esa solicitud
+    Entonces el sistema rechaza la solicitud de simulacro
+    Y muestra el mensaje "Solo puede solicitar un simulacro cuando su solicitud haya sido aprobada por la embajada o cuando la entrevista este agendada"
+
+    Ejemplos:
+      | estado_solicitud        |
+      | borrador                |
+      | pendiente               |
+      | en_revision             |
+      | aprobada                |
+      | enviada_embajada        |
+      | esperando_decision_embajada |
+      | rechazada_embajada      |
+
+#=====================================
+#  SALA DE ESPERA Y SESION
+#=====================================
 
   Escenario: Ingresar a sala de espera dentro del tiempo permitido
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
     Y tengo un simulacro confirmado con ID "SIM-001" para hoy "2026-02-10 15:00"
     Y la modalidad del simulacro es "Virtual"
     Y la hora actual del sistema es "14:50"
@@ -52,68 +134,84 @@ Característica: Simulación de entrevista para migrantes
     Entonces el estado del simulacro debe ser "En sala de espera"
     Y el tiempo restante para inicio debe ser 10 minutos
 
-  Escenario: Iniciar sesión cuando asesor activa el simulacro
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"
+  Escenario: Iniciar sesion cuando asesor activa el simulacro
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
     Y estoy en sala de espera del simulacro "SIM-001"
-    Y el simulacro está programado para "15:00"
+    Y el simulacro esta programado para "15:00"
     Y la hora actual es "15:00"
-    Cuando el asesor "Carlos Ruiz" inicia la sesión del simulacro "SIM-001"
+    Cuando el asesor "Carlos Ruiz" inicia la sesion del simulacro "SIM-001"
     Entonces el estado del simulacro debe cambiar a "En progreso"
-    Y la grabación debe estar activa
+    Y la grabacion debe estar activa
     Y el temporizador debe iniciar en 0
 
   Escenario: Finalizar simulacro por el asesor
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
     Y mi contador de simulacros realizados es 0
-    Y estoy en sesión activa del simulacro "SIM-001"
+    Y estoy en sesion activa del simulacro "SIM-001"
     Y el temporizador marca 28 minutos
-    Y la grabación está activa
+    Y la grabacion esta activa
     Cuando el asesor "Carlos Ruiz" finaliza el simulacro "SIM-001"
     Entonces el estado del simulacro debe cambiar a "Completado"
-    Y la duración registrada debe ser 28 minutos
+    Y la duracion registrada debe ser 28 minutos
     Y mi contador de simulacros debe ser 1
-    Y la grabación debe estar detenida
+    Y la grabacion debe estar detenida
 
-  Escenario: Acceder por primera vez a práctica individual
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"
+#=====================================
+#  PRACTICA INDIVIDUAL
+#=====================================
+
+  Escenario: Acceder por primera vez a practica individual
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
     Y mi tipo de visa asignado es "Estudiante"
-    Y nunca he accedido a "Práctica Individual"
-    Cuando accedo a la sección de práctica individual
+    Y nunca he accedido a "Practica Individual"
+    Cuando accedo a la seccion de practica individual
     Entonces debo ver 4 tipos de visa disponibles
     Y el tipo "Estudiante" debe estar marcado como "Sugerido"
 
-  Esquema del escenario: Completar cuestionario de práctica
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"
-    Y inicié un cuestionario de práctica para visa "<tipo_visa>"
+  Esquema del escenario: Completar cuestionario de practica
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
+    Y inicie un cuestionario de practica para visa "<tipo_visa>"
     Y el cuestionario tiene 10 preguntas
     Cuando completo el cuestionario con <correctas> respuestas correctas
-    Entonces mi puntuación debe ser <porcentaje>
-    Y la calificación debe ser "<calificacion>"
+    Entonces mi puntuacion debe ser <porcentaje>
+    Y la calificacion debe ser "<calificacion>"
     Y el mensaje debe ser "<mensaje>"
 
     Ejemplos:
       | tipo_visa  | correctas | porcentaje | calificacion | mensaje                                          |
-      | Estudiante | 9         | 90         | Excelente    | ¡Muy bien! Estás muy preparado                   |
+      | Estudiante | 9         | 90         | Excelente    | Muy bien! Estas muy preparado                    |
       | Estudiante | 7         | 70         | Bueno        | Buen trabajo, repasa las preguntas incorrectas   |
-      | Estudiante | 5         | 50         | Regular      | Necesitas practicar más antes del simulacro real |
-      | Trabajo    | 3         | 30         | Insuficiente | Te recomendamos estudiar más este tema           |
 
   Escenario: Revisar preguntas incorrectas del cuestionario
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"
-    Y completé un cuestionario con 3 respuestas incorrectas
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
+    Y complete un cuestionario con 3 respuestas incorrectas
     Cuando solicito ver las respuestas incorrectas
     Entonces debo ver exactamente 3 preguntas
     Y cada pregunta debe mostrar mi respuesta como incorrecta
     Y cada pregunta debe mostrar la respuesta correcta
-    Y cada pregunta debe incluir una explicación
+    Y cada pregunta debe incluir una explicacion
 
-  Escenario: Cancelar simulacro con menos de 24 horas de anticipación
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"
+#=====================================
+#  CANCELACIONES
+#=====================================
+
+  Escenario: Cancelar simulacro con menos de 24 horas de anticipacion
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
     Y mi contador de simulacros realizados es 0
     Y tengo un simulacro confirmado con ID "SIM-001" para "2026-02-10 15:00"
     Y hoy es "2026-02-10" a las "10:00"
     Cuando cancelo el simulacro "SIM-001"
-    Entonces la cancelación debe ser rechazada
-    Y el mensaje de error debe ser "No puedes cancelar con menos de 24 horas de anticipación"
+    Entonces la cancelacion debe ser rechazada
+    Y el mensaje de error debe ser "No puedes cancelar con menos de 24 horas de anticipacion"
     Y mi contador de simulacros debe permanecer en 0
     Y el estado del simulacro debe permanecer "Confirmado"
+
+  Escenario: Cancelar simulacro con mas de 24 horas de anticipacion
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
+    Y mi contador de simulacros realizados es 0
+    Y tengo un simulacro confirmado con ID "SIM-001" para "2026-02-12 15:00"
+    Y hoy es "2026-02-10" a las "10:00"
+    Cuando cancelo el simulacro "SIM-001"
+    Entonces la cancelacion debe ser aceptada
+    Y el estado del simulacro debe cambiar a "Cancelado"
+    Y mi contador de simulacros debe permanecer en 0

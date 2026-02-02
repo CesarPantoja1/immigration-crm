@@ -1,134 +1,108 @@
-Característica: Recepción de solicitudes # features/solicitudes/recepcion/recepcion_solicitud.feature:3
-  Como migrante de la agencia de migración
-  quiero registrar mi solicitud de visa
-  para garantizar una entrevista con la embajada
-  Antecedentes:   # features/solicitudes/recepcion/recepcion_solicitud.feature:11
+Característica: Simulacion de entrevista para migrantes # features/preparacion/simulacion/simulacion_entrevista.feature:2
+  Como migrante en proceso de preparacion
+  quiero realizar simulacros de entrevistas adaptados a mi visado
+  para familiarizarme con el formato de preguntas antes de la cita con la embajada
+  Antecedentes:   # features/preparacion/simulacion/simulacion_entrevista.feature:7
 
-  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.1   # features/solicitudes/recepcion/recepcion_solicitud.feature:34
-    Dado que existen los siguientes checklists de documentos por tipo de visa        # None
-      | tipo_visa | documentos_obligatorios                                         |
-      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
-      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
-      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
-    Y que existen las embajadas                                                      # None
-      | nombre         |
-      | ESTADOUNIDENSE |
-      | BRASILEÑA      |
-    Dado que un migrante solicita visa VIVIENDA para embajada ESTADOUNIDENSE         # None
-    Cuando carga todos los documentos obligatorios                                   # None
-      | documentos                                                    |
-      | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad |
-    Entonces todos los documentos tienen estado "EN_REVISION"                        # None
-    Y el estado de la solicitud es "EN_REVISION"                                     # None
-    Y el sistema registra la solicitud                                               # None
+  Escenario: Asesor crea propuesta de simulacro para cliente                         # features/preparacion/simulacion/simulacion_entrevista.feature:18
+    Dado que el sistema tiene configurados los siguientes limites                    # None
+      | parametro                     | valor |
+      | maximo_simulacros_por_cliente | 2     |
+      | minutos_anticipacion_entrada  | 15    |
+      | horas_cancelacion_anticipada  | 24    |
+    Dado que soy el asesor "Carlos Ruiz" con ID "ASE-001"                            # None
+    Y tengo asignado al cliente "Oscar Perez" con ID "MIG-12345"                     # None
+    Cuando creo una propuesta de simulacro con los siguientes datos                  # None
+      | fecha      | hora  | modalidad |
+      | 2026-02-10 | 15:00 | Virtual   |
+    Entonces se crea el simulacro con estado "Pendiente de respuesta"                # None
+    Y el cliente "Oscar Perez" recibe la notificacion "Nueva propuesta de simulacro" # None
 
-  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.2   # features/solicitudes/recepcion/recepcion_solicitud.feature:35
-    Dado que existen los siguientes checklists de documentos por tipo de visa        # None
-      | tipo_visa | documentos_obligatorios                                         |
-      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
-      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
-      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
-    Y que existen las embajadas                                                      # None
-      | nombre         |
-      | ESTADOUNIDENSE |
-      | BRASILEÑA      |
-    Dado que un migrante solicita visa TRABAJO para embajada BRASILEÑA               # None
-    Cuando carga todos los documentos obligatorios                                   # None
-      | documentos                                                 |
-      | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo |
-    Entonces todos los documentos tienen estado "EN_REVISION"                        # None
-    Y el estado de la solicitud es "EN_REVISION"                                     # None
-    Y el sistema registra la solicitud                                               # None
+  Escenario: Cliente acepta propuesta de simulacro del asesor     # features/preparacion/simulacion/simulacion_entrevista.feature:27
+    Dado que el sistema tiene configurados los siguientes limites # None
+      | parametro                     | valor |
+      | maximo_simulacros_por_cliente | 2     |
+      | minutos_anticipacion_entrada  | 15    |
+      | horas_cancelacion_anticipada  | 24    |
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"     # None
+    Y mi contador de simulacros realizados es 0                   # None
+    Y tengo una propuesta de simulacro con los siguientes datos   # None
+      | id      | fecha      | hora  | modalidad | estado                 | propuesto_por |
+      | SIM-001 | 2026-02-10 | 15:00 | Virtual   | Pendiente de respuesta | asesor        |
+    Cuando acepto la propuesta de simulacro "SIM-001"             # None
+    Entonces el estado del simulacro debe cambiar a "Confirmado"  # None
+    Y mi contador de simulacros debe ser 1                        # None
 
-  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.3   # features/solicitudes/recepcion/recepcion_solicitud.feature:36
-    Dado que existen los siguientes checklists de documentos por tipo de visa        # None
-      | tipo_visa | documentos_obligatorios                                         |
-      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
-      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
-      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
-    Y que existen las embajadas                                                      # None
-      | nombre         |
-      | ESTADOUNIDENSE |
-      | BRASILEÑA      |
-    Dado que un migrante solicita visa ESTUDIO para embajada ESTADOUNIDENSE          # None
-    Cuando carga todos los documentos obligatorios                                   # None
-      | documentos                                                      |
-      | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
-    Entonces todos los documentos tienen estado "EN_REVISION"                        # None
-    Y el estado de la solicitud es "EN_REVISION"                                     # None
-    Y el sistema registra la solicitud                                               # None
+  Escenario: Cliente NO puede aceptar propuesta que el mismo creo                        # features/preparacion/simulacion/simulacion_entrevista.feature:37
+    Dado que el sistema tiene configurados los siguientes limites                        # None
+      | parametro                     | valor |
+      | maximo_simulacros_por_cliente | 2     |
+      | minutos_anticipacion_entrada  | 15    |
+      | horas_cancelacion_anticipada  | 24    |
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                            # None
+    Y tengo una propuesta de simulacro con los siguientes datos                          # None
+      | id      | fecha      | hora  | modalidad | estado     | propuesto_por |
+      | SIM-002 | 2026-02-12 | 10:00 | Virtual   | Solicitado | cliente       |
+    Cuando intento aceptar la propuesta de simulacro "SIM-002"                           # None
+    Entonces el sistema rechaza la accion                                                # None
+    Y muestra el mensaje de error "No puedes aceptar una propuesta que tu mismo creaste" # None
+    Y el estado del simulacro permanece "Solicitado"                                     # None
 
-  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.1   # features/solicitudes/recepcion/recepcion_solicitud.feature:63
-    Dado que existen los siguientes checklists de documentos por tipo de visa                          # None
-      | tipo_visa | documentos_obligatorios                                         |
-      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
-      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
-      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
-    Y que existen las embajadas                                                                        # None
-      | nombre         |
-      | ESTADOUNIDENSE |
-      | BRASILEÑA      |
-    Dado que existe una solicitud de visa VIVIENDA con embajada ESTADOUNIDENSE con id VVE01            # None
-    Y todos los documentos están en estado "EN_REVISION"                                               # None
-    Cuando el asesor revisa todos los documentos de la solicitud                                       # None
-    Y todos los documentos son "Correcto"                                                              # None
-    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # None
-    Y el estado de la solicitud debe ser "APROBADO"                                                    # None
-    Y los documentos quedan almacenados en el sistema                                                  # None
-    Y el migrante recibe la notificación "VISA_VIVIENDA_APROBADA"                                      # None
+  Escenario: Asesor acepta solicitud de simulacro del cliente                              # features/preparacion/simulacion/simulacion_entrevista.feature:47
+    Dado que el sistema tiene configurados los siguientes limites                          # None
+      | parametro                     | valor |
+      | maximo_simulacros_por_cliente | 2     |
+      | minutos_anticipacion_entrada  | 15    |
+      | horas_cancelacion_anticipada  | 24    |
+    Dado que soy el asesor "Carlos Ruiz" con ID "ASE-001"                                  # None
+    Y existe una solicitud de simulacro del cliente "Oscar Perez" con los siguientes datos # None
+      | id      | fecha      | hora  | modalidad | estado     | propuesto_por |
+      | SIM-002 | 2026-02-12 | 10:00 | Virtual   | Solicitado | cliente       |
+    Cuando acepto la propuesta de simulacro "SIM-002"                                      # None
+    Entonces el estado del simulacro debe cambiar a "Confirmado"                           # None
+    Y el cliente recibe la notificacion "Tu solicitud de simulacro fue confirmada"         # None
 
-  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.2   # features/solicitudes/recepcion/recepcion_solicitud.feature:64
-    Dado que existen los siguientes checklists de documentos por tipo de visa                          # None
-      | tipo_visa | documentos_obligatorios                                         |
-      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
-      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
-      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
-    Y que existen las embajadas                                                                        # None
-      | nombre         |
-      | ESTADOUNIDENSE |
-      | BRASILEÑA      |
-    Dado que existe una solicitud de visa TRABAJO con embajada BRASILEÑA con id VTB01                  # None
-    Y todos los documentos están en estado "EN_REVISION"                                               # None
-    Cuando el asesor revisa todos los documentos de la solicitud                                       # None
-    Y todos los documentos son "Correcto"                                                              # None
-    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # None
-    Y el estado de la solicitud debe ser "APROBADO"                                                    # None
-    Y los documentos quedan almacenados en el sistema                                                  # None
-    Y el migrante recibe la notificación "VISA_TRABAJO_APROBADA"                                       # None
+  Escenario: Proponer fecha alternativa para simulacro                                  # features/preparacion/simulacion/simulacion_entrevista.feature:60
+    Dado que el sistema tiene configurados los siguientes limites                       # None
+      | parametro                     | valor |
+      | maximo_simulacros_por_cliente | 2     |
+      | minutos_anticipacion_entrada  | 15    |
+      | horas_cancelacion_anticipada  | 24    |
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                           # None
+    Y mi contador de simulacros realizados es 0                                         # None
+    Y tengo una propuesta de simulacro con ID "SIM-001" para "2026-02-10 15:00"         # None
+    Cuando propongo la fecha alternativa "2026-02-12 16:00" para el simulacro "SIM-001" # None
+    Entonces el estado del simulacro debe cambiar a "Contrapropuesta pendiente"         # None
+    Y la fecha propuesta debe ser "2026-02-12 16:00"                                    # None
+    Y mi contador de simulacros debe permanecer en 0                                    # None
 
-  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.3   # features/solicitudes/recepcion/recepcion_solicitud.feature:65
-    Dado que existen los siguientes checklists de documentos por tipo de visa                          # None
-      | tipo_visa | documentos_obligatorios                                         |
-      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
-      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
-      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
-    Y que existen las embajadas                                                                        # None
-      | nombre         |
-      | ESTADOUNIDENSE |
-      | BRASILEÑA      |
-    Dado que existe una solicitud de visa ESTUDIO con embajada BRASILEÑA con id VEB01                  # None
-    Y todos los documentos están en estado "EN_REVISION"                                               # None
-    Cuando el asesor revisa todos los documentos de la solicitud                                       # None
-    Y todos los documentos son "Correcto"                                                              # None
-    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # None
-    Y el estado de la solicitud debe ser "APROBADO"                                                    # None
-    Y los documentos quedan almacenados en el sistema                                                  # None
-    Y el migrante recibe la notificación "VISA_ESTUDIO_APROBADA"                                       # None
+  Esquema del escenario: Consultar disponibilidad segun simulacros realizados -- @1.1   # features/preparacion/simulacion/simulacion_entrevista.feature:82
+    Dado que el sistema tiene configurados los siguientes limites                       # None
+      | parametro                     | valor |
+      | maximo_simulacros_por_cliente | 2     |
+      | minutos_anticipacion_entrada  | 15    |
+      | horas_cancelacion_anticipada  | 24    |
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                           # None
+    Y mi contador de simulacros realizados es 0                                         # None
+    Cuando consulto la disponibilidad para nuevo simulacro                              # None
+    Entonces la disponibilidad debe ser "disponible"                                    # None
+    Y el mensaje informativo debe ser "Puede solicitar hasta 2 simulacros en total"     # None
 
-  Esquema del escenario: Asesor rechaza solicitud por documento incorrecto -- @1.1            # features/solicitudes/recepcion/recepcion_solicitud.feature:81
-    Dado que existen los siguientes checklists de documentos por tipo de visa                 # None
-      | tipo_visa | documentos_obligatorios                                         |
-      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
-      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
-      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
-    Y que existen las embajadas                                                               # None
-      | nombre         |
-      | ESTADOUNIDENSE |
-      | BRASILEÑA      |
-    Dado que existe una solicitud de visa VIVIENDA con embajada ESTADOUNIDENSE con id "VVE01" # None
-    Y todos los documentos están en estado "EN_REVISION"                                      # None
-    Cuando el asesor revisa todos los documentos de la solicitud                              # None
-    Y el documento "Pasaporte" es "Incorrecto"                                                # None
-    Entonces el documento "Pasaporte" debe cambiar a estado "DESAPROBADO"                     # None
-    Y el estado de la solicitud debe ser "DESAPROBADO"                                        # None
-    Y el migrante recibe la notificación "DOCUMENTO_RECHAZADO: Pasaporte"                     # None
+  Esquema del escenario: Consultar disponibilidad segun simulacros realizados -- @1.2   # features/preparacion/simulacion/simulacion_entrevista.feature:83
+    Dado que el sistema tiene configurados los siguientes limites                       # None
+      | parametro                     | valor |
+      | maximo_simulacros_por_cliente | 2     |
+      | minutos_anticipacion_entrada  | 15    |
+      | horas_cancelacion_anticipada  | 24    |
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                           # None
+    Y mi contador de simulacros realizados es 1                                         # None
+    Cuando consulto la disponibilidad para nuevo simulacro                              # None
+    Entonces la disponibilidad debe ser "disponible"                                    # None
+    Y el mensaje informativo debe ser "Tiene 1 simulacro disponible restante"           # None
+
+  Esquema del escenario: Consultar disponibilidad segun simulacros realizados -- @1.3      # features/preparacion/simulacion/simulacion_entrevista.feature:84
+    Dado que el sistema tiene configurados los siguientes limites                          # None
+      | parametro                     | valor |
+      | maximo_simulacros_por_cliente | 2     |
+      | minutos_anticipacion_entrada  | 15    |
+      | horas_cancelacion_anticipada  | 24    |

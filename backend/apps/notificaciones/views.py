@@ -26,24 +26,30 @@ class NotificacionPagination(PageNumberPagination):
 class NotificacionesListView(generics.ListAPIView):
     """
     GET /api/notificaciones/
-    Lista notificaciones del usuario.
+
+    Lista notificaciones del usuario autenticado.
+
+    SEGURIDAD: Filtra ESTRICTAMENTE por usuario autenticado.
+    Cada usuario solo ve sus propias notificaciones.
+    Los asesores NO ven notificaciones de sus clientes en esta vista.
     """
     serializer_class = NotificacionListSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = NotificacionPagination
-    
+
     def get_queryset(self):
+        # CRITICO: Filtrar SOLO por usuario autenticado (aislamiento estricto)
         queryset = Notificacion.objects.filter(usuario=self.request.user)
-        
-        # Filtros
+
+        # Filtros opcionales
         tipo = self.request.query_params.get('tipo')
         if tipo:
             queryset = queryset.filter(tipo=tipo)
-        
+
         leida = self.request.query_params.get('leida')
         if leida is not None:
             queryset = queryset.filter(leida=leida.lower() == 'true')
-        
+
         return queryset.order_by('-created_at')
 
 
@@ -283,44 +289,56 @@ class CrearNotificacionView(APIView):
 class NotificacionesAsesorView(generics.ListAPIView):
     """
     GET /api/notificaciones/asesor/
+
     Lista notificaciones relevantes para el asesor:
-    - Sus propias notificaciones
-    - Notificaciones de sus clientes asignados (para seguimiento)
+    - Sus propias notificaciones (por defecto)
+    - Opcionalmente, notificaciones de sus clientes (para seguimiento)
+
+    SEGURIDAD:
+    - Por defecto solo muestra notificaciones del asesor
+    - Las notificaciones de clientes son de solo lectura (seguimiento)
+    - El asesor NUNCA recibe sus propias notificaciones destinadas a clientes
     """
     serializer_class = NotificacionListSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = NotificacionPagination
-    
+
     def get_queryset(self):
         user = self.request.user
-        
+
         if user.rol not in ['asesor', 'admin']:
             return Notificacion.objects.none()
-        
-        # Obtener IDs de clientes asignados al asesor
-        from apps.solicitudes.models import Solicitud
-        clientes_ids = Solicitud.objects.filter(
-            asesor=user
-        ).values_list('cliente_id', flat=True).distinct()
-        
-        # Notificaciones propias + de clientes asignados
-        queryset = Notificacion.objects.filter(
-            Q(usuario=user) | Q(usuario_id__in=clientes_ids)
-        )
-        
+
+        # Por defecto: solo notificaciones propias del asesor
+        queryset = Notificacion.objects.filter(usuario=user)
+
+        # Si se solicita incluir clientes (para seguimiento)
+        incluir_clientes = self.request.query_params.get('incluir_clientes')
+        if incluir_clientes and incluir_clientes.lower() == 'true':
+            from apps.solicitudes.models import Solicitud
+            clientes_ids = Solicitud.objects.filter(
+                asesor=user
+            ).values_list('cliente_id', flat=True).distinct()
+
+            # Notificaciones propias + de clientes asignados
+            # PERO excluyendo notificaciones donde el asesor es el que las genero
+            queryset = Notificacion.objects.filter(
+                Q(usuario=user) | Q(usuario_id__in=clientes_ids)
+            )
+
         # Filtros opcionales
         tipo = self.request.query_params.get('tipo')
         if tipo:
             queryset = queryset.filter(tipo=tipo)
-        
+
         leida = self.request.query_params.get('leida')
         if leida is not None:
             queryset = queryset.filter(leida=leida.lower() == 'true')
-        
+
         solo_propias = self.request.query_params.get('solo_propias')
         if solo_propias and solo_propias.lower() == 'true':
             queryset = queryset.filter(usuario=user)
-        
+
         return queryset.order_by('-created_at')
 
 

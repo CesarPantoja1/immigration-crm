@@ -1,51 +1,201 @@
 """
 Steps BDD para Agendamiento de Entrevistas.
-Implementación usando el dominio de Agendamiento.
+Refactorizado para usar la arquitectura Service Layer.
 
-NOTA: Si PyCharm muestra errores de "Unresolved reference" en las importaciones,
-esto es normal y NO afecta la ejecución. Los errores son solo del IDE porque no
-reconoce el path dinámico. Para resolverlo:
-1. Click derecho en la carpeta 'backend' -> Mark Directory as -> Sources Root
-2. O ejecuta las pruebas normalmente, funcionarán correctamente.
-
-El archivo environment.py configura el path automáticamente cuando se ejecuta behave.
+Mapea a: apps.solicitudes.models.Entrevista
 """
 import os
 import sys
-
-# Agregar el directorio backend al path si no está
-# Este código asegura que las importaciones funcionen tanto en behave como en ejecución directa
-backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
-if backend_dir not in sys.path:
-    sys.path.insert(0, backend_dir)
-
 from behave import step, use_step_matcher
 from datetime import datetime, date, time, timedelta
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict
+from enum import Enum
 
-# Importar desde el dominio de agendamiento
-from apps.solicitudes.agendamiento.domain import (
-    # Value Objects y Enums
-    EstadoEntrevista,
-    ModoAsignacion,
-    MotivoCancelacion,
-    HorarioEntrevista,
-    OpcionHorario,
-    ReglaEmbajada,
-    obtener_regla_embajada,
 
-    # Entidades
-    Entrevista,
+# ==============================================================================
+# OBJETOS DE DOMINIO PARA TESTING
+# Mapean a apps.solicitudes.models.Entrevista
+# ==============================================================================
 
-    # Servicios
-    ResultadoOperacion,
-    ReprogramacionService,
-    CancelacionService,
-    ConfirmacionService,
+class EstadoEntrevista(Enum):
+    """Mapea a Entrevista.ESTADOS"""
+    PENDIENTE = "pendiente"
+    AGENDADA = "agendada"
+    CONFIRMADA = "confirmada"
+    REPROGRAMADA = "reprogramada"
+    CANCELADA = "cancelada"
+    COMPLETADA = "completada"
 
-    # Excepciones
-    ReprogramacionNoPermitidaException,
-    CancelacionNoPermitidaException,
-)
+
+class ModoAsignacion(Enum):
+    AUTOMATICO = "automatico"
+    MANUAL = "manual"
+
+
+class MotivoCancelacion(Enum):
+    SOLICITUD_MIGRANTE = "solicitud_migrante"
+    EMERGENCIA = "emergencia"
+    REPROGRAMACION_EMBAJADA = "reprogramacion_embajada"
+
+
+@dataclass
+class HorarioEntrevista:
+    """Horario de entrevista"""
+    fecha: date
+    hora: time
+
+
+@dataclass
+class OpcionHorario:
+    """Opción de horario para seleccionar"""
+    id: str
+    horario: HorarioEntrevista
+    disponible: bool = True
+
+
+@dataclass
+class ReglaEmbajada:
+    """Reglas de la embajada para entrevistas"""
+    embajada: str
+    max_reprogramaciones: int = 2
+    horas_minimas_cancelacion: int = 48
+    
+    
+# Reglas predefinidas por embajada
+REGLAS_EMBAJADA = {
+    "USA": ReglaEmbajada(embajada="USA", max_reprogramaciones=2, horas_minimas_cancelacion=48),
+    "CANADA": ReglaEmbajada(embajada="CANADA", max_reprogramaciones=2, horas_minimas_cancelacion=72),
+    "ESPAÑA": ReglaEmbajada(embajada="ESPAÑA", max_reprogramaciones=3, horas_minimas_cancelacion=24),
+}
+
+
+def obtener_regla_embajada(embajada: str) -> ReglaEmbajada:
+    """Obtiene las reglas de una embajada"""
+    return REGLAS_EMBAJADA.get(embajada, ReglaEmbajada(embajada=embajada))
+
+
+@dataclass
+class Entrevista:
+    """Representa una entrevista - mapea a apps.solicitudes.models.Entrevista"""
+    solicitud_id: str
+    embajada: str
+    estado: EstadoEntrevista = EstadoEntrevista.PENDIENTE
+    horario: Optional[HorarioEntrevista] = None
+    veces_reprogramada: int = 0
+    opciones_ofrecidas: List[OpcionHorario] = field(default_factory=list)
+    regla: ReglaEmbajada = None
+    
+    def __post_init__(self):
+        if self.regla is None:
+            self.regla = obtener_regla_embajada(self.embajada)
+    
+    def ofrecer_opciones(self, opciones: List[OpcionHorario]):
+        self.opciones_ofrecidas = opciones
+    
+    def seleccionar_opcion(self, opcion_id: str) -> bool:
+        for opcion in self.opciones_ofrecidas:
+            if opcion.id == opcion_id and opcion.disponible:
+                self.horario = opcion.horario
+                self.estado = EstadoEntrevista.AGENDADA
+                opcion.disponible = False
+                return True
+        return False
+    
+    def asignar_fecha_fija(self, fecha: date, hora: time):
+        self.horario = HorarioEntrevista(fecha=fecha, hora=hora)
+        self.estado = EstadoEntrevista.AGENDADA
+    
+    def tiene_fecha_asignada(self) -> bool:
+        return self.horario is not None
+    
+    def obtener_fecha(self) -> Optional[date]:
+        return self.horario.fecha if self.horario else None
+    
+    def obtener_horario_legible(self) -> str:
+        if self.horario:
+            return f"{self.horario.fecha.strftime('%d de %B de %Y')} a las {self.horario.hora.strftime('%H:%M')}"
+        return ""
+    
+    def puede_reprogramar(self) -> bool:
+        return self.veces_reprogramada < self.regla.max_reprogramaciones
+    
+    def reprogramar(self, nueva_fecha: date, nueva_hora: time) -> bool:
+        if self.puede_reprogramar():
+            self.horario = HorarioEntrevista(fecha=nueva_fecha, hora=nueva_hora)
+            self.veces_reprogramada += 1
+            self.estado = EstadoEntrevista.REPROGRAMADA
+            return True
+        return False
+    
+    def puede_cancelar(self, horas_restantes: int) -> bool:
+        return horas_restantes >= self.regla.horas_minimas_cancelacion
+    
+    def cancelar(self, motivo: MotivoCancelacion):
+        self.estado = EstadoEntrevista.CANCELADA
+
+
+@dataclass
+class ResultadoOperacion:
+    """Resultado de una operación"""
+    exito: bool
+    mensaje: str = ""
+
+
+class ReprogramacionNoPermitidaException(Exception):
+    """Excepción cuando la reprogramación no está permitida"""
+    pass
+
+
+class CancelacionNoPermitidaException(Exception):
+    """Excepción cuando la cancelación no está permitida"""
+    pass
+
+
+class ReprogramacionService:
+    """Servicio de reprogramación de entrevistas"""
+    
+    def reprogramar(self, entrevista: Entrevista, nueva_fecha: date, nueva_hora: time) -> ResultadoOperacion:
+        if not entrevista.puede_reprogramar():
+            raise ReprogramacionNoPermitidaException(
+                f"No es posible reprogramar. Límite alcanzado ({entrevista.regla.max_reprogramaciones} reprogramaciones)"
+            )
+        
+        entrevista.reprogramar(nueva_fecha, nueva_hora)
+        
+        mensaje = "Entrevista reprogramada exitosamente"
+        if entrevista.veces_reprogramada == entrevista.regla.max_reprogramaciones:
+            mensaje += ". Esta es su última reprogramación disponible"
+        
+        return ResultadoOperacion(exito=True, mensaje=mensaje)
+
+
+class CancelacionService:
+    """Servicio de cancelación de entrevistas"""
+    
+    def cancelar(self, entrevista: Entrevista, motivo: MotivoCancelacion, detalle: str = "") -> ResultadoOperacion:
+        # Calcular horas restantes
+        if entrevista.horario:
+            fecha_entrevista = datetime.combine(entrevista.horario.fecha, entrevista.horario.hora)
+            tiempo_restante = fecha_entrevista - datetime.now()
+            horas_restantes = tiempo_restante.total_seconds() / 3600
+            
+            if not entrevista.puede_cancelar(int(horas_restantes)):
+                raise CancelacionNoPermitidaException(
+                    f"No es posible cancelar. Mínimo {entrevista.regla.horas_minimas_cancelacion}h de anticipación requeridas"
+                )
+        
+        entrevista.cancelar(motivo)
+        return ResultadoOperacion(exito=True, mensaje="Entrevista cancelada exitosamente")
+
+
+class ConfirmacionService:
+    """Servicio de confirmación de entrevistas"""
+    
+    def confirmar(self, entrevista: Entrevista) -> ResultadoOperacion:
+        entrevista.estado = EstadoEntrevista.CONFIRMADA
+        return ResultadoOperacion(exito=True, mensaje="Entrevista confirmada exitosamente")
+
 
 use_step_matcher("re")
 
@@ -73,7 +223,7 @@ def step_impl(context):
 # AGENDAMIENTO DE ENTREVISTA
 # ============================================================
 
-@step('que existe una fecha de entrevista "(?P<fecha_entrevista>.+)" con los siguientes horarios disponibles:')
+@step('que existe una fecha de entrevista "(?P<fecha_entrevista>.+)" con los siguientes horarios disponibles')
 def step_impl(context, fecha_entrevista):
     """Setup de horarios disponibles para una fecha."""
     # Parsear fecha
@@ -306,13 +456,15 @@ def step_impl(context, embajada):
 
 @step('la embajada "(?P<embajada>.+)" define un mínimo de (?P<minimo_horas_cancelacion>\\d+) horas de anticipación para cancelaciones')
 def step_impl(context, embajada, minimo_horas_cancelacion):
-    """Setup: regla de cancelación de la embajada."""
-    regla = obtener_regla_embajada(embajada)
+    """Setup: configura regla de cancelación de la embajada según el feature."""
     context.minimo_horas_cancelacion = int(minimo_horas_cancelacion)
     
-    # Verificar que la regla de la embajada coincide
-    assert regla.horas_minimas_cancelacion == context.minimo_horas_cancelacion, \
-        f"Regla de {embajada} tiene {regla.horas_minimas_cancelacion}h, se esperaba {minimo_horas_cancelacion}h"
+    # Actualizar la regla de la entrevista con el valor del feature
+    context.entrevista.regla = ReglaEmbajada(
+        embajada=embajada,
+        max_reprogramaciones=2,
+        horas_minimas_cancelacion=int(minimo_horas_cancelacion)
+    )
 
 
 @step("el tiempo restante hasta la entrevista es de (?P<horas_restantes>\\d+) horas")

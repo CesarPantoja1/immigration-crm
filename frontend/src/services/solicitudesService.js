@@ -169,6 +169,20 @@ export const solicitudesService = {
     })
   },
 
+  /**
+   * Resube un documento rechazado (para clientes)
+   * @param {number} documentoId - ID del documento rechazado
+   * @param {File} archivo - Nuevo archivo a subir
+   */
+  async resubirDocumento(documentoId, archivo) {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+    
+    return apiClient.post(`/documentos/${documentoId}/resubir/`, formData, {
+      contentType: null  // Para que use multipart/form-data
+    })
+  },
+
   // =====================================================
   // HISTORIAL
   // =====================================================
@@ -179,6 +193,48 @@ export const solicitudesService = {
    */
   async getHistorial(solicitudId) {
     return apiClient.get(`/solicitudes/${solicitudId}/historial/`)
+  },
+
+  // =====================================================
+  // EMBAJADA - FLUJO COMPLETO
+  // =====================================================
+
+  /**
+   * Envía una solicitud a la embajada
+   * Cambia estado de 'aprobada' a 'esperando_decision_embajada'
+   * @param {number} solicitudId
+   */
+  async enviarAEmbajada(solicitudId) {
+    return apiClient.patch(`/solicitudes/${solicitudId}/actualizar/`, {
+      estado: 'esperando_decision_embajada'
+    })
+  },
+
+  /**
+   * Registra la decisión de la embajada sobre una solicitud
+   * @param {number} solicitudId
+   * @param {string} decision - 'aprobada' | 'rechazada'
+   * @param {string} motivo - Motivo del rechazo (requerido si rechazada)
+   */
+  async registrarDecisionEmbajada(solicitudId, decision, motivo = '') {
+    return apiClient.post(`/solicitudes/${solicitudId}/decision-embajada/`, {
+      decision,
+      motivo
+    })
+  },
+
+  /**
+   * Alias para enviarAEmbajada (compatibilidad en inglés)
+   */
+  async sendToEmbassy(solicitudId) {
+    return this.enviarAEmbajada(solicitudId)
+  },
+
+  /**
+   * Alias para registrarDecisionEmbajada (compatibilidad en inglés)
+   */
+  async recordEmbassyDecision(solicitudId, decision, reason = '') {
+    return this.registrarDecisionEmbajada(solicitudId, decision, reason)
   }
 }
 

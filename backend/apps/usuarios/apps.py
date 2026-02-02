@@ -8,4 +8,4 @@ class UsuariosConfig(AppConfig):
     
     def ready(self):
         # Importar admin cuando Django está listo
-        from .infrastructure import admin  # noqa
+        from . import admin  # noqa

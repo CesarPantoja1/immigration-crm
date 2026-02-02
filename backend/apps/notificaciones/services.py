@@ -24,20 +24,30 @@ class NotificacionService:
         
         Args:
             solicitud: Instancia de Solicitud
-            fecha: Fecha de la entrevista (date)
-            hora: Hora de la entrevista (time)
+            fecha: Fecha de la entrevista (date o string 'YYYY-MM-DD')
+            hora: Hora de la entrevista (time o string 'HH:MM')
         """
         cliente = solicitud.cliente
         asesor = solicitud.asesor
         
-        fecha_formateada = fecha.strftime('%d/%m/%Y')
-        hora_formateada = hora.strftime('%H:%M')
+        # Manejar strings o objetos date/time
+        if isinstance(fecha, str):
+            from datetime import datetime as dt
+            fecha_obj = dt.strptime(fecha, '%Y-%m-%d').date()
+            fecha_formateada = fecha_obj.strftime('%d/%m/%Y')
+        else:
+            fecha_formateada = fecha.strftime('%d/%m/%Y')
+        
+        if isinstance(hora, str):
+            hora_formateada = hora
+        else:
+            hora_formateada = hora.strftime('%H:%M')
         
         return Notificacion.objects.create(
             usuario=cliente,
             tipo='entrevista_agendada',
-            titulo='Tu entrevista ha sido agendada',
-            mensaje=f'Tu entrevista para la solicitud de visa {solicitud.tipo_visa} ha sido programada para el {fecha_formateada} a las {hora_formateada}.',
+            titulo='📅 Tu entrevista ha sido agendada',
+            mensaje=f'Tu entrevista para la solicitud de visa {solicitud.get_tipo_visa_display()} ha sido programada para el {fecha_formateada} a las {hora_formateada}.',
             detalle=f'Asesor asignado: {asesor.get_full_name() if asesor else "Por asignar"}. Prepárate con tiempo y revisa toda tu documentación.',
             solicitud=solicitud,
             url_accion=f'/solicitudes/{solicitud.id}',
@@ -346,7 +356,7 @@ class NotificacionService:
             mensaje=f'Tu documento "{documento.tipo}" ha sido revisado y aprobado.',
             detalle='Buen trabajo. Continúa con los demás documentos requeridos.',
             solicitud=solicitud,
-            url_accion=f'/solicitudes/{solicitud.id}/documentos',
+            url_accion=f'/solicitudes/{solicitud.id}',
             datos={
                 'documento_id': documento.id,
                 'documento_tipo': documento.tipo
@@ -368,7 +378,7 @@ class NotificacionService:
             mensaje=f'Tu documento "{documento.tipo}" necesita correcciones.',
             detalle=observaciones if observaciones else 'Por favor, revisa las observaciones y vuelve a subir el documento corregido.',
             solicitud=solicitud,
-            url_accion=f'/solicitudes/{solicitud.id}/documentos',
+            url_accion=f'/solicitudes/{solicitud.id}',
             datos={
                 'documento_id': documento.id,
                 'documento_tipo': documento.tipo,
@@ -702,6 +712,57 @@ class NotificacionService:
                 'documento_id': documento.id,
                 'documento_nombre': documento.nombre,
                 'cliente_nombre': cliente.get_full_name()
+            }
+        )
+    
+    # =====================================================
+    # EMBAJADA - DECISIONES
+    # =====================================================
+    
+    @staticmethod
+    def notificar_embajada_aprobada(solicitud):
+        """
+        Crea notificación cuando la embajada aprueba una solicitud.
+        Destinatario: Cliente
+        """
+        cliente = solicitud.cliente
+        
+        return Notificacion.objects.create(
+            usuario=cliente,
+            tipo='embajada_aprobada',
+            titulo='🎉 ¡Tu solicitud fue aprobada por la embajada!',
+            mensaje=f'¡Felicitaciones! La embajada ha aprobado tu solicitud de visa {solicitud.get_tipo_visa_display()}.',
+            detalle='El siguiente paso es agendar tu entrevista consular. Tu asesor te contactará pronto con las fechas disponibles.',
+            solicitud=solicitud,
+            url_accion=f'/solicitudes/{solicitud.id}',
+            datos={
+                'tipo_visa': solicitud.tipo_visa,
+                'embajada': solicitud.embajada,
+                'fecha_aprobacion': str(timezone.now().date())
+            }
+        )
+    
+    @staticmethod
+    def notificar_embajada_rechazada(solicitud, motivo=''):
+        """
+        Crea notificación cuando la embajada rechaza una solicitud.
+        Destinatario: Cliente
+        """
+        cliente = solicitud.cliente
+        
+        return Notificacion.objects.create(
+            usuario=cliente,
+            tipo='embajada_rechazada',
+            titulo='Actualización sobre tu solicitud de visa',
+            mensaje=f'Lamentamos informarte que la embajada no ha aprobado tu solicitud de visa {solicitud.get_tipo_visa_display()} en esta ocasión.',
+            detalle=f'Motivo: {motivo}' if motivo else 'Tu asesor se pondrá en contacto contigo para explicarte las opciones disponibles.',
+            solicitud=solicitud,
+            url_accion=f'/solicitudes/{solicitud.id}',
+            datos={
+                'tipo_visa': solicitud.tipo_visa,
+                'embajada': solicitud.embajada,
+                'motivo': motivo,
+                'fecha_rechazo': str(timezone.now().date())
             }
         )
 

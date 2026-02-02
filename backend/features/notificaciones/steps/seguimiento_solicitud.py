@@ -37,14 +37,14 @@ from apps.notificaciones.seguimiento.domain import (
     ExpectativasService,
 )
 
-use_step_matcher("parse")
+use_step_matcher("re")
 
 
 # ============================================================
 # ANTECEDENTES
 # ============================================================
 
-@step('que estoy autenticado como solicitante con email "{email}"')
+@step(r'que estoy autenticado como solicitante con email "([^"]*)"')
 def step_autenticado_con_email(context, email):
     """Setup: usuario autenticado con email específico."""
     context.migrante_id = "MIG-001"
@@ -67,7 +67,7 @@ def step_autenticado_con_email(context, email):
 # DASHBOARD - Visualización del portafolio
 # ============================================================
 
-@step("que tengo registrados los siguientes trámites:")
+@step(r'que tengo registrados los siguientes tr.*mites:?')
 def step_tramites_registrados(context):
     """Setup: cargar trámites desde la tabla de datos."""
     for row in context.table:
@@ -87,6 +87,9 @@ def step_tramites_registrados(context):
         context.portafolio.agregar_solicitud(seguimiento)
     
     assert len(context.portafolio.solicitudes) == len(context.table.rows)
+
+
+use_step_matcher("parse")
 
 
 @step("accedo al dashboard de seguimiento")

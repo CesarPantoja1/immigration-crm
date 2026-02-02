@@ -33,6 +33,12 @@ export default function SimulationsPage() {
   const [completed, setCompleted] = useState([])
   const [disponibilidad, setDisponibilidad] = useState({ disponibles: 2, usados: 0 })
 
+  // Helper para obtener fecha local en formato ISO (evita problemas de zona horaria)
+  const getTodayISO = () => {
+    const today = new Date()
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  }
+
   useEffect(() => {
     fetchSimulacros()
   }, [])
@@ -70,7 +76,10 @@ export default function SimulationsPage() {
         visaType: s.solicitud_tipo || 'Entrevista',
         solicitudId: s.solicitud_id,
         status: 'pending',
-        location: s.ubicacion
+        location: s.ubicacion,
+        // Campos para reglas de roles (simulacion_entrevista.feature)
+        propuesto_por: s.propuesto_por || 'asesor',
+        puede_aceptar: s.puede_aceptar !== false // Por defecto true si no viene
       })))
 
       setUpcoming(confirmados.map(s => {
@@ -179,9 +188,11 @@ export default function SimulationsPage() {
       const response = await solicitudesService.getMisSolicitudes()
       const solicitudes = Array.isArray(response) ? response : (response?.results || [])
       
-      // Filtrar solicitudes que pueden tener simulacro (estados del backend)
+      // Solo permitir simulacros para solicitudes APROBADAS POR LA EMBAJADA o con ENTREVISTA AGENDADA
+      // Los simulacros son para preparar la entrevista consular
+      // Si la entrevista está agendada, implica que la embajada ya aprobó la solicitud
       const disponibles = solicitudes.filter(s => 
-        ['pendiente', 'en_revision', 'aprobada', 'enviada_embajada', 'entrevista_agendada'].includes(s.estado)
+        s.estado === 'aprobada_embajada' || s.estado === 'entrevista_agendada'
       )
       
       setSolicitudesDisponibles(disponibles)
@@ -392,9 +403,21 @@ export default function SimulationsPage() {
                     >
                       Proponer otra fecha
                     </Button>
-                    <Button onClick={() => handleAcceptSimulation(proposal)}>
-                      Aceptar simulacro
-                    </Button>
+                    {/* REGLA DE NEGOCIO: Cliente NO puede aceptar propuesta que él mismo creó */}
+                    {proposal.puede_aceptar && (
+                      <Button onClick={() => handleAcceptSimulation(proposal)}>
+                        Aceptar simulacro
+                      </Button>
+                    )}
+                    {/* Mostrar indicador si el usuario creó la propuesta */}
+                    {!proposal.puede_aceptar && proposal.propuesto_por === 'cliente' && user?.role === 'client' && (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-sm">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Esperando confirmación del asesor
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -637,7 +660,7 @@ export default function SimulationsPage() {
                 type="date"
                 value={proposedDate}
                 onChange={(e) => setProposedDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min={getTodayISO()}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500"
               />
             </div>
@@ -773,7 +796,9 @@ export default function SimulationsPage() {
               </select>
             ) : (
               <div className="p-4 bg-amber-50 text-amber-700 rounded-xl text-sm">
-                No tienes solicitudes activas para solicitar un simulacro. Primero debes crear una solicitud de visa.
+                <p className="font-medium mb-1">No tienes solicitudes elegibles para simulacro.</p>
+                <p>Los simulacros solo están disponibles después de que la embajada haya aprobado tu solicitud 
+                   o cuando la entrevista consular esté agendada. Esto te permite prepararte para la entrevista.</p>
               </div>
             )}
           </div>
@@ -817,7 +842,7 @@ export default function SimulationsPage() {
                 type="date"
                 value={requestData.fechaPreferida}
                 onChange={(e) => setRequestData({ ...requestData, fechaPreferida: e.target.value })}
-                min={new Date().toISOString().split('T')[0]}
+                min={getTodayISO()}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500"
               />
             </div>

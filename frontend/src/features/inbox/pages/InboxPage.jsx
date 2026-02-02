@@ -19,6 +19,8 @@ const NOTIFICATION_CONFIG = {
   solicitud_aprobada: { icon: '🎉', color: 'green', label: 'Solicitud' },
   solicitud_rechazada: { icon: '📋', color: 'red', label: 'Solicitud' },
   solicitud_enviada: { icon: '📤', color: 'blue', label: 'Embajada' },
+  embajada_aprobada: { icon: '🎉', color: 'green', label: 'Embajada' },
+  embajada_rechazada: { icon: '⚠️', color: 'red', label: 'Embajada' },
   simulacro_propuesto: { icon: '📹', color: 'purple', label: 'Simulacro' },
   simulacro_confirmado: { icon: '✅', color: 'green', label: 'Simulacro' },
   general: { icon: '📌', color: 'gray', label: 'General' }
@@ -184,7 +186,7 @@ export default function InboxPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Bandeja de Entrada</h1>
         <p className="text-gray-500 mt-1">
           {unreadCount > 0 
@@ -192,6 +194,50 @@ export default function InboxPage() {
             : 'Todas tus notificaciones al día'}
         </p>
       </div>
+
+      {/* Banner de mensajes sin leer - Más visible */}
+      {unreadCount > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-4 bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl shadow-lg"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+                </svg>
+              </div>
+              <div className="text-white">
+                <p className="font-semibold text-lg">
+                  {unreadCount} {unreadCount === 1 ? 'mensaje' : 'mensajes'} sin leer
+                </p>
+                <p className="text-sm text-white/90">
+                  Revisa tus notificaciones pendientes
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleMarkAllAsRead}
+              disabled={actionLoading === 'all'}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-primary-700 hover:bg-white/90 rounded-xl font-medium transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {actionLoading === 'all' ? (
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              Marcar todo leído
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Filters & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -239,27 +285,6 @@ export default function InboxPage() {
             <option value="recomendaciones_listas">Recomendaciones</option>
           </select>
         </div>
-
-        {unreadCount > 0 && (
-          <Button 
-            variant="secondary" 
-            size="sm" 
-            onClick={handleMarkAllAsRead}
-            disabled={actionLoading === 'all'}
-          >
-            {actionLoading === 'all' ? (
-              <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-            Marcar todo como leído
-          </Button>
-        )}
       </div>
 
       {/* Loading State */}

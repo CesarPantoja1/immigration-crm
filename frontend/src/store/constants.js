@@ -62,13 +62,26 @@ export const canAccessSimulations = (applicationState) => {
 }
 
 // Estados de solicitud con metadatos
+// SINCRONIZADO con backend/apps/solicitudes/models.py
 export const APPLICATION_STATES = {
-  // Fase 1: Aprobación
+  // Fase 1: Aprobación (revisión interna por asesor)
+  borrador: {
+    label: 'Borrador',
+    phase: 'approval',
+    color: 'gray',
+    description: 'Solicitud en edición'
+  },
   draft: {
     label: 'Borrador',
     phase: 'approval',
     color: 'gray',
     description: 'Solicitud en edición'
+  },
+  pendiente: {
+    label: 'Pendiente',
+    phase: 'approval',
+    color: 'blue',
+    description: 'Pendiente de revisión del asesor'
   },
   submitted: {
     label: 'Enviada',
@@ -76,17 +89,41 @@ export const APPLICATION_STATES = {
     color: 'blue',
     description: 'Pendiente de revisión del asesor'
   },
+  en_revision: {
+    label: 'En Revisión',
+    phase: 'approval',
+    color: 'amber',
+    description: 'El asesor está revisando los documentos'
+  },
   advisor_review: {
     label: 'En Revisión',
     phase: 'approval',
     color: 'amber',
     description: 'El asesor está revisando los documentos'
   },
+  aprobada: {
+    label: 'Aprobada por Asesor',
+    phase: 'approval',
+    color: 'green',
+    description: 'Aprobada, lista para enviar a embajada'
+  },
+  rechazada: {
+    label: 'Rechazada',
+    phase: 'approval',
+    color: 'red',
+    description: 'El asesor ha rechazado la solicitud'
+  },
   advisor_rejected: {
     label: 'Requiere Cambios',
     phase: 'approval',
     color: 'red',
     description: 'El asesor ha solicitado correcciones'
+  },
+  enviada_embajada: {
+    label: 'Enviada a Embajada',
+    phase: 'approval',
+    color: 'purple',
+    description: 'Enviada a la embajada, esperando decisión'
   },
   embassy_sent: {
     label: 'Enviada a Embajada',
@@ -95,12 +132,30 @@ export const APPLICATION_STATES = {
     description: 'Esperando respuesta de la embajada'
   },
 
-  // Fase 2: Agendamiento
+  // Fase 2: Decisión de Embajada y Agendamiento
+  esperando_decision_embajada: {
+    label: 'Esperando Decisión',
+    phase: 'scheduling',
+    color: 'purple',
+    description: 'La embajada está evaluando la solicitud'
+  },
+  aprobada_embajada: {
+    label: 'Aprobada por Embajada',
+    phase: 'scheduling',
+    color: 'green',
+    description: 'La embajada ha aprobado - puede agendar entrevista'
+  },
   embassy_approved: {
     label: 'Aprobada por Embajada',
     phase: 'scheduling',
     color: 'green',
     description: 'La embajada ha aprobado la solicitud'
+  },
+  rechazada_embajada: {
+    label: 'Rechazada por Embajada',
+    phase: 'scheduling',
+    color: 'red',
+    description: 'La embajada ha rechazado la solicitud'
   },
   embassy_rejected: {
     label: 'Rechazada por Embajada',
@@ -114,6 +169,12 @@ export const APPLICATION_STATES = {
     color: 'amber',
     description: 'Coordinando fecha de entrevista'
   },
+  entrevista_agendada: {
+    label: 'Entrevista Agendada',
+    phase: 'scheduling',
+    color: 'green',
+    description: 'Fecha de entrevista confirmada'
+  },
   interview_scheduled: {
     label: 'Entrevista Agendada',
     phase: 'scheduling',
@@ -121,7 +182,7 @@ export const APPLICATION_STATES = {
     description: 'Fecha de entrevista confirmada'
   },
 
-  // Fase 3: Preparación
+  // Fase 3: Preparación y Finalización
   preparation_unlocked: {
     label: 'Preparación Habilitada',
     phase: 'preparation',
@@ -134,11 +195,49 @@ export const APPLICATION_STATES = {
     color: 'green',
     description: 'Has completado tu simulacro'
   },
+  completada: {
+    label: 'Completada',
+    phase: 'preparation',
+    color: 'green',
+    description: 'Proceso finalizado exitosamente'
+  },
   interview_completed: {
     label: 'Entrevista Realizada',
     phase: 'preparation',
     color: 'green',
     description: 'Has asistido a la entrevista real'
+  }
+}
+
+// Estados de documento (sincronizado con backend)
+export const DOCUMENT_STATES = {
+  pendiente: {
+    label: 'Pendiente',
+    color: 'amber',
+    bgColor: 'bg-amber-100',
+    textColor: 'text-amber-600',
+    description: 'Documento pendiente de revisión'
+  },
+  en_revision: {
+    label: 'En Revisión',
+    color: 'blue',
+    bgColor: 'bg-blue-100',
+    textColor: 'text-blue-600',
+    description: 'El asesor está revisando el documento'
+  },
+  aprobado: {
+    label: 'Aprobado',
+    color: 'green',
+    bgColor: 'bg-green-100',
+    textColor: 'text-green-600',
+    description: 'Documento aprobado'
+  },
+  rechazado: {
+    label: 'Rechazado',
+    color: 'red',
+    bgColor: 'bg-red-100',
+    textColor: 'text-red-600',
+    description: 'Documento rechazado - requiere corrección'
   }
 }
 

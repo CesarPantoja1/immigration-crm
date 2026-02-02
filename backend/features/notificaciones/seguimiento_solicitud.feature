@@ -12,7 +12,6 @@ Característica: Seguimiento de Solicitudes Migratorias
   # CONSULTA DE DASHBOARD
   # ============================================================
 
-<<<<<<< HEAD
   Escenario: Visualización del portafolio de solicitudes en el dashboard
     Dado que tengo registrados los siguientes trámites:
       | tipo_visa | embajada       | estado             | fecha_creacion |

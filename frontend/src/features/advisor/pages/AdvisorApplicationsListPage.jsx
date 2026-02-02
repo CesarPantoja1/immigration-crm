@@ -14,6 +14,9 @@ const APPLICATION_STATES = {
   approved: { label: 'Aprobada por Asesor', variant: 'success', phase: 'approval' },
   enviada_embajada: { label: 'Enviada a Embajada', variant: 'info', phase: 'approval' },
   sent_to_embassy: { label: 'Enviada a Embajada', variant: 'info', phase: 'approval' },
+  esperando_decision_embajada: { label: 'Esperando Decisión', variant: 'warning', phase: 'approval' },
+  aprobada_embajada: { label: 'Aprobada por Embajada', variant: 'success', phase: 'scheduling' },
+  rechazada_embajada: { label: 'Rechazada por Embajada', variant: 'danger', phase: 'approval' },
   embassy_approved: { label: 'Aprobada por Embajada', variant: 'success', phase: 'scheduling' },
   embassy_rejected: { label: 'Rechazada por Embajada', variant: 'danger', phase: 'approval' },
   entrevista_agendada: { label: 'Entrevista Agendada', variant: 'success', phase: 'preparation' },
@@ -30,7 +33,10 @@ export default function AdvisorApplicationsListPage() {
   const [filterPhase, setFilterPhase] = useState('all')
   const [showEmbassyModal, setShowEmbassyModal] = useState(false)
   const [selectedApplication, setSelectedApplication] = useState(null)
-  const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [showDecisionModal, setShowDecisionModal] = useState(false)
+  const [embassyDecision, setEmbassyDecision] = useState('aprobada')
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
@@ -40,54 +46,57 @@ export default function AdvisorApplicationsListPage() {
     total: 0
   })
 
-  useEffect(() => {
-    const fetchApplications = async () => {
-      try {
-        setLoading(true)
-        const response = await solicitudesService.getSolicitudesAsignadas()
-        const data = Array.isArray(response) ? response : (response?.results || [])
+  // Función para cargar/refrescar las solicitudes
+  const fetchApplications = async () => {
+    try {
+      setLoading(true)
+      const response = await solicitudesService.getSolicitudesAsignadas()
+      const data = Array.isArray(response) ? response : (response?.results || [])
+      
+      // Transform API data to component format
+      const transformedApps = data.map(app => {
+        const docs = app.documentos_adjuntos || []
+        const docsAprobados = docs.filter(d => d.estado === 'aprobado').length
         
-        // Transform API data to component format
-        const transformedApps = data.map(app => {
-          const docs = app.documentos_adjuntos || []
-          const docsAprobados = docs.filter(d => d.estado === 'aprobado').length
-          
-          return {
-            id: `SOL-${app.id}`,
-            originalId: app.id,
-            client: {
-              name: app.cliente_nombre || 'Cliente',
-              email: app.cliente_email || '',
-              phone: app.cliente_telefono || ''
-            },
-            visaType: app.tipo_visa,
-            visaTypeName: app.tipo_visa_display || app.tipo_visa,
-            embassy: app.embajada_display || app.embajada,
-            status: app.estado,
-            submittedAt: app.created_at?.split('T')[0] || '',
-            documentsCount: docs.length,
-            documentsApproved: docsAprobados,
-            priority: app.prioridad || 'medium',
-            currentPhase: APPLICATION_STATES[app.estado]?.phase || 'approval'
-          }
-        })
-        
-        setApplications(transformedApps)
-        
-        // Calculate stats
-        setStats({
-          pendientes: transformedApps.filter(a => ['pendiente', 'pending_review'].includes(a.status)).length,
-          enEmbajada: transformedApps.filter(a => ['enviada_embajada', 'sent_to_embassy'].includes(a.status)).length,
-          aprobadas: transformedApps.filter(a => ['aprobada', 'approved', 'embassy_approved', 'entrevista_agendada', 'interview_scheduled'].includes(a.status)).length,
-          total: transformedApps.length
-        })
-      } catch (error) {
-        console.error('Error fetching applications:', error)
-      } finally {
-        setLoading(false)
-      }
+        return {
+          id: `SOL-${app.id}`,
+          originalId: app.id,
+          client: {
+            name: app.cliente_nombre || 'Cliente',
+            email: app.cliente_email || '',
+            phone: app.cliente_telefono || ''
+          },
+          visaType: app.tipo_visa,
+          visaTypeName: app.tipo_visa_display || app.tipo_visa,
+          embassy: app.embajada_display || app.embajada,
+          embajadaCode: app.embajada,
+          status: app.estado,
+          submittedAt: app.created_at?.split('T')[0] || '',
+          documentsCount: docs.length,
+          documentsApproved: docsAprobados,
+          priority: app.prioridad || 'medium',
+          currentPhase: APPLICATION_STATES[app.estado]?.phase || 'approval',
+          motivoRechazoEmbajada: app.motivo_rechazo_embajada || ''
+        }
+      })
+      
+      setApplications(transformedApps)
+      
+      // Calculate stats
+      setStats({
+        pendientes: transformedApps.filter(a => ['pendiente', 'pending_review'].includes(a.status)).length,
+        enEmbajada: transformedApps.filter(a => ['enviada_embajada', 'esperando_decision_embajada', 'sent_to_embassy'].includes(a.status)).length,
+        aprobadas: transformedApps.filter(a => ['aprobada', 'approved', 'aprobada_embajada', 'embassy_approved', 'entrevista_agendada', 'interview_scheduled'].includes(a.status)).length,
+        total: transformedApps.length
+      })
+    } catch (error) {
+      console.error('Error fetching applications:', error)
+    } finally {
+      setLoading(false)
     }
-    
+  }
+
+  useEffect(() => {
     fetchApplications()
   }, [])
 
@@ -130,15 +139,74 @@ export default function AdvisorApplicationsListPage() {
   }
 
   const handleScheduleInterview = (app) => {
-    setSelectedApplication(app)
-    setShowScheduleModal(true)
+    // Redirigir a la página de agendamiento de entrevistas con el ID de la solicitud
+    navigate(`/asesor/entrevistas?solicitud=${app.originalId}`)
   }
 
-  const confirmSendToEmbassy = () => {
-    // TODO: API call
-    console.log('Enviando a embajada:', selectedApplication.id)
-    setShowEmbassyModal(false)
-    // Simular actualización
+  const handleRecordDecision = (app) => {
+    setSelectedApplication(app)
+    setEmbassyDecision('aprobada')
+    setRejectionReason('')
+    setShowDecisionModal(true)
+  }
+
+  // Enviar solicitud a embajada - IMPLEMENTACIÓN COMPLETA
+  const confirmSendToEmbassy = async () => {
+    if (!selectedApplication) return
+    
+    try {
+      setActionLoading(true)
+      await solicitudesService.enviarAEmbajada(selectedApplication.originalId)
+      setShowEmbassyModal(false)
+      setSelectedApplication(null)
+      // Refrescar la lista de solicitudes
+      await fetchApplications()
+    } catch (error) {
+      console.error('Error enviando a embajada:', error)
+      alert('Error al enviar la solicitud a la embajada. Intente nuevamente.')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Registrar decisión de embajada - IMPLEMENTACIÓN COMPLETA
+  const confirmEmbassyDecision = async () => {
+    if (!selectedApplication) return
+    
+    if (embassyDecision === 'rechazada' && !rejectionReason.trim()) {
+      alert('Debe proporcionar un motivo de rechazo')
+      return
+    }
+    
+    try {
+      setActionLoading(true)
+      await solicitudesService.registrarDecisionEmbajada(
+        selectedApplication.originalId,
+        embassyDecision,
+        rejectionReason
+      )
+      
+      const solicitudId = selectedApplication.originalId
+      setShowDecisionModal(false)
+      setSelectedApplication(null)
+      setRejectionReason('')
+      
+      // Si fue aprobada, redirigir a agendamiento de entrevista
+      if (embassyDecision === 'aprobada') {
+        // Breve delay para que el usuario vea el cambio
+        setTimeout(() => {
+          navigate(`/asesor/entrevistas?solicitud=${solicitudId}`)
+        }, 500)
+      } else {
+        // Si fue rechazada, solo refrescar la lista
+        await fetchApplications()
+      }
+    } catch (error) {
+      console.error('Error registrando decisión:', error)
+      alert('Error al registrar la decisión de la embajada. Intente nuevamente.')
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const getActionButton = (app) => {
@@ -167,15 +235,18 @@ export default function AdvisorApplicationsListPage() {
             Enviar a Embajada
           </Button>
         )
+      case 'enviada_embajada':
       case 'sent_to_embassy':
+      case 'esperando_decision_embajada':
         return (
-          <Button size="sm" variant="secondary" disabled>
-            <svg className="w-4 h-4 mr-1.5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <Button size="sm" variant="warning" onClick={() => handleRecordDecision(app)}>
+            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Esperando Respuesta
+            Registrar Decisión
           </Button>
         )
+      case 'aprobada_embajada':
       case 'embassy_approved':
         return (
           <Button size="sm" onClick={() => handleScheduleInterview(app)}>
@@ -184,6 +255,18 @@ export default function AdvisorApplicationsListPage() {
             </svg>
             Agendar Entrevista
           </Button>
+        )
+      case 'rechazada_embajada':
+      case 'embassy_rejected':
+        return (
+          <div className="flex flex-col items-end gap-1">
+            <Badge variant="danger">Rechazada</Badge>
+            {app.motivoRechazoEmbajada && (
+              <span className="text-xs text-red-600 max-w-[200px] truncate" title={app.motivoRechazoEmbajada}>
+                {app.motivoRechazoEmbajada}
+              </span>
+            )}
+          </div>
         )
       case 'entrevista_agendada':
       case 'interview_scheduled':
@@ -317,6 +400,9 @@ export default function AdvisorApplicationsListPage() {
               <option value="en_revision">En Revisión</option>
               <option value="aprobada">Aprobada por Asesor</option>
               <option value="enviada_embajada">Enviada a Embajada</option>
+              <option value="esperando_decision_embajada">Esperando Decisión</option>
+              <option value="aprobada_embajada">Aprobada por Embajada</option>
+              <option value="rechazada_embajada">Rechazada por Embajada</option>
               <option value="entrevista_agendada">Entrevista Agendada</option>
               <option value="completada">Completada</option>
               <option value="rechazada">Rechazada</option>
@@ -474,84 +560,150 @@ export default function AdvisorApplicationsListPage() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="secondary" onClick={() => setShowEmbassyModal(false)} className="flex-1">
+              <Button variant="secondary" onClick={() => setShowEmbassyModal(false)} className="flex-1" disabled={actionLoading}>
                 Cancelar
               </Button>
-              <Button onClick={confirmSendToEmbassy} className="flex-1">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-                Confirmar Envío
+              <Button onClick={confirmSendToEmbassy} className="flex-1" disabled={actionLoading}>
+                {actionLoading ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    Confirmar Envío
+                  </>
+                )}
               </Button>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Modal: Agendar Entrevista */}
+      {/* Modal: Registrar Decisión de Embajada */}
       <Modal
-        isOpen={showScheduleModal}
-        onClose={() => setShowScheduleModal(false)}
-        title="Agendar Entrevista con Embajada"
-        size="lg"
+        isOpen={showDecisionModal}
+        onClose={() => setShowDecisionModal(false)}
+        title="Registrar Decisión de Embajada"
       >
-        {selectedApplication && selectedApplication.embassyResponse && (
+        {selectedApplication && (
           <div className="space-y-4">
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
               <div className="flex items-start gap-3">
-                <svg className="w-6 h-6 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg className="w-6 h-6 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <div>
-                  <h4 className="font-medium text-green-900">¡Solicitud Aprobada por la Embajada!</h4>
-                  <p className="text-sm text-green-700 mt-1">
-                    La embajada de {selectedApplication.embassy} ha aprobado la solicitud y ofrece las siguientes fechas para la entrevista.
+                  <h4 className="font-medium text-blue-900">Decisión de la Embajada</h4>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Registra la respuesta de la embajada de <strong>{selectedApplication.embassy}</strong> para la solicitud <strong>{selectedApplication.id}</strong> de <strong>{selectedApplication.client.name}</strong>.
                   </p>
                 </div>
               </div>
             </div>
 
             <div>
-              <h4 className="font-medium text-gray-900 mb-3">Opciones de fecha disponibles:</h4>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Decisión de la Embajada
+              </label>
               <div className="space-y-2">
-                {selectedApplication.embassyResponse.interviewOptions.map((option, index) => (
-                  <label 
-                    key={index}
-                    className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 cursor-pointer transition-all"
-                  >
-                    <input type="radio" name="interviewDate" className="text-primary-600" />
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">
-                        {new Date(option.date).toLocaleDateString('es-ES', { 
-                          weekday: 'long', 
-                          day: 'numeric', 
-                          month: 'long',
-                          year: 'numeric'
-                        })}
-                      </div>
-                      <div className="text-sm text-gray-500">{option.time}</div>
+                <label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
+                  embassyDecision === 'aprobada' 
+                    ? 'border-green-500 bg-green-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="embassyDecision"
+                    value="aprobada"
+                    checked={embassyDecision === 'aprobada'}
+                    onChange={(e) => setEmbassyDecision(e.target.value)}
+                    className="text-green-600"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="font-medium text-gray-900">Aprobada</span>
                     </div>
-                  </label>
-                ))}
+                    <p className="text-sm text-gray-500 mt-1">La embajada ha aprobado la solicitud. Se podrá agendar entrevista.</p>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
+                  embassyDecision === 'rechazada' 
+                    ? 'border-red-500 bg-red-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="embassyDecision"
+                    value="rechazada"
+                    checked={embassyDecision === 'rechazada'}
+                    onChange={(e) => setEmbassyDecision(e.target.value)}
+                    className="text-red-600"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="font-medium text-gray-900">Rechazada</span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">La embajada ha rechazado la solicitud. Se notificará al cliente.</p>
+                  </div>
+                </label>
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <p className="text-sm text-amber-700">
-                <strong>Nota:</strong> Una vez seleccionada la fecha, se notificará al cliente{' '}
-                <strong>{selectedApplication.client.name}</strong> y se añadirá la cita a su calendario.
-              </p>
-            </div>
+            {embassyDecision === 'rechazada' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Motivo del Rechazo <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  rows={3}
+                  placeholder="Ingrese el motivo del rechazo proporcionado por la embajada..."
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                />
+              </div>
+            )}
 
             <div className="flex gap-3 pt-2">
-              <Button variant="secondary" onClick={() => setShowScheduleModal(false)} className="flex-1">
+              <Button variant="secondary" onClick={() => setShowDecisionModal(false)} className="flex-1" disabled={actionLoading}>
                 Cancelar
               </Button>
-              <Button className="flex-1">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Confirmar y Notificar
+              <Button 
+                onClick={confirmEmbassyDecision} 
+                className="flex-1"
+                variant={embassyDecision === 'rechazada' ? 'danger' : 'primary'}
+                disabled={actionLoading || (embassyDecision === 'rechazada' && !rejectionReason.trim())}
+              >
+                {actionLoading ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Registrando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Confirmar Decisión
+                  </>
+                )}
               </Button>
             </div>
           </div>

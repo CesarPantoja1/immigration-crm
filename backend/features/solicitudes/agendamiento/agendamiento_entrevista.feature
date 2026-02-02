@@ -15,7 +15,7 @@ Característica: Agendamiento de entrevista
 # ===============================
 
 Esquema del escenario: Agendamiento con selección de horario específico
-  Dado que existe una fecha de entrevista "<fecha_entrevista>" con los siguientes horarios disponibles:
+  Dado que existe una fecha de entrevista "<fecha_entrevista>" con los siguientes horarios disponibles
     | horario | estado     |
     | 08:00   | Disponible |
     | 09:00   | Disponible |

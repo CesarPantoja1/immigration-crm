@@ -1,25 +1,218 @@
 """
 Steps para los escenarios de Recepción de Solicitudes.
 Implementación de los pasos BDD definidos en recepcion_solicitud.feature
+
+Refactorizado para usar la arquitectura Service Layer existente.
+Los objetos de dominio se definen como dataclasses locales para testing.
 """
 from behave import given, when, then, step, use_step_matcher
-import sys
-import os
-
-# Agregar el path del proyecto para importar módulos
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
-
-from apps.solicitudes.recepcion.domain import (
-    TipoVisa,
-    TipoEmbajada,
-    ChecklistDocumentos,
-    SolicitudVisa,
-    Documento,
-    Asesor,
-    AgenciaMigracion
-)
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Any
+from enum import Enum
 
 use_step_matcher("parse")
+
+
+# ==============================================================================
+# OBJETOS DE DOMINIO PARA TESTING (dataclasses locales)
+# Mapean a los modelos Django: apps.solicitudes.models.Solicitud, Documento
+# ==============================================================================
+
+class TipoVisa(Enum):
+    """Mapea a Solicitud.TIPOS_VISA"""
+    TRABAJO = "trabajo"
+    ESTUDIO = "estudio"
+    VIVIENDA = "vivienda"
+    TURISMO = "turismo"
+
+
+class TipoEmbajada(Enum):
+    """Mapea a Solicitud.EMBAJADAS"""
+    ESTADOUNIDENSE = "usa"
+    CANADIENSE = "canada"
+    ESPAÑOLA = "espana"
+    BRASILEÑA = "brasil"
+
+
+@dataclass
+class Documento:
+    """Representa un documento - mapea a apps.solicitudes.models.Documento"""
+    nombre: str
+    estado: str = "PENDIENTE"
+    archivo: Optional[str] = None
+    
+    def obtener_nombre(self) -> str:
+        return self.nombre
+    
+    def obtener_estado(self) -> str:
+        return self.estado
+    
+    def marcar_en_revision(self):
+        self.estado = "EN_REVISION"
+    
+    def aprobar(self):
+        self.estado = "APROBADO"
+    
+    def rechazar(self):
+        self.estado = "DESAPROBADO"
+    
+    def esta_rechazado(self) -> bool:
+        return self.estado == "DESAPROBADO"
+
+
+@dataclass
+class ChecklistDocumentos:
+    """Checklist de documentos por tipo de visa"""
+    tipo_visa: TipoVisa
+    documentos_obligatorios: List[str] = field(default_factory=list)
+    
+    def __init__(self, tipo_visa: TipoVisa, documentos: List[str]):
+        self.tipo_visa = tipo_visa
+        self.documentos_obligatorios = documentos
+    
+    def total_documentos(self) -> int:
+        return len(self.documentos_obligatorios)
+
+
+@dataclass
+class SolicitudVisa:
+    """Representa una solicitud - mapea a apps.solicitudes.models.Solicitud"""
+    id_solicitud: str = ""
+    id_migrante: str = ""
+    tipo_visa: TipoVisa = None
+    embajada: TipoEmbajada = None
+    estado: str = "BORRADOR"
+    estado_envio: str = "PENDIENTE"
+    documentos: List[Documento] = field(default_factory=list)
+    checklist: Optional[ChecklistDocumentos] = None
+    
+    def obtener_tipo_visa(self) -> str:
+        return self.tipo_visa.name if self.tipo_visa else ""
+    
+    def obtener_embajada(self) -> str:
+        return self.embajada.name if self.embajada else ""
+    
+    def obtener_estado(self) -> str:
+        return self.estado
+    
+    def obtener_estado_envio(self) -> str:
+        return self.estado_envio
+    
+    def obtener_documentos(self) -> List[Documento]:
+        return self.documentos
+    
+    def obtener_total_documentos(self) -> int:
+        return len(self.documentos)
+    
+    def obtener_documento_por_nombre(self, nombre: str) -> Optional[Documento]:
+        for doc in self.documentos:
+            if doc.nombre == nombre:
+                return doc
+        return None
+    
+    def asignar_checklist(self, checklist: ChecklistDocumentos):
+        self.checklist = checklist
+    
+    def inicializar_documentos_desde_checklist(self):
+        if self.checklist:
+            self.documentos = [
+                Documento(nombre=nombre) 
+                for nombre in self.checklist.documentos_obligatorios
+            ]
+    
+    def cargar_documentos(self, nombres: List[str], checklist: ChecklistDocumentos):
+        """Carga documentos - al cargar, pasan a EN_REVISION"""
+        self.checklist = checklist
+        self.documentos = [Documento(nombre=nombre, estado="EN_REVISION") for nombre in nombres]
+        self.estado = "EN_REVISION"
+    
+    def actualizar_estado(self):
+        if all(doc.estado == "APROBADO" for doc in self.documentos):
+            self.estado = "APROBADO"
+        elif any(doc.estado == "DESAPROBADO" for doc in self.documentos):
+            self.estado = "DESAPROBADO"
+
+
+@dataclass
+class Asesor:
+    """Representa un asesor - mapea a apps.usuarios.models.Usuario con rol='asesor'"""
+    id: str = "ASESOR-001"
+    nombre: str = "Asesor Test"
+    email: str = "asesor@test.com"
+    
+    def revisar_solicitud(self, solicitud: SolicitudVisa, resultados: Dict[str, str]):
+        for doc in solicitud.obtener_documentos():
+            resultado = resultados.get(doc.nombre, "Correcto")
+            if resultado == "Correcto":
+                doc.aprobar()
+            else:
+                doc.rechazar()
+        solicitud.actualizar_estado()
+    
+    def enviar_solicitud(self, solicitud: SolicitudVisa, enviada: str) -> str:
+        if enviada == "SI":
+            solicitud.estado_envio = "ENVIADO"
+            return "SOLICITUD ENVIADA A EMBAJADA"
+        return "ENVIO NO CONFIRMADO"
+
+
+@dataclass 
+class AsignadorSolicitudes:
+    """Servicio de asignación de solicitudes"""
+    limite_diario: int = 10
+    asesores: Dict[str, Dict] = field(default_factory=dict)
+    
+    def registrar_asesor(self, asesor: Asesor, solicitudes_hoy: int):
+        self.asesores[asesor.nombre] = {
+            'asesor': asesor,
+            'solicitudes_hoy': solicitudes_hoy
+        }
+    
+    def asignar_solicitud(self, solicitud: SolicitudVisa) -> Dict[str, Any]:
+        # Encontrar asesor con menor carga
+        min_carga = float('inf')
+        asesor_seleccionado = None
+        
+        for nombre, datos in self.asesores.items():
+            if datos['solicitudes_hoy'] < self.limite_diario:
+                if datos['solicitudes_hoy'] < min_carga:
+                    min_carga = datos['solicitudes_hoy']
+                    asesor_seleccionado = nombre
+        
+        if asesor_seleccionado:
+            self.asesores[asesor_seleccionado]['solicitudes_hoy'] += 1
+            return {'exito': True, 'asesor_nombre': asesor_seleccionado}
+        
+        return {'exito': False, 'mensaje': 'No hay asesores disponibles'}
+    
+    def obtener_solicitudes_asesor(self, nombre: str) -> int:
+        return self.asesores.get(nombre, {}).get('solicitudes_hoy', 0)
+
+
+@dataclass
+class AgenciaMigracion:
+    """Agencia de migración - agrupa solicitudes y migrantes"""
+    solicitudes: Dict[str, SolicitudVisa] = field(default_factory=dict)
+    migrantes: Dict[str, Dict] = field(default_factory=dict)
+    
+    def registrar_solicitud(self, solicitud: SolicitudVisa):
+        key = solicitud.id_solicitud or solicitud.id_migrante
+        self.solicitudes[key] = solicitud
+    
+    def total_solicitudes(self) -> int:
+        return len(self.solicitudes)
+    
+    def registrar_migrante(self, solicitud: SolicitudVisa):
+        self.migrantes[solicitud.id_migrante] = {
+            'id': solicitud.id_migrante,
+            'solicitudes': [solicitud]
+        }
+    
+    def obtener_migrante_por_id(self, id_migrante: str):
+        return self.migrantes.get(id_migrante)
+    
+    def total_migrantes(self) -> int:
+        return len(self.migrantes)
 
 
 # =====================================================
@@ -36,7 +229,8 @@ def step_impl(context):
         documentos = [doc.strip() for doc in row["documentos_obligatorios"].split(",")]
 
         checklist = ChecklistDocumentos(tipo_visa, documentos)
-        context.checklists[tipo_visa.value] = checklist
+        # Usar .name para consistencia con obtener_tipo_visa()
+        context.checklists[tipo_visa.name] = checklist
 
     assert len(context.checklists) == 3, f"Se esperaban 3 checklists, se encontraron {len(context.checklists)}"
 
@@ -337,8 +531,6 @@ def step_impl(context):
 @step("que existen los siguientes asesores con solicitudes asignadas hoy")
 def step_impl(context):
     """Configura los asesores con sus cargas de trabajo actuales."""
-    from apps.solicitudes.recepcion.domain import AsignadorSolicitudes
-    
     context.asesores = {}
     context.asignador = AsignadorSolicitudes(limite_diario=10)
     
