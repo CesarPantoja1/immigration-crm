@@ -3,7 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import LandingPage from './pages/LandingPage'
 import { LoginPage, RegisterPage } from './features/auth'
 import { useAuth } from './contexts/AuthContext'
-import { NotificationToast } from './components/common'
+import { NotificationToast, ErrorBoundary } from './components/common'
 
 // Layouts
 import ClientLayout from './layouts/ClientLayout'
@@ -58,8 +58,9 @@ function App() {
   const location = useLocation()
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+    <ErrorBoundary>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -295,11 +296,12 @@ function App() {
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      
-      {/* Toasts de notificaciones en tiempo real */}
-      <NotificationToast />
-    </AnimatePresence>
+        </Routes>
+
+        {/* Toasts de notificaciones en tiempo real */}
+        <NotificationToast />
+      </AnimatePresence>
+    </ErrorBoundary>
   )
 }
 

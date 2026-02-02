@@ -298,22 +298,30 @@ class DocumentoDetailView(generics.RetrieveAPIView):
 
 
 class AprobarDocumentoView(APIView):
-    """PATCH /api/documentos/<id>/aprobar/"""
+    """
+    PATCH /api/documentos/<id>/aprobar/
+
+    IDEMPOTENTE: Permite re-aprobar documentos mientras la solicitud
+    este en revision (no enviada a embajada).
+    """
     permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
-    
+
     def patch(self, request, pk):
         documento = DocumentoService.obtener_documento(pk, request.user)
-        
+
         if not documento:
             return Response({'error': 'Documento no encontrado'}, status=status.HTTP_404_NOT_FOUND)
-        
-        DocumentoService.aprobar_documento(documento, request.user)
-        
+
+        success, error = DocumentoService.aprobar_documento(documento, request.user)
+
+        if not success:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             NotificacionService.notificar_documento_aprobado(documento, documento.solicitud)
         except Exception:
             pass
-        
+
         return Response({
             'mensaje': 'Documento aprobado exitosamente',
             'documento': DocumentoSerializer(documento, context={'request': request}).data
@@ -321,26 +329,34 @@ class AprobarDocumentoView(APIView):
 
 
 class RechazarDocumentoView(APIView):
-    """PATCH /api/documentos/<id>/rechazar/"""
+    """
+    PATCH /api/documentos/<id>/rechazar/
+
+    IDEMPOTENTE: Permite re-evaluar documentos mientras la solicitud
+    este en revision (no enviada a embajada).
+    """
     permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
-    
+
     def patch(self, request, pk):
         documento = DocumentoService.obtener_documento(pk, request.user)
-        
+
         if not documento:
             return Response({'error': 'Documento no encontrado'}, status=status.HTTP_404_NOT_FOUND)
-        
+
         motivo = request.data.get('motivo_rechazo', '')
         if not motivo:
             return Response({'error': 'Debe proporcionar un motivo de rechazo'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        DocumentoService.rechazar_documento(documento, request.user, motivo)
-        
+
+        success, error = DocumentoService.rechazar_documento(documento, request.user, motivo)
+
+        if not success:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             NotificacionService.notificar_documento_rechazado(documento, documento.solicitud, motivo)
         except Exception:
             pass
-        
+
         return Response({
             'mensaje': 'Documento rechazado',
             'documento': DocumentoSerializer(documento, context={'request': request}).data
@@ -570,15 +586,15 @@ class EntrevistasProximasView(APIView):
 class CalendarioEventosView(APIView):
     """GET /api/entrevistas/calendario/?fecha_inicio=&fecha_fin="""
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
         fecha_inicio = request.query_params.get('fecha_inicio')
         fecha_fin = request.query_params.get('fecha_fin')
-        
+
         entrevistas = EntrevistaService.obtener_eventos_calendario(
             request.user, fecha_inicio, fecha_fin
         )
-        
+
         eventos = [{
             'id': e.id,
             'title': f"{e.solicitud.cliente.nombre_completo()} - {e.solicitud.get_tipo_visa_display()}",
@@ -586,5 +602,72 @@ class CalendarioEventosView(APIView):
             'tipo': 'entrevista',
             'estado': e.estado,
         } for e in entrevistas]
-        
+
         return Response(eventos)
+
+
+# =====================================================
+# DECISION DE EMBAJADA (NUEVO)
+# =====================================================
+
+class DecisionEmbajadaView(APIView):
+    """
+    POST /api/solicitudes/<id>/decision-embajada/
+
+    Registra la decision de la embajada sobre una solicitud.
+    Solo asesores y admins pueden registrar esta decision.
+
+    Body:
+        decision: 'aprobada' | 'rechazada'
+        motivo: string (requerido si decision es 'rechazada')
+    """
+    permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
+
+    def post(self, request, pk):
+        solicitud = SolicitudService.obtener_solicitud(pk)
+
+        if not solicitud:
+            return Response(
+                {'error': 'Solicitud no encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        decision = request.data.get('decision')
+        motivo = request.data.get('motivo', '')
+
+        if decision not in ['aprobada', 'rechazada']:
+            return Response(
+                {'error': 'Decision debe ser "aprobada" o "rechazada"'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        success, error = SolicitudService.registrar_decision_embajada(
+            solicitud, decision, motivo
+        )
+
+        if not success:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Notificar al cliente
+        try:
+            if decision == 'aprobada':
+                NotificacionService.crear_notificacion_general(
+                    usuario=solicitud.cliente,
+                    titulo='Tu solicitud fue aprobada por la embajada',
+                    mensaje=f'Tu solicitud de visa {solicitud.get_tipo_visa_display()} fue aprobada. Ya puedes agendar tu entrevista consular.',
+                    url_accion=f'/solicitudes/{solicitud.id}'
+                )
+            else:
+                NotificacionService.crear_notificacion_general(
+                    usuario=solicitud.cliente,
+                    titulo='Actualizacion sobre tu solicitud',
+                    mensaje=f'Tu solicitud de visa {solicitud.get_tipo_visa_display()} no fue aprobada por la embajada.',
+                    url_accion=f'/solicitudes/{solicitud.id}'
+                )
+        except Exception:
+            pass
+
+        return Response({
+            'mensaje': f'Decision de embajada registrada: {decision}',
+            'solicitud': SolicitudDetailSerializer(solicitud).data
+        })

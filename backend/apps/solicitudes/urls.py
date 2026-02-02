@@ -9,21 +9,24 @@ from .views import (
     SolicitudDetailView,
     EnviarSolicitudView,
     EstadisticasClienteView,
-    
+
     # Solicitudes - Asesor
     SolicitudesAsignadasView,
     SolicitudesPendientesView,
     ActualizarSolicitudView,
     AsignarAsesorView,
     EstadisticasAsesorView,
-    
+
+    # Decision de Embajada (NUEVO)
+    DecisionEmbajadaView,
+
     # Documentos
     SubirDocumentoView,
     ListarDocumentosSolicitudView,
     DocumentoDetailView,
     AprobarDocumentoView,
     RechazarDocumentoView,
-    
+
     # Entrevistas
     EntrevistasListView,
     EntrevistaDetailView,
@@ -55,6 +58,9 @@ urlpatterns = [
     path('solicitudes/<int:pk>/actualizar/', ActualizarSolicitudView.as_view(), name='actualizar_solicitud'),
     path('solicitudes/<int:pk>/asignar/', AsignarAsesorView.as_view(), name='asignar_asesor'),
     path('solicitudes/estadisticas/asesor/', EstadisticasAsesorView.as_view(), name='estadisticas_asesor'),
+
+    # Decision de Embajada (NUEVO - flujo corregido)
+    path('solicitudes/<int:pk>/decision-embajada/', DecisionEmbajadaView.as_view(), name='decision_embajada'),
     
     # ===== DOCUMENTOS =====
     path('solicitudes/<int:pk>/documentos/', SubirDocumentoView.as_view(), name='subir_documento'),

@@ -106,10 +106,10 @@ class SimulacroService:
         if info['disponibilidad'] != 'disponible':
             return None, 'Ha alcanzado el límite de 2 simulacros permitidos.'
         
-        # Crear simulacro
+        # Crear simulacro (CLIENTE solicita -> propuesto_por='cliente')
         fecha_default = date.today() if not fecha_propuesta else fecha_propuesta
         hora_default = time(9, 0) if not hora_propuesta else hora_propuesta
-        
+
         simulacro = Simulacro.objects.create(
             cliente=cliente,
             solicitud=solicitud,
@@ -120,21 +120,22 @@ class SimulacroService:
             fecha_propuesta=fecha_propuesta,
             hora_propuesta=hora_propuesta,
             estado='solicitado',
+            propuesto_por='cliente',  # El cliente inició la propuesta
             notas=f"Solicitud del cliente: {observaciones}" if observaciones else ""
         )
-        
+
         return simulacro, None
     
     @staticmethod
-    def crear_propuesta(asesor, cliente_id: int, fecha, hora, 
+    def crear_propuesta(asesor, cliente_id: int, fecha, hora,
                         modalidad: str = 'virtual', ubicacion: str = '',
                         solicitud_id: int = None) -> tuple[Simulacro | None, str | None]:
-        """Crea una propuesta de simulacro (asesor)."""
+        """Crea una propuesta de simulacro (ASESOR propone -> propuesto_por='asesor')."""
         try:
             cliente = Usuario.objects.get(id=cliente_id, rol='cliente')
         except Usuario.DoesNotExist:
             return None, 'Cliente no encontrado'
-        
+
         simulacro = Simulacro.objects.create(
             cliente=cliente,
             asesor=asesor,
@@ -143,9 +144,10 @@ class SimulacroService:
             hora=hora,
             modalidad=modalidad,
             ubicacion=ubicacion,
-            estado='pendiente_respuesta'
+            estado='pendiente_respuesta',
+            propuesto_por='asesor'  # El asesor inició la propuesta
         )
-        
+
         return simulacro, None
     
     @staticmethod

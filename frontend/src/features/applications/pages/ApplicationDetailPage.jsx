@@ -33,16 +33,21 @@ export default function ApplicationDetailPage() {
       try {
         const data = await solicitudesService.getSolicitud(id)
         
-        // Map status to display name
+        // Map status to display name (SINCRONIZADO con backend)
         const statusMap = {
+          'borrador': 'Borrador',
           'pendiente': 'Pendiente',
           'en_revision': 'En Revisión',
-          'aprobada': 'Aprobada',
+          'aprobada': 'Aprobada por Asesor',
           'rechazada': 'Rechazada',
-          'completada': 'Completada',
           'enviada_embajada': 'Enviada a Embajada',
+          // Nuevos estados de decisión de embajada
+          'esperando_decision_embajada': 'Esperando Decisión de Embajada',
+          'aprobada_embajada': 'Aprobada por Embajada',
+          'rechazada_embajada': 'Rechazada por Embajada',
+          // Estados finales
           'entrevista_agendada': 'Entrevista Agendada',
-          'borrador': 'Borrador'
+          'completada': 'Completada'
         }
         
         // Map visa type to display name (solo 3 tipos)
@@ -60,18 +65,29 @@ export default function ApplicationDetailPage() {
           return `${baseUrl}${url}`
         }
 
-        // Transform documentos
-        const docs = (data.documentos_adjuntos || []).map(doc => ({
-          id: doc.id,
-          name: doc.nombre,
-          status: doc.estado,
-          statusName: doc.estado === 'aprobado' ? 'Aprobado' : doc.estado === 'rechazado' ? 'Rechazado' : 'Pendiente',
-          url: buildAbsoluteUrl(doc.archivo_url || doc.archivo),
-          motivo_rechazo: doc.motivo_rechazo,
-          fecha_revision: doc.fecha_revision,
-          size: doc.tamanio || 'PDF',
-          uploadDate: doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString('es-ES') : 'Desconocido'
-        }))
+        // Transform documentos (estados sincronizados con backend)
+        const documentStatusMap = {
+          'pendiente': { name: 'Pendiente', variant: 'pending' },
+          'en_revision': { name: 'En Revisión', variant: 'reviewing' },
+          'aprobado': { name: 'Aprobado', variant: 'approved' },
+          'rechazado': { name: 'Rechazado', variant: 'rejected' }
+        }
+
+        const docs = (data.documentos_adjuntos || []).map(doc => {
+          const statusInfo = documentStatusMap[doc.estado] || { name: 'Pendiente', variant: 'pending' }
+          return {
+            id: doc.id,
+            name: doc.nombre,
+            status: statusInfo.variant,
+            backendStatus: doc.estado,
+            statusName: statusInfo.name,
+            url: buildAbsoluteUrl(doc.archivo_url || doc.archivo),
+            motivo_rechazo: doc.motivo_rechazo,
+            fecha_revision: doc.fecha_revision,
+            size: doc.tamanio || 'PDF',
+            uploadDate: doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString('es-ES') : 'Desconocido'
+          }
+        })
 
         // Generate timeline from data
         const timeline = []
@@ -145,23 +161,30 @@ export default function ApplicationDetailPage() {
 
   const getStatusVariant = (status) => {
     switch (status) {
+      // Estados de éxito (verde)
       case 'aprobada':
       case 'aprobado':
-      case 'approved': 
+      case 'approved':
       case 'completada':
+      case 'aprobada_embajada':
         return 'success'
+      // Estados de advertencia/pendiente (amarillo)
       case 'pendiente':
       case 'borrador':
-      case 'pending': 
+      case 'pending':
         return 'warning'
+      // Estados informativos/en proceso (azul)
       case 'en_revision':
       case 'enviada_embajada':
+      case 'esperando_decision_embajada':
       case 'entrevista_agendada':
-      case 'reviewing': 
+      case 'reviewing':
         return 'info'
+      // Estados de rechazo/error (rojo)
       case 'rechazada':
       case 'rechazado':
-      case 'rejected': 
+      case 'rejected':
+      case 'rechazada_embajada':
         return 'danger'
       default: return 'default'
     }
@@ -248,31 +271,53 @@ export default function ApplicationDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Documentos</h2>
             <div className="space-y-3">
               {app.documents.map((doc) => (
-                <div 
+                <div
                   key={doc.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className={`flex items-center justify-between p-4 rounded-xl transition-colors ${
+                    doc.status === 'rejected'
+                      ? 'bg-red-50 border border-red-200 hover:bg-red-100'
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
                 >
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                       doc.status === 'approved' ? 'bg-green-100' :
+                      doc.status === 'rejected' ? 'bg-red-100' :
                       doc.status === 'pending' ? 'bg-amber-100' : 'bg-blue-100'
                     }`}>
                       <svg className={`w-6 h-6 ${
                         doc.status === 'approved' ? 'text-green-600' :
+                        doc.status === 'rejected' ? 'text-red-600' :
                         doc.status === 'pending' ? 'text-amber-600' : 'text-blue-600'
                       }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        {doc.status === 'rejected' ? (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        ) : (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        )}
                       </svg>
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{doc.name}</p>
-                      <p className="text-sm text-gray-500">{doc.size} • Subido el {doc.uploadDate}</p>
+                      <p className={`font-medium ${doc.status === 'rejected' ? 'text-red-900' : 'text-gray-900'}`}>
+                        {doc.name}
+                      </p>
+                      <p className={`text-sm ${doc.status === 'rejected' ? 'text-red-600' : 'text-gray-500'}`}>
+                        {doc.size} • Subido el {doc.uploadDate}
+                      </p>
+                      {/* Mostrar motivo de rechazo si existe */}
+                      {doc.status === 'rejected' && doc.motivo_rechazo && (
+                        <p className="text-sm text-red-700 mt-1 flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {doc.motivo_rechazo}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge variant={getStatusVariant(doc.status)}>
-                      {doc.status === 'approved' ? 'Aprobado' :
-                       doc.status === 'pending' ? 'Pendiente' : 'En Revisión'}
+                      {doc.statusName}
                     </Badge>
                     <button
                       onClick={() => setPreviewDoc(doc)}
@@ -375,14 +420,14 @@ export default function ApplicationDetailPage() {
                 </span>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-green-500 rounded-full"
-                  style={{ 
-                    width: `${(app.documents.filter(d => d.status === 'approved').length / app.documents.length) * 100}%` 
+                  style={{
+                    width: `${(app.documents.filter(d => d.status === 'approved').length / Math.max(1, app.documents.length)) * 100}%`
                   }}
                 />
               </div>
-              <div className="flex gap-4 text-xs">
+              <div className="flex flex-wrap gap-3 text-xs">
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 bg-green-500 rounded-full" />
                   <span className="text-gray-500">
@@ -401,6 +446,15 @@ export default function ApplicationDetailPage() {
                     {app.documents.filter(d => d.status === 'pending').length} Pendientes
                   </span>
                 </div>
+                {/* Mostrar rechazados si existen */}
+                {app.documents.filter(d => d.status === 'rejected').length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-red-500 rounded-full" />
+                    <span className="text-red-600 font-medium">
+                      {app.documents.filter(d => d.status === 'rejected').length} Rechazados
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </Card>

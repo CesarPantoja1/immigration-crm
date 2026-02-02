@@ -20,11 +20,16 @@ class Solicitud(TimeStampedModel, SoftDeleteModel):
     
     ESTADOS = [
         ('borrador', 'Borrador'),
-        ('pendiente', 'Pendiente de Revisión'),
-        ('en_revision', 'En Revisión'),
+        ('pendiente', 'Pendiente de Revision'),
+        ('en_revision', 'En Revision'),
         ('aprobada', 'Aprobada'),
         ('rechazada', 'Rechazada'),
         ('enviada_embajada', 'Enviada a Embajada'),
+        # Nuevos estados para decision de embajada (flujo corregido)
+        ('esperando_decision_embajada', 'Esperando Decision de Embajada'),
+        ('aprobada_embajada', 'Aprobada por Embajada'),
+        ('rechazada_embajada', 'Rechazada por Embajada'),
+        # Estados finales
         ('entrevista_agendada', 'Entrevista Agendada'),
         ('completada', 'Completada'),
     ]
@@ -99,19 +104,30 @@ class Solicitud(TimeStampedModel, SoftDeleteModel):
     
     # Fechas importantes
     fecha_asignacion = models.DateTimeField(
-        'Fecha de Asignación',
+        'Fecha de Asignacion',
         null=True,
         blank=True
     )
     fecha_revision = models.DateTimeField(
-        'Fecha de Revisión',
+        'Fecha de Revision',
         null=True,
         blank=True
     )
     fecha_envio_embajada = models.DateTimeField(
-        'Fecha de Envío a Embajada',
+        'Fecha de Envio a Embajada',
         null=True,
         blank=True
+    )
+    # Nuevos campos para decision de embajada
+    fecha_decision_embajada = models.DateTimeField(
+        'Fecha Decision Embajada',
+        null=True,
+        blank=True
+    )
+    motivo_rechazo_embajada = models.TextField(
+        'Motivo Rechazo Embajada',
+        blank=True,
+        help_text='Motivo del rechazo si la embajada rechaza la solicitud'
     )
     
     class Meta:
@@ -126,7 +142,7 @@ class Solicitud(TimeStampedModel, SoftDeleteModel):
     def puede_ser_asignada(self) -> bool:
         """Verifica si la solicitud puede ser asignada a un asesor."""
         return self.estado in ['pendiente', 'borrador'] and self.asesor is None
-    
+
     def asignar_asesor(self, asesor):
         """Asigna un asesor a la solicitud."""
         from django.utils import timezone
@@ -134,6 +150,28 @@ class Solicitud(TimeStampedModel, SoftDeleteModel):
         self.estado = 'pendiente'
         self.fecha_asignacion = timezone.now()
         self.save()
+
+    def puede_agendar_entrevista(self) -> bool:
+        """
+        Verifica si la solicitud puede tener una entrevista agendada.
+        CRITICO: Solo se puede agendar si la EMBAJADA aprueba la solicitud.
+        """
+        return self.estado == 'aprobada_embajada'
+
+    def puede_modificar_documentos(self) -> bool:
+        """
+        Verifica si se pueden modificar documentos de la solicitud.
+        Solo permitido si la solicitud esta en revision (no enviada a embajada).
+        """
+        estados_bloqueados = [
+            'enviada_embajada',
+            'esperando_decision_embajada',
+            'aprobada_embajada',
+            'rechazada_embajada',
+            'entrevista_agendada',
+            'completada'
+        ]
+        return self.estado not in estados_bloqueados
 
 
 class Documento(TimeStampedModel):

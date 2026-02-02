@@ -16,3 +16,6 @@ export { default as ModalityFilter, ModalityBadge } from './ModalityFilter'
 
 // Notificaciones
 export { default as NotificationToast } from './NotificationToast'
+
+// Manejo de errores
+export { ErrorBoundary, ApiErrorDisplay } from './ErrorBoundary'

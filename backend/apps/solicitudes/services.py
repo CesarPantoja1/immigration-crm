@@ -112,32 +112,80 @@ class SolicitudService:
             return False, 'Asesor no encontrado'
     
     @staticmethod
-    def actualizar_estado(solicitud: Solicitud, nuevo_estado: str, notas: str = '') -> tuple[bool, str | None]:
-        """Actualiza el estado de una solicitud con validación de transiciones."""
+    def actualizar_estado(solicitud: Solicitud, nuevo_estado: str, notas: str = '', motivo_rechazo: str = '') -> tuple[bool, str | None]:
+        """
+        Actualiza el estado de una solicitud con validacion de transiciones.
+
+        MAQUINA DE ESTADOS CORREGIDA:
+        borrador -> pendiente
+        pendiente -> en_revision, rechazada
+        en_revision -> aprobada, rechazada
+        aprobada -> enviada_embajada
+        enviada_embajada -> esperando_decision_embajada
+        esperando_decision_embajada -> aprobada_embajada, rechazada_embajada
+        aprobada_embajada -> entrevista_agendada (UNICO estado que permite agendar)
+        entrevista_agendada -> completada
+        """
         transiciones_validas = {
+            'borrador': ['pendiente'],
             'pendiente': ['en_revision', 'rechazada'],
             'en_revision': ['aprobada', 'rechazada'],
             'aprobada': ['enviada_embajada'],
-            'enviada_embajada': ['entrevista_agendada'],
+            'enviada_embajada': ['esperando_decision_embajada'],
+            'esperando_decision_embajada': ['aprobada_embajada', 'rechazada_embajada'],
+            'aprobada_embajada': ['entrevista_agendada'],
             'entrevista_agendada': ['completada'],
         }
-        
+
         estados_permitidos = transiciones_validas.get(solicitud.estado, [])
         if nuevo_estado not in estados_permitidos:
             return False, f"No se puede cambiar de '{solicitud.estado}' a '{nuevo_estado}'"
-        
+
         solicitud.estado = nuevo_estado
         if notas:
             solicitud.notas_asesor = notas
-        
-        # Registrar fechas importantes
+
+        # Registrar fechas importantes segun el estado
         if nuevo_estado in ['aprobada', 'rechazada']:
             solicitud.fecha_revision = timezone.now()
         elif nuevo_estado == 'enviada_embajada':
             solicitud.fecha_envio_embajada = timezone.now()
-        
+        elif nuevo_estado in ['aprobada_embajada', 'rechazada_embajada']:
+            solicitud.fecha_decision_embajada = timezone.now()
+            if nuevo_estado == 'rechazada_embajada' and motivo_rechazo:
+                solicitud.motivo_rechazo_embajada = motivo_rechazo
+
         solicitud.save()
         return True, None
+
+    @staticmethod
+    def registrar_decision_embajada(solicitud: Solicitud, decision: str, motivo: str = '') -> tuple[bool, str | None]:
+        """
+        Registra la decision de la embajada sobre una solicitud.
+
+        Args:
+            solicitud: Instancia de Solicitud
+            decision: 'aprobada' o 'rechazada'
+            motivo: Motivo del rechazo (requerido si decision es rechazada)
+
+        Returns:
+            Tuple (exito, mensaje_error)
+        """
+        if solicitud.estado != 'esperando_decision_embajada':
+            return False, 'La solicitud no esta esperando decision de la embajada'
+
+        if decision == 'aprobada':
+            return SolicitudService.actualizar_estado(solicitud, 'aprobada_embajada')
+        elif decision == 'rechazada':
+            if not motivo:
+                return False, 'Debe proporcionar un motivo de rechazo'
+            return SolicitudService.actualizar_estado(
+                solicitud,
+                'rechazada_embajada',
+                motivo_rechazo=motivo
+            )
+        else:
+            return False, f'Decision invalida: {decision}'
     
     @staticmethod
     def enviar_solicitud(solicitud: Solicitud) -> tuple[bool, str | None]:
@@ -191,24 +239,24 @@ class SolicitudService:
 
 
 class DocumentoService:
-    """Servicio para gestión de documentos."""
-    
+    """Servicio para gestion de documentos."""
+
     @staticmethod
     def obtener_documento(documento_id: int, usuario=None) -> Documento | None:
         """Obtiene un documento por ID."""
         try:
             filtros = {'pk': documento_id}
-            
+
             if usuario:
                 if usuario.rol == 'cliente':
                     filtros['solicitud__cliente'] = usuario
                 elif usuario.rol == 'asesor':
                     filtros['solicitud__asesor'] = usuario
-            
+
             return Documento.objects.get(**filtros)
         except Documento.DoesNotExist:
             return None
-    
+
     @staticmethod
     def subir_documento(solicitud: Solicitud, archivo, nombre: str) -> Documento:
         """Sube un nuevo documento a una solicitud."""
@@ -218,36 +266,63 @@ class DocumentoService:
             archivo=archivo,
             estado='pendiente'
         )
-    
+
     @staticmethod
-    def aprobar_documento(documento: Documento, revisor) -> None:
-        """Aprueba un documento."""
+    def puede_modificar_documento(documento: Documento) -> tuple[bool, str | None]:
+        """
+        Verifica si un documento puede ser modificado (aprobado/rechazado).
+        IDEMPOTENTE: permite re-evaluacion mientras la solicitud este en revision.
+        """
+        solicitud = documento.solicitud
+        if not solicitud.puede_modificar_documentos():
+            return False, 'No se pueden modificar documentos de una solicitud enviada a la embajada'
+        return True, None
+
+    @staticmethod
+    def aprobar_documento(documento: Documento, revisor) -> tuple[bool, str | None]:
+        """
+        Aprueba un documento.
+        IDEMPOTENTE: permite re-aprobar mientras la solicitud este en revision.
+        """
+        puede, error = DocumentoService.puede_modificar_documento(documento)
+        if not puede:
+            return False, error
+
         documento.estado = 'aprobado'
         documento.revisado_por = revisor
         documento.fecha_revision = timezone.now()
         documento.motivo_rechazo = ''
         documento.save()
-    
+        return True, None
+
     @staticmethod
-    def rechazar_documento(documento: Documento, revisor, motivo: str) -> None:
-        """Rechaza un documento con motivo."""
+    def rechazar_documento(documento: Documento, revisor, motivo: str) -> tuple[bool, str | None]:
+        """
+        Rechaza un documento con motivo.
+        IDEMPOTENTE: permite re-evaluar mientras la solicitud este en revision.
+        """
+        puede, error = DocumentoService.puede_modificar_documento(documento)
+        if not puede:
+            return False, error
+
         documento.estado = 'rechazado'
         documento.revisado_por = revisor
         documento.fecha_revision = timezone.now()
         documento.motivo_rechazo = motivo
         documento.save()
-    
+        return True, None
+
     @staticmethod
     def listar_documentos(solicitud_id: int, usuario=None):
         """Lista documentos de una solicitud."""
         queryset = Documento.objects.filter(solicitud_id=solicitud_id)
-        
+
         if usuario:
             if usuario.rol == 'cliente':
                 queryset = queryset.filter(solicitud__cliente=usuario)
             elif usuario.rol == 'asesor':
                 queryset = queryset.filter(solicitud__asesor=usuario)
-        
+
         return queryset
 
 
@@ -301,15 +376,28 @@ class EntrevistaService:
         ]
     
     @staticmethod
-    def agendar(solicitud: Solicitud, fecha: str, hora: str, 
+    def agendar(solicitud: Solicitud, fecha: str, hora: str,
                 ubicacion: str = '') -> tuple[Entrevista | None, str | None]:
-        """Agenda una entrevista para una solicitud."""
-        if solicitud.estado not in ['aprobada', 'enviada_embajada']:
-            return None, 'La solicitud debe estar aprobada para agendar entrevista'
-        
+        """
+        Agenda una entrevista para una solicitud.
+
+        CRITICO: Solo se puede agendar si la solicitud fue APROBADA POR LA EMBAJADA.
+        Esto corrige el flujo anterior donde se saltaba la decision de la embajada.
+        """
+        # Validacion CRITICA: solo permitir si la embajada aprobo
+        if not solicitud.puede_agendar_entrevista():
+            if solicitud.estado == 'enviada_embajada':
+                return None, 'La embajada aun no ha aprobado la solicitud'
+            elif solicitud.estado == 'esperando_decision_embajada':
+                return None, 'La solicitud esta pendiente de decision de la embajada'
+            elif solicitud.estado == 'rechazada_embajada':
+                return None, 'La solicitud fue rechazada por la embajada, no se puede agendar entrevista'
+            else:
+                return None, f'La solicitud debe estar aprobada por la embajada para agendar entrevista (estado actual: {solicitud.estado})'
+
         if hasattr(solicitud, 'entrevista'):
             return None, 'La solicitud ya tiene una entrevista agendada'
-        
+
         entrevista = Entrevista.objects.create(
             solicitud=solicitud,
             fecha=fecha,
@@ -317,10 +405,10 @@ class EntrevistaService:
             ubicacion=ubicacion,
             estado='agendada'
         )
-        
+
         solicitud.estado = 'entrevista_agendada'
         solicitud.save()
-        
+
         return entrevista, None
     
     @staticmethod

@@ -20,14 +20,18 @@ class SimulacroListSerializer(serializers.ModelSerializer):
     hora_propuesta = serializers.SerializerMethodField()
     solicitud_tipo = serializers.SerializerMethodField()
     solicitud_id = serializers.SerializerMethodField()
-    
+    # Campo para saber quién propuso el simulacro (reglas de roles)
+    propuesto_por = serializers.CharField(read_only=True)
+    puede_aceptar = serializers.SerializerMethodField()
+
     class Meta:
         model = Simulacro
         fields = [
             'id', 'fecha', 'hora', 'modalidad', 'modalidad_display',
             'estado', 'estado_display', 'cliente_nombre', 'asesor_nombre',
             'ubicacion', 'puede_cancelar', 'puede_ingresar', 'created_at',
-            'fecha_propuesta', 'hora_propuesta', 'solicitud_tipo', 'solicitud_id'
+            'fecha_propuesta', 'hora_propuesta', 'solicitud_tipo', 'solicitud_id',
+            'propuesto_por', 'puede_aceptar'
         ]
     
     def get_cliente_nombre(self, obj):
@@ -57,6 +61,36 @@ class SimulacroListSerializer(serializers.ModelSerializer):
     
     def get_solicitud_id(self, obj):
         return obj.solicitud_id if obj.solicitud_id else None
+
+    def get_puede_aceptar(self, obj):
+        """
+        Determina si el usuario actual puede aceptar este simulacro.
+
+        REGLA DE NEGOCIO (simulacion_entrevista.feature):
+        - Un cliente NO puede aceptar una propuesta que él mismo creó
+        - Un asesor puede aceptar una propuesta que el cliente creó
+        - Solo se puede aceptar propuestas en estado pendiente
+        """
+        request = self.context.get('request')
+        if not request or not request.user:
+            return False
+
+        # Solo se pueden aceptar propuestas pendientes
+        if obj.estado not in ['solicitado', 'propuesto', 'pendiente_respuesta', 'contrapropuesta']:
+            return False
+
+        user = request.user
+        user_rol = getattr(user, 'rol', None)
+
+        # Si el usuario es cliente y él mismo propuso, NO puede aceptar
+        if user_rol == 'cliente' and obj.propuesto_por == 'cliente':
+            return False
+
+        # Si el usuario es asesor/admin y el asesor propuso, NO puede aceptar
+        if user_rol in ['asesor', 'admin'] and obj.propuesto_por == 'asesor':
+            return False
+
+        return True
 
 
 class SimulacroDetailSerializer(serializers.ModelSerializer):

@@ -98,6 +98,19 @@ class Simulacro(TimeStampedModel, SoftDeleteModel):
     # Notas
     notas = models.TextField('Notas', blank=True)
     motivo_cancelacion = models.TextField('Motivo de Cancelación', blank=True)
+
+    # Quién propuso el simulacro (para reglas de roles)
+    QUIEN_PROPUSO = [
+        ('cliente', 'Cliente'),
+        ('asesor', 'Asesor'),
+    ]
+    propuesto_por = models.CharField(
+        'Propuesto Por',
+        max_length=20,
+        choices=QUIEN_PROPUSO,
+        default='asesor',
+        help_text='Indica quién inició la propuesta del simulacro'
+    )
     
     class Meta:
         db_table = 'simulacros'

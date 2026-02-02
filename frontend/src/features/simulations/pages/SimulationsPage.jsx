@@ -76,7 +76,10 @@ export default function SimulationsPage() {
         visaType: s.solicitud_tipo || 'Entrevista',
         solicitudId: s.solicitud_id,
         status: 'pending',
-        location: s.ubicacion
+        location: s.ubicacion,
+        // Campos para reglas de roles (simulacion_entrevista.feature)
+        propuesto_por: s.propuesto_por || 'asesor',
+        puede_aceptar: s.puede_aceptar !== false // Por defecto true si no viene
       })))
 
       setUpcoming(confirmados.map(s => {
@@ -398,9 +401,21 @@ export default function SimulationsPage() {
                     >
                       Proponer otra fecha
                     </Button>
-                    <Button onClick={() => handleAcceptSimulation(proposal)}>
-                      Aceptar simulacro
-                    </Button>
+                    {/* REGLA DE NEGOCIO: Cliente NO puede aceptar propuesta que él mismo creó */}
+                    {proposal.puede_aceptar && (
+                      <Button onClick={() => handleAcceptSimulation(proposal)}>
+                        Aceptar simulacro
+                      </Button>
+                    )}
+                    {/* Mostrar indicador si el usuario creó la propuesta */}
+                    {!proposal.puede_aceptar && proposal.propuesto_por === 'cliente' && user?.role === 'client' && (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-sm">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Esperando confirmación del asesor
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>
