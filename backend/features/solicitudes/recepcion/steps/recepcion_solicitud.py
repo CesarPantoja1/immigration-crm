@@ -80,9 +80,7 @@ def step_impl(context):
         documentos = [doc.strip() for doc in row["documentos"].split(",")]
 
     checklist = context.checklists[context.solicitud.obtener_tipo_visa()]
-
     context.solicitud.cargar_documentos(documentos, checklist)
-
     assert context.solicitud.obtener_total_documentos() == checklist.total_documentos()
 
 

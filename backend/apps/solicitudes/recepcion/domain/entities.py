@@ -64,9 +64,6 @@ class Documento:
 
 @dataclass
 class SolicitudVisa:
-    """
-    Entidad SolicitudVisa - Agregado raíz para solicitudes de visa.
-    """
     id_migrante: str
     tipo_visa: TipoVisa
     embajada: TipoEmbajada
@@ -78,7 +75,15 @@ class SolicitudVisa:
     fecha_creacion: datetime = field(default_factory=datetime.now)
     fecha_actualizacion: datetime = field(default_factory=datetime.now)
     notas: str = ""
-    
+
+    def cargar_documentos(self, nombres_documentos: List[str],
+                         checklist: ChecklistDocumentos) -> None:
+        self.asignar_checklist(checklist)
+        for nombre in nombres_documentos:
+            doc = Documento(nombre=nombre, estado="EN_REVISION")
+            self.documentos.append(doc)
+        self.estado = "EN_REVISION"
+
     def obtener_tipo_visa(self) -> str:
         return self.tipo_visa.value if isinstance(self.tipo_visa, TipoVisa) else self.tipo_visa
     
@@ -105,13 +110,7 @@ class SolicitudVisa:
             for nombre_doc in self.checklist.obtener_documentos():
                 self.documentos.append(Documento(nombre=nombre_doc))
     
-    def cargar_documentos(self, nombres_documentos: List[str], 
-                         checklist: ChecklistDocumentos) -> None:
-        self.asignar_checklist(checklist)
-        for nombre in nombres_documentos:
-            doc = Documento(nombre=nombre, estado="EN_REVISION")
-            self.documentos.append(doc)
-        self.estado = "EN_REVISION"
+
     
     def agregar_documento(self, documento: Documento) -> None:
         self.documentos.append(documento)

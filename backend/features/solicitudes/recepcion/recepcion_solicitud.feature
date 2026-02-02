@@ -20,7 +20,7 @@
         | BRASILEÑA      |
 
 
-    Esquema del escenario: Migrante ingresa solicitud completa correctamente
+    Esquema del escenario: Migrante ingresa solicitud completa
       Dado que un migrante solicita visa <tipo_visa> para embajada <embajada>
       Cuando carga todos los documentos obligatorios
         | documentos            |
@@ -33,7 +33,7 @@
         | tipo_visa | embajada       | documentos_cargados                                             |
         | VIVIENDA  | ESTADOUNIDENSE | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
         | TRABAJO   | BRASILEÑA      | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
-        | ESTUDIO   | ESTADOUNIDENSE | Pasaporte, Antecedentes penales, Foto, Certificado de matrícula |
+        | ESTUDIO   | ESTADOUNIDENSE | Pasaporte, Antecedentxes penales, Foto, Certificado de matrícula |
 
 
   #=====================================
