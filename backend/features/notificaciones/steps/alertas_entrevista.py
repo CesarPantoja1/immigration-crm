@@ -360,18 +360,24 @@ def paso_registra_entrevista(context, asesor, id_solicitud, fecha_hora):
     assert context.sistema.solicitudes[id_solicitud].entrevista is not None
 
 
-@step("en el centro de notificaciones del migrante aparece una notificación nueva con")
+use_step_matcher("re")
+
+
+@step(r"en el centro de notificaciones del migrante aparece una notificaci.n nueva con:?")
 def paso_notificacion_migrante(context):
     esperado = {heading: context.table[0][heading] for heading in context.table.headings}
     notificacion = context.sistema.notificaciones_migrante.buscar_coincidencia(esperado)
     assert notificacion is not None, f"No se encontró notificación: {esperado}"
 
 
-@step("en el centro de notificaciones del asesor aparece una notificación nueva con")
+@step(r"en el centro de notificaciones del asesor aparece una notificaci.n nueva con:?")
 def paso_notificacion_asesor(context):
     esperado = {heading: context.table[0][heading] for heading in context.table.headings}
     notificacion = context.sistema.notificaciones_asesor.buscar_coincidencia(esperado)
     assert notificacion is not None, f"No se encontró notificación: {esperado}"
+
+
+use_step_matcher("parse")
 
 
 @step('la notificación queda asociada a la solicitud "{id_solicitud}" al abrir su detalle')

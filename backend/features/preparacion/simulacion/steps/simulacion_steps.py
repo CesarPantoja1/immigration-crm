@@ -276,7 +276,7 @@ class GestorSimulacros:
 # CONFIGURACIÓN DEL SISTEMA
 # ============================================================================
 
-@step(u'que el sistema tiene configurados los siguientes límites')
+@step(u'que el sistema tiene configurados los siguientes límites:')
 def step_configurar_sistema(context):
     context.config_params = {}
     for row in context.table:

@@ -2,7 +2,7 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
   Como migrante
   Quiero recibir alertas oportunas sobre mi entrevista consular y mi preparación
   Para reducir el riesgo de inasistencia y cumplir el proceso sin retrasos
-  Antecedentes:   # features/notificaciones/alertas_entrevista.feature:7
+  Característica: Alertas de entrevistas  # features/notificaciones/alertas_entrevista.feature:2
 
   Escenario: Notificar entrevista agendada al migrante                                                 # features/notificaciones/alertas_entrevista.feature:32
     Dado que soy un solicitante autenticado en el sistema de gestión migratoria                        # features/notificaciones/steps/alertas_entrevista.py:309
@@ -26,10 +26,10 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
       | 7d      |
     Dado que la solicitud "SOL-2026-00001" no tiene entrevista registrada                              # features/notificaciones/steps/alertas_entrevista.py:351
     Cuando el asesor "Carlos Ruiz" registra una entrevista para "SOL-2026-00001" en "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:357
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con            # features/notificaciones/steps/alertas_entrevista.py:363
+    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con            # features/notificaciones/steps/alertas_entrevista.py:366
       | tipo                | id_solicitud   | fecha_hora_entrevista |
       | Entrevista agendada | SOL-2026-00001 | 2026-02-15 09:00      |
-    Y la notificación queda asociada a la solicitud "SOL-2026-00001" al abrir su detalle               # features/notificaciones/steps/alertas_entrevista.py:377
+    Y la notificación queda asociada a la solicitud "SOL-2026-00001" al abrir su detalle               # features/notificaciones/steps/alertas_entrevista.py:383
 
   Esquema del escenario: Recordatorio antes de la entrevista -- @1.1                                 # features/notificaciones/alertas_entrevista.feature:55
     Dado que soy un solicitante autenticado en el sistema de gestión migratoria                      # features/notificaciones/steps/alertas_entrevista.py:309
@@ -51,13 +51,13 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
     Y el sistema tiene configurada una ventana de control de preparación                             # features/notificaciones/steps/alertas_entrevista.py:344
       | ventana |
       | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:384
-    Y la fecha y hora actual del sistema es "2026-02-14 09:00"                                       # features/notificaciones/steps/alertas_entrevista.py:391
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"       # features/notificaciones/steps/alertas_entrevista.py:397
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con          # features/notificaciones/steps/alertas_entrevista.py:363
+    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:390
+    Y la fecha y hora actual del sistema es "2026-02-14 09:00"                                       # features/notificaciones/steps/alertas_entrevista.py:397
+    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"       # features/notificaciones/steps/alertas_entrevista.py:403
+    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con:         # features/notificaciones/steps/alertas_entrevista.py:366
       | tipo                    | id_solicitud   | fecha_hora_entrevista |
       | Recordatorio entrevista | SOL-2026-00001 | 2026-02-15 09:00      |
-    Y el detalle de la notificación es "Faltan 24h"                                                  # features/notificaciones/steps/alertas_entrevista.py:403
+    Y el detalle de la notificación es "Faltan 24h"                                                  # features/notificaciones/steps/alertas_entrevista.py:409
 
   Esquema del escenario: Recordatorio antes de la entrevista -- @1.2                                 # features/notificaciones/alertas_entrevista.feature:56
     Dado que soy un solicitante autenticado en el sistema de gestión migratoria                      # features/notificaciones/steps/alertas_entrevista.py:309
@@ -79,13 +79,13 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
     Y el sistema tiene configurada una ventana de control de preparación                             # features/notificaciones/steps/alertas_entrevista.py:344
       | ventana |
       | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:384
-    Y la fecha y hora actual del sistema es "2026-02-15 07:00"                                       # features/notificaciones/steps/alertas_entrevista.py:391
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"       # features/notificaciones/steps/alertas_entrevista.py:397
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con          # features/notificaciones/steps/alertas_entrevista.py:363
+    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:390
+    Y la fecha y hora actual del sistema es "2026-02-15 07:00"                                       # features/notificaciones/steps/alertas_entrevista.py:397
+    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"       # features/notificaciones/steps/alertas_entrevista.py:403
+    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con:         # features/notificaciones/steps/alertas_entrevista.py:366
       | tipo                    | id_solicitud   | fecha_hora_entrevista |
       | Recordatorio entrevista | SOL-2026-00001 | 2026-02-15 09:00      |
-    Y el detalle de la notificación es "Faltan 2h"                                                   # features/notificaciones/steps/alertas_entrevista.py:403
+    Y el detalle de la notificación es "Faltan 2h"                                                   # features/notificaciones/steps/alertas_entrevista.py:409
 
   Escenario: Reprogramación de una entrevista                                                        # features/notificaciones/alertas_entrevista.feature:62
     Dado que soy un solicitante autenticado en el sistema de gestión migratoria                      # features/notificaciones/steps/alertas_entrevista.py:309
@@ -107,9 +107,9 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
     Y el sistema tiene configurada una ventana de control de preparación                             # features/notificaciones/steps/alertas_entrevista.py:344
       | ventana |
       | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:384
-    Cuando el asesor "Carlos Ruiz" reprograma la entrevista de "SOL-2026-00001" a "2026-02-20 10:00" # features/notificaciones/steps/alertas_entrevista.py:415
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con          # features/notificaciones/steps/alertas_entrevista.py:363
+    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:390
+    Cuando el asesor "Carlos Ruiz" reprograma la entrevista de "SOL-2026-00001" a "2026-02-20 10:00" # features/notificaciones/steps/alertas_entrevista.py:421
+    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con:         # features/notificaciones/steps/alertas_entrevista.py:366
       | tipo                    | id_solicitud   | fecha_hora_anterior | nueva_fecha_hora |
       | Entrevista reprogramada | SOL-2026-00001 | 2026-02-15 09:00    | 2026-02-20 10:00 |
 
@@ -133,12 +133,12 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
     Y el sistema tiene configurada una ventana de control de preparación                                            # features/notificaciones/steps/alertas_entrevista.py:344
       | ventana |
       | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Reprogramada" para "2026-02-20 10:00"              # features/notificaciones/steps/alertas_entrevista.py:384
-    Y previamente estuvo "Programada" para "2026-02-15 09:00"                                                       # features/notificaciones/steps/alertas_entrevista.py:423
-    Y la fecha y hora actual del sistema es "2026-02-14 09:00"                                                      # features/notificaciones/steps/alertas_entrevista.py:391
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"                      # features/notificaciones/steps/alertas_entrevista.py:397
-    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista" asociada a "2026-02-15 09:00"  # features/notificaciones/steps/alertas_entrevista.py:429
-    Y el contador de notificaciones de tipo "Recordatorio entrevista" para la solicitud "SOL-2026-00001" no aumenta # features/notificaciones/steps/alertas_entrevista.py:442
+    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Reprogramada" para "2026-02-20 10:00"              # features/notificaciones/steps/alertas_entrevista.py:390
+    Y previamente estuvo "Programada" para "2026-02-15 09:00"                                                       # features/notificaciones/steps/alertas_entrevista.py:429
+    Y la fecha y hora actual del sistema es "2026-02-14 09:00"                                                      # features/notificaciones/steps/alertas_entrevista.py:397
+    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"                      # features/notificaciones/steps/alertas_entrevista.py:403
+    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista" asociada a "2026-02-15 09:00"  # features/notificaciones/steps/alertas_entrevista.py:435
+    Y el contador de notificaciones de tipo "Recordatorio entrevista" para la solicitud "SOL-2026-00001" no aumenta # features/notificaciones/steps/alertas_entrevista.py:448
 
   Esquema del escenario: No emitir recordatorios basados en la fecha anterior tras reprogramación -- @1.2           # features/notificaciones/alertas_entrevista.feature:80
     Dado que soy un solicitante autenticado en el sistema de gestión migratoria                                     # features/notificaciones/steps/alertas_entrevista.py:309
@@ -160,12 +160,12 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
     Y el sistema tiene configurada una ventana de control de preparación                                            # features/notificaciones/steps/alertas_entrevista.py:344
       | ventana |
       | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Reprogramada" para "2026-02-20 10:00"              # features/notificaciones/steps/alertas_entrevista.py:384
-    Y previamente estuvo "Programada" para "2026-02-15 09:00"                                                       # features/notificaciones/steps/alertas_entrevista.py:423
-    Y la fecha y hora actual del sistema es "2026-02-15 07:00"                                                      # features/notificaciones/steps/alertas_entrevista.py:391
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"                      # features/notificaciones/steps/alertas_entrevista.py:397
-    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista" asociada a "2026-02-15 09:00"  # features/notificaciones/steps/alertas_entrevista.py:429
-    Y el contador de notificaciones de tipo "Recordatorio entrevista" para la solicitud "SOL-2026-00001" no aumenta # features/notificaciones/steps/alertas_entrevista.py:442
+    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Reprogramada" para "2026-02-20 10:00"              # features/notificaciones/steps/alertas_entrevista.py:390
+    Y previamente estuvo "Programada" para "2026-02-15 09:00"                                                       # features/notificaciones/steps/alertas_entrevista.py:429
+    Y la fecha y hora actual del sistema es "2026-02-15 07:00"                                                      # features/notificaciones/steps/alertas_entrevista.py:397
+    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"                      # features/notificaciones/steps/alertas_entrevista.py:403
+    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista" asociada a "2026-02-15 09:00"  # features/notificaciones/steps/alertas_entrevista.py:435
+    Y el contador de notificaciones de tipo "Recordatorio entrevista" para la solicitud "SOL-2026-00001" no aumenta # features/notificaciones/steps/alertas_entrevista.py:448
 
   Escenario: Cancelación de entrevista                                                               # features/notificaciones/alertas_entrevista.feature:86
     Dado que soy un solicitante autenticado en el sistema de gestión migratoria                      # features/notificaciones/steps/alertas_entrevista.py:309
@@ -187,9 +187,9 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
     Y el sistema tiene configurada una ventana de control de preparación                             # features/notificaciones/steps/alertas_entrevista.py:344
       | ventana |
       | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:384
-    Cuando el asesor "Carlos Ruiz" cancela la entrevista de "SOL-2026-00001"                         # features/notificaciones/steps/alertas_entrevista.py:458
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con          # features/notificaciones/steps/alertas_entrevista.py:363
+    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:390
+    Cuando el asesor "Carlos Ruiz" cancela la entrevista de "SOL-2026-00001"                         # features/notificaciones/steps/alertas_entrevista.py:464
+    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con:         # features/notificaciones/steps/alertas_entrevista.py:366
       | tipo                 | id_solicitud   | fecha_hora_entrevista |
       | Entrevista cancelada | SOL-2026-00001 | 2026-02-15 09:00      |
 
@@ -213,12 +213,12 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
     Y el sistema tiene configurada una ventana de control de preparación                       # features/notificaciones/steps/alertas_entrevista.py:344
       | ventana |
       | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista en estado "Cancelada"          # features/notificaciones/steps/alertas_entrevista.py:466
-    Y la entrevista cancelada correspondía a "2026-02-15 09:00"                                # features/notificaciones/steps/alertas_entrevista.py:474
-    Y la fecha y hora actual del sistema es "2026-02-14 09:00"                                 # features/notificaciones/steps/alertas_entrevista.py:391
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001" # features/notificaciones/steps/alertas_entrevista.py:397
-    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista"           # features/notificaciones/steps/alertas_entrevista.py:480
-    Y el contador de notificaciones no aumenta para la solicitud "SOL-2026-00001"              # features/notificaciones/steps/alertas_entrevista.py:489
+    Dado que la solicitud "SOL-2026-00001" tiene una entrevista en estado "Cancelada"          # features/notificaciones/steps/alertas_entrevista.py:472
+    Y la entrevista cancelada correspondía a "2026-02-15 09:00"                                # features/notificaciones/steps/alertas_entrevista.py:480
+    Y la fecha y hora actual del sistema es "2026-02-14 09:00"                                 # features/notificaciones/steps/alertas_entrevista.py:397
+    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001" # features/notificaciones/steps/alertas_entrevista.py:403
+    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista"           # features/notificaciones/steps/alertas_entrevista.py:486
+    Y el contador de notificaciones no aumenta para la solicitud "SOL-2026-00001"              # features/notificaciones/steps/alertas_entrevista.py:495
 
   Esquema del escenario: No emitir recordatorios si la entrevista está cancelada -- @1.2       # features/notificaciones/alertas_entrevista.feature:104
     Dado que soy un solicitante autenticado en el sistema de gestión migratoria                # features/notificaciones/steps/alertas_entrevista.py:309
@@ -240,12 +240,12 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
     Y el sistema tiene configurada una ventana de control de preparación                       # features/notificaciones/steps/alertas_entrevista.py:344
       | ventana |
       | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista en estado "Cancelada"          # features/notificaciones/steps/alertas_entrevista.py:466
-    Y la entrevista cancelada correspondía a "2026-02-15 09:00"                                # features/notificaciones/steps/alertas_entrevista.py:474
-    Y la fecha y hora actual del sistema es "2026-02-15 07:00"                                 # features/notificaciones/steps/alertas_entrevista.py:391
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001" # features/notificaciones/steps/alertas_entrevista.py:397
-    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista"           # features/notificaciones/steps/alertas_entrevista.py:480
-    Y el contador de notificaciones no aumenta para la solicitud "SOL-2026-00001"              # features/notificaciones/steps/alertas_entrevista.py:489
+    Dado que la solicitud "SOL-2026-00001" tiene una entrevista en estado "Cancelada"          # features/notificaciones/steps/alertas_entrevista.py:472
+    Y la entrevista cancelada correspondía a "2026-02-15 09:00"                                # features/notificaciones/steps/alertas_entrevista.py:480
+    Y la fecha y hora actual del sistema es "2026-02-15 07:00"                                 # features/notificaciones/steps/alertas_entrevista.py:397
+    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001" # features/notificaciones/steps/alertas_entrevista.py:403
+    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista"           # features/notificaciones/steps/alertas_entrevista.py:486
+    Y el contador de notificaciones no aumenta para la solicitud "SOL-2026-00001"              # features/notificaciones/steps/alertas_entrevista.py:495
 
   Escenario: Alerta cuando falta una semana y no existe simulacro confirmado                         # features/notificaciones/alertas_entrevista.feature:110
     Dado que soy un solicitante autenticado en el sistema de gestión migratoria                      # features/notificaciones/steps/alertas_entrevista.py:309
@@ -267,14 +267,14 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
     Y el sistema tiene configurada una ventana de control de preparación                             # features/notificaciones/steps/alertas_entrevista.py:344
       | ventana |
       | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:384
-    Y no existe un simulacro en estado "Confirmado" asociado a "SOL-2026-00001"                      # features/notificaciones/steps/alertas_entrevista.py:501
-    Y la fecha y hora actual del sistema es "2026-02-08 09:00"                                       # features/notificaciones/steps/alertas_entrevista.py:391
-    Cuando el sistema evalúa el estado de preparación para la entrevista de "SOL-2026-00001"         # features/notificaciones/steps/alertas_entrevista.py:506
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con          # features/notificaciones/steps/alertas_entrevista.py:363
+    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:390
+    Y no existe un simulacro en estado "Confirmado" asociado a "SOL-2026-00001"                      # features/notificaciones/steps/alertas_entrevista.py:507
+    Y la fecha y hora actual del sistema es "2026-02-08 09:00"                                       # features/notificaciones/steps/alertas_entrevista.py:397
+    Cuando el sistema evalúa el estado de preparación para la entrevista de "SOL-2026-00001"         # features/notificaciones/steps/alertas_entrevista.py:512
+    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con:         # features/notificaciones/steps/alertas_entrevista.py:366
       | tipo                    | id_solicitud   |
       | Preparación recomendada | SOL-2026-00001 |
-    Y el detalle de la notificación es "Realizar simulación de entrevista"                           # features/notificaciones/steps/alertas_entrevista.py:403
+    Y el detalle de la notificación es "Realizar simulación de entrevista"                           # features/notificaciones/steps/alertas_entrevista.py:409
 
   Escenario: Aviso al asesor cuando un simulacro ha sido completado                       # features/notificaciones/alertas_entrevista.feature:124
     Dado que soy un solicitante autenticado en el sistema de gestión migratoria           # features/notificaciones/steps/alertas_entrevista.py:309
@@ -296,14 +296,14 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
     Y el sistema tiene configurada una ventana de control de preparación                  # features/notificaciones/steps/alertas_entrevista.py:344
       | ventana |
       | 7d      |
-    Dado que el asesor "Carlos Ruiz" está autenticado en el sistema                       # features/notificaciones/steps/alertas_entrevista.py:512
-    Y existe un simulacro "SIM-001" asociado a la solicitud "SOL-2026-00001"              # features/notificaciones/steps/alertas_entrevista.py:520
-    Y el simulacro "SIM-001" está en estado "En progreso"                                 # features/notificaciones/steps/alertas_entrevista.py:526
-    Cuando el simulacro "SIM-001" cambia a estado "Completado"                            # features/notificaciones/steps/alertas_entrevista.py:532
-    Entonces en el centro de notificaciones del asesor aparece una notificación nueva con # features/notificaciones/steps/alertas_entrevista.py:370
+    Dado que el asesor "Carlos Ruiz" está autenticado en el sistema                       # features/notificaciones/steps/alertas_entrevista.py:518
+    Y existe un simulacro "SIM-001" asociado a la solicitud "SOL-2026-00001"              # features/notificaciones/steps/alertas_entrevista.py:526
+    Y el simulacro "SIM-001" está en estado "En progreso"                                 # features/notificaciones/steps/alertas_entrevista.py:532
+    Cuando el simulacro "SIM-001" cambia a estado "Completado"                            # features/notificaciones/steps/alertas_entrevista.py:538
+    Entonces en el centro de notificaciones del asesor aparece una notificación nueva con # features/notificaciones/steps/alertas_entrevista.py:373
       | tipo                  | id_simulacro |
       | Simulación completada | SIM-001      |
-    Y el detalle de la notificación es "Generar recomendaciones"                          # features/notificaciones/steps/alertas_entrevista.py:403
+    Y el detalle de la notificación es "Generar recomendaciones"                          # features/notificaciones/steps/alertas_entrevista.py:409
 
   Escenario: Notificar las recomendaciones publicadas al migrante                                     # features/notificaciones/alertas_entrevista.feature:134
     Dado que soy un solicitante autenticado en el sistema de gestión migratoria                       # features/notificaciones/steps/alertas_entrevista.py:309
@@ -325,9 +325,9 @@ Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevi
     Y el sistema tiene configurada una ventana de control de preparación                              # features/notificaciones/steps/alertas_entrevista.py:344
       | ventana |
       | 7d      |
-    Dado que existe un documento de recomendaciones para el simulacro "SIM-001" en estado "Publicado" # features/notificaciones/steps/alertas_entrevista.py:537
-    Cuando el documento de recomendaciones del simulacro "SIM-001" se publica en el sistema           # features/notificaciones/steps/alertas_entrevista.py:546
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con           # features/notificaciones/steps/alertas_entrevista.py:363
+    Dado que existe un documento de recomendaciones para el simulacro "SIM-001" en estado "Publicado" # features/notificaciones/steps/alertas_entrevista.py:543
+    Cuando el documento de recomendaciones del simulacro "SIM-001" se publica en el sistema           # features/notificaciones/steps/alertas_entrevista.py:552
+    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con           # features/notificaciones/steps/alertas_entrevista.py:366
       | tipo                   | id_simulacro |
       | Recomendaciones listas | SIM-001      |
 
@@ -335,11 +335,11 @@ Característica: Seguimiento de Solicitudes Migratorias # features/notificaciones
   Como migrante
   Quiero mantenerme informado acerca del estado de mi tramite migratorio
   Para tomar decisiones informadas según el progreso de mi solicitud
-  Antecedentes:   # features/notificaciones/seguimiento_solicitud.feature:8
+  Característica: Seguimiento de Solicitudes Migratorias  # features/notificaciones/seguimiento_solicitud.feature:3
 
   Escenario: Visualización del portafolio de solicitudes en el dashboard                      # features/notificaciones/seguimiento_solicitud.feature:15
     Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"               # features/notificaciones/steps/seguimiento_solicitud.py:47
-    Dado que tengo registrados los siguientes trámites                                        # features/notificaciones/steps/seguimiento_solicitud.py:70
+    Dado que tengo registrados los siguientes trámites:                                       # features/notificaciones/steps/seguimiento_solicitud.py:70
       | tipo_visa | embajada       | estado             | fecha_creacion |
       | TRABAJO   | ESTADOUNIDENSE | APROBADA           | 2024-01-15     |
       | ESTUDIO   | ESPAÑOLA       | EN_REVISION        | 2024-02-10     |
@@ -397,7 +397,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
   Como migrante que ha completado un simulacro de entrevista consular
   Quiero recibir un documento con recomendaciones específicas generadas por IA a partir de la transcripción de mi entrevista
   Para identificar mis fortalezas, corregir debilidades concretas y aumentar mis probabilidades de éxito en la entrevista real
-  Antecedentes:   # features/preparacion/recomendaciones/generacion_recomendaciones.feature:7
+  Característica: Generación de recomendaciones personalizadas basadas en análisis de IA  # features/preparacion/recomendaciones/generacion_recomendaciones.feature:2
 
   Esquema del escenario: El migrante recibe documento de retroalimentación tras análisis de IA -- @1.1   # features/preparacion/recomendaciones/generacion_recomendaciones.feature:36
     Dado que el módulo de simulacros de entrevista consular está operativo                               # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:312
@@ -405,7 +405,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el agente de IA para análisis de entrevistas está habilitado                                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
     Y la generación de documentos de recomendaciones está disponible                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
     Dado que el migrante completó el simulacro "SIM-001" con transcripción disponible                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:348
-    Y la IA analizó la transcripción del simulacro "SIM-001" con los siguientes resultados               # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:377
+    Y la IA analizó la transcripción del simulacro "SIM-001" con los siguientes resultados:              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:377
       | indicador                     | valor |
       | Claridad en respuestas        | Alta  |
       | Coherencia del discurso       | Alta  |
@@ -414,7 +414,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Cuando se genera el documento de recomendaciones para el simulacro "SIM-001"                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:409
     Entonces el documento tiene estado "Feedback generado"                                               # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:441
     Y el nivel de preparación calculado es "Alto"                                                        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:457
-    Y el documento contiene las siguientes secciones                                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:471
+    Y el documento contiene las siguientes secciones:                                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:471
       | seccion              |
       | Fortalezas           |
       | Puntos de mejora     |
@@ -427,7 +427,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el agente de IA para análisis de entrevistas está habilitado                                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
     Y la generación de documentos de recomendaciones está disponible                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
     Dado que el migrante completó el simulacro "SIM-002" con transcripción disponible                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:348
-    Y la IA analizó la transcripción del simulacro "SIM-002" con los siguientes resultados               # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:377
+    Y la IA analizó la transcripción del simulacro "SIM-002" con los siguientes resultados:              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:377
       | indicador                     | valor |
       | Claridad en respuestas        | Media |
       | Coherencia del discurso       | Media |
@@ -436,7 +436,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Cuando se genera el documento de recomendaciones para el simulacro "SIM-002"                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:409
     Entonces el documento tiene estado "Feedback generado"                                               # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:441
     Y el nivel de preparación calculado es "Medio"                                                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:457
-    Y el documento contiene las siguientes secciones                                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:471
+    Y el documento contiene las siguientes secciones:                                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:471
       | seccion              |
       | Fortalezas           |
       | Puntos de mejora     |
@@ -449,7 +449,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el agente de IA para análisis de entrevistas está habilitado                                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
     Y la generación de documentos de recomendaciones está disponible                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
     Dado que el migrante completó el simulacro "SIM-003" con transcripción disponible                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:348
-    Y la IA analizó la transcripción del simulacro "SIM-003" con los siguientes resultados               # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:377
+    Y la IA analizó la transcripción del simulacro "SIM-003" con los siguientes resultados:              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:377
       | indicador                     | valor |
       | Claridad en respuestas        | Baja  |
       | Coherencia del discurso       | Media |
@@ -458,7 +458,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Cuando se genera el documento de recomendaciones para el simulacro "SIM-003"                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:409
     Entonces el documento tiene estado "Feedback generado"                                               # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:441
     Y el nivel de preparación calculado es "Bajo"                                                        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:457
-    Y el documento contiene las siguientes secciones                                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:471
+    Y el documento contiene las siguientes secciones:                                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:471
       | seccion              |
       | Fortalezas           |
       | Puntos de mejora     |
@@ -471,13 +471,13 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el agente de IA para análisis de entrevistas está habilitado                                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
     Y la generación de documentos de recomendaciones está disponible                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
     Dado que el migrante completó el simulacro "SIM-004" con transcripción procesada                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:486
-    Y la IA identificó los siguientes puntos de mejora en el simulacro "SIM-004"                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:501
+    Y la IA identificó los siguientes puntos de mejora en el simulacro "SIM-004":                        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:501
       | categoria   | descripcion                                               |
       | Claridad    | Las respuestas incluyen frases incompletas                |
       | Seguridad   | Se detecta inseguridad en respuestas a preguntas críticas |
       | Pertinencia | Algunas respuestas no abordan directamente lo solicitado  |
     Cuando se genera el documento de recomendaciones del simulacro "SIM-004"                             # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:544
-    Entonces el documento debe contener recomendaciones accionables clasificadas por categoría           # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:577
+    Entonces el documento debe contener recomendaciones accionables clasificadas por categoría:          # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:577
       | categoria   |
       | Claridad    |
       | Seguridad   |
@@ -491,13 +491,13 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el agente de IA para análisis de entrevistas está habilitado                                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
     Y la generación de documentos de recomendaciones está disponible                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
     Dado que el migrante completó el simulacro "SIM-005" con transcripción procesada                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:486
-    Y la IA identificó los siguientes puntos de mejora en el simulacro "SIM-005"                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:501
+    Y la IA identificó los siguientes puntos de mejora en el simulacro "SIM-005":                        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:501
       | categoria   | descripcion                                               |
       | Claridad    | Las respuestas incluyen frases incompletas                |
       | Seguridad   | Se detecta inseguridad en respuestas a preguntas críticas |
       | Pertinencia | Algunas respuestas no abordan directamente lo solicitado  |
     Cuando se genera el documento de recomendaciones del simulacro "SIM-005"                             # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:544
-    Entonces el documento debe contener recomendaciones accionables clasificadas por categoría           # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:577
+    Entonces el documento debe contener recomendaciones accionables clasificadas por categoría:          # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:577
       | categoria   |
       | Claridad    |
       | Seguridad   |
@@ -510,7 +510,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el sistema almacena transcripciones en formato .txt de cada simulacro completado              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:324
     Y el agente de IA para análisis de entrevistas está habilitado                                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
     Y la generación de documentos de recomendaciones está disponible                                # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
-    Dado el análisis del simulacro "SIM-006" tiene los siguientes resultados                        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:627
+    Dado el análisis del simulacro "SIM-006" tiene los siguientes resultados:                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:627
       | indicador                     | valor |
       | Claridad en respuestas        | Alta  |
       | Coherencia del discurso       | Alta  |
@@ -524,7 +524,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el sistema almacena transcripciones en formato .txt de cada simulacro completado              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:324
     Y el agente de IA para análisis de entrevistas está habilitado                                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
     Y la generación de documentos de recomendaciones está disponible                                # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
-    Dado el análisis del simulacro "SIM-007" tiene los siguientes resultados                        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:627
+    Dado el análisis del simulacro "SIM-007" tiene los siguientes resultados:                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:627
       | indicador                     | valor |
       | Claridad en respuestas        | Media |
       | Coherencia del discurso       | Media |
@@ -538,7 +538,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el sistema almacena transcripciones en formato .txt de cada simulacro completado              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:324
     Y el agente de IA para análisis de entrevistas está habilitado                                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
     Y la generación de documentos de recomendaciones está disponible                                # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
-    Dado el análisis del simulacro "SIM-008" tiene los siguientes resultados                        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:627
+    Dado el análisis del simulacro "SIM-008" tiene los siguientes resultados:                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:627
       | indicador                     | valor |
       | Claridad en respuestas        | Baja  |
       | Coherencia del discurso       | Media |
@@ -552,7 +552,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el sistema almacena transcripciones en formato .txt de cada simulacro completado                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:324
     Y el agente de IA para análisis de entrevistas está habilitado                                           # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
     Y la generación de documentos de recomendaciones está disponible                                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
-    Dado que el simulacro "SIM-009" tiene las siguientes preguntas y respuestas                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:689
+    Dado que el simulacro "SIM-009" tiene las siguientes preguntas y respuestas:                             # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:689
       | numero_pregunta | tipo_pregunta         |
       | 1               | Motivo del viaje      |
       | 2               | Situación económica   |
@@ -560,7 +560,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el agente de IA ha generado recomendaciones asociadas al simulacro "SIM-009"                           # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:730
     Cuando el asesor revisa el documento de recomendaciones del simulacro "SIM-009"                          # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:765
     Entonces cada recomendación debe estar asociada a una pregunta del simulacro                             # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:772
-    Y el documento debe permitir identificar para cada recomendación                                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:782
+    Y el documento debe permitir identificar para cada recomendación:                                        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:782
       | atributo           |
       | Número de pregunta |
       | Tipo de pregunta   |
@@ -570,7 +570,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el sistema almacena transcripciones en formato .txt de cada simulacro completado                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:324
     Y el agente de IA para análisis de entrevistas está habilitado                                           # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
     Y la generación de documentos de recomendaciones está disponible                                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
-    Dado que el simulacro "SIM-010" tiene las siguientes preguntas y respuestas                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:689
+    Dado que el simulacro "SIM-010" tiene las siguientes preguntas y respuestas:                             # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:689
       | numero_pregunta | tipo_pregunta         |
       | 1               | Motivo del viaje      |
       | 2               | Situación económica   |
@@ -578,7 +578,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Y el agente de IA ha generado recomendaciones asociadas al simulacro "SIM-010"                           # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:730
     Cuando el asesor revisa el documento de recomendaciones del simulacro "SIM-010"                          # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:765
     Entonces cada recomendación debe estar asociada a una pregunta del simulacro                             # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:772
-    Y el documento debe permitir identificar para cada recomendación                                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:782
+    Y el documento debe permitir identificar para cada recomendación:                                        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:782
       | atributo           |
       | Número de pregunta |
       | Tipo de pregunta   |
@@ -591,7 +591,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Dado que existe un documento de recomendaciones generado para el simulacro "SIM-011"                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:805
     Y el documento de recomendaciones del simulacro "SIM-011" contiene recomendaciones con impacto clasificado # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:829
     Cuando el sistema organiza las recomendaciones por impacto                                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:837
-    Entonces las recomendaciones deben quedar agrupadas por nivel de impacto                                   # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:844
+    Entonces las recomendaciones deben quedar agrupadas por nivel de impacto:                                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:844
       | impacto |
       | Alto    |
       | Medio   |
@@ -606,7 +606,7 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Dado que existe un documento de recomendaciones generado para el simulacro "SIM-012"                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:805
     Y el documento de recomendaciones del simulacro "SIM-012" contiene recomendaciones con impacto clasificado # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:829
     Cuando el sistema organiza las recomendaciones por impacto                                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:837
-    Entonces las recomendaciones deben quedar agrupadas por nivel de impacto                                   # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:844
+    Entonces las recomendaciones deben quedar agrupadas por nivel de impacto:                                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:844
       | impacto |
       | Alto    |
       | Medio   |
@@ -640,35 +640,35 @@ Característica: Generación de recomendaciones personalizadas basadas en análisis
     Cuando el migrante consulta su documento de recomendaciones                                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:898
     Entonces el sistema debe sugerir la siguiente acción posterior: "Mantener el plan actual de preparación" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:904
 
-  Esquema del escenario: El migrante puede consultar y descargar su documento de recomendaciones -- @1.1               # features/preparacion/recomendaciones/generacion_recomendaciones.feature:154
-    Dado que el módulo de simulacros de entrevista consular está operativo                                             # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:312
-    Y el sistema almacena transcripciones en formato .txt de cada simulacro completado                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:324
-    Y el agente de IA para análisis de entrevistas está habilitado                                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
-    Y la generación de documentos de recomendaciones está disponible                                                   # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
-    Dado que existe un documento de recomendaciones publicado para el simulacro "SIM-016"                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:918
-    Cuando el migrante accede a la sección "Mis recomendaciones"                                                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:943
-    Entonces el sistema debe mostrar el documento de recomendaciones asociado al simulacro "SIM-016" con las secciones # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:949
+  Esquema del escenario: El migrante puede consultar y descargar su documento de recomendaciones -- @1.1                # features/preparacion/recomendaciones/generacion_recomendaciones.feature:154
+    Dado que el módulo de simulacros de entrevista consular está operativo                                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:312
+    Y el sistema almacena transcripciones en formato .txt de cada simulacro completado                                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:324
+    Y el agente de IA para análisis de entrevistas está habilitado                                                      # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
+    Y la generación de documentos de recomendaciones está disponible                                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
+    Dado que existe un documento de recomendaciones publicado para el simulacro "SIM-016"                               # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:918
+    Cuando el migrante accede a la sección "Mis recomendaciones"                                                        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:943
+    Entonces el sistema debe mostrar el documento de recomendaciones asociado al simulacro "SIM-016" con las secciones: # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:949
       | seccion              |
       | Fortalezas           |
       | Puntos de mejora     |
       | Recomendaciones      |
       | Nivel de preparación |
-    Y debe permitir descargar el documento en formato "PDF"                                                            # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:962
+    Y debe permitir descargar el documento en formato "PDF"                                                             # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:962
 
-  Esquema del escenario: El migrante puede consultar y descargar su documento de recomendaciones -- @1.2               # features/preparacion/recomendaciones/generacion_recomendaciones.feature:155
-    Dado que el módulo de simulacros de entrevista consular está operativo                                             # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:312
-    Y el sistema almacena transcripciones en formato .txt de cada simulacro completado                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:324
-    Y el agente de IA para análisis de entrevistas está habilitado                                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
-    Y la generación de documentos de recomendaciones está disponible                                                   # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
-    Dado que existe un documento de recomendaciones publicado para el simulacro "SIM-017"                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:918
-    Cuando el migrante accede a la sección "Mis recomendaciones"                                                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:943
-    Entonces el sistema debe mostrar el documento de recomendaciones asociado al simulacro "SIM-017" con las secciones # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:949
+  Esquema del escenario: El migrante puede consultar y descargar su documento de recomendaciones -- @1.2                # features/preparacion/recomendaciones/generacion_recomendaciones.feature:155
+    Dado que el módulo de simulacros de entrevista consular está operativo                                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:312
+    Y el sistema almacena transcripciones en formato .txt de cada simulacro completado                                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:324
+    Y el agente de IA para análisis de entrevistas está habilitado                                                      # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:331
+    Y la generación de documentos de recomendaciones está disponible                                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:337
+    Dado que existe un documento de recomendaciones publicado para el simulacro "SIM-017"                               # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:918
+    Cuando el migrante accede a la sección "Mis recomendaciones"                                                        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:943
+    Entonces el sistema debe mostrar el documento de recomendaciones asociado al simulacro "SIM-017" con las secciones: # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:949
       | seccion              |
       | Fortalezas           |
       | Puntos de mejora     |
       | Recomendaciones      |
       | Nivel de preparación |
-    Y debe permitir descargar el documento en formato "PDF"                                                            # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:962
+    Y debe permitir descargar el documento en formato "PDF"                                                             # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:962
 
   Escenario: El sistema notifica cuando la transcripción no está disponible para análisis                                                                       # features/preparacion/recomendaciones/generacion_recomendaciones.feature:160
     Dado que el módulo de simulacros de entrevista consular está operativo                                                                                      # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:312
@@ -695,25 +695,25 @@ Característica: Simulación de entrevista para migrantes # features/preparacion/s
   Como migrante en proceso de preparación
   quiero realizar simulacros de entrevistas adaptados a mi visado
   para familiarizarme con el formato de preguntas antes de la cita con la embajada
-  Antecedentes:   # features/preparacion/simulacion/simulacion_entrevista.feature:7
+  Característica: Simulación de entrevista para migrantes  # features/preparacion/simulacion/simulacion_entrevista.feature:2
 
-  Escenario: Aceptar propuesta de simulacro del asesor            # features/preparacion/simulacion/simulacion_entrevista.feature:14
-    Dado que el sistema tiene configurados los siguientes límites # features/preparacion/simulacion/steps/simulacion_steps.py:279
+  Escenario: Aceptar propuesta de simulacro del asesor             # features/preparacion/simulacion/simulacion_entrevista.feature:14
+    Dado que el sistema tiene configurados los siguientes límites: # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
       | horas_cancelación_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"     # features/preparacion/simulacion/steps/simulacion_steps.py:292
-    Y mi contador de simulacros realizados es 0                   # features/preparacion/simulacion/steps/simulacion_steps.py:305
-    Y tengo una propuesta de simulacro con los siguientes datos   # features/preparacion/simulacion/steps/simulacion_steps.py:334
+    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"      # features/preparacion/simulacion/steps/simulacion_steps.py:292
+    Y mi contador de simulacros realizados es 0                    # features/preparacion/simulacion/steps/simulacion_steps.py:305
+    Y tengo una propuesta de simulacro con los siguientes datos    # features/preparacion/simulacion/steps/simulacion_steps.py:334
       | id      | fecha      | hora  | modalidad | estado                 |
       | SIM-001 | 2026-02-10 | 15:00 | Virtual   | Pendiente de respuesta |
-    Cuando acepto la propuesta de simulacro "SIM-001"             # features/preparacion/simulacion/steps/simulacion_steps.py:606
-    Entonces el estado del simulacro debe cambiar a "Confirmado"  # features/preparacion/simulacion/steps/simulacion_steps.py:773
-    Y mi contador de simulacros debe ser 1                        # features/preparacion/simulacion/steps/simulacion_steps.py:804
+    Cuando acepto la propuesta de simulacro "SIM-001"              # features/preparacion/simulacion/steps/simulacion_steps.py:606
+    Entonces el estado del simulacro debe cambiar a "Confirmado"   # features/preparacion/simulacion/steps/simulacion_steps.py:773
+    Y mi contador de simulacros debe ser 1                         # features/preparacion/simulacion/steps/simulacion_steps.py:804
 
   Escenario: Proponer fecha alternativa para simulacro                                  # features/preparacion/simulacion/simulacion_entrevista.feature:24
-    Dado que el sistema tiene configurados los siguientes límites                       # features/preparacion/simulacion/steps/simulacion_steps.py:279
+    Dado que el sistema tiene configurados los siguientes límites:                      # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
@@ -727,7 +727,7 @@ Característica: Simulación de entrevista para migrantes # features/preparacion/s
     Y mi contador de simulacros debe permanecer en 0                                    # features/preparacion/simulacion/steps/simulacion_steps.py:815
 
   Esquema del escenario: Consultar disponibilidad según simulacros realizados -- @1.1   # features/preparacion/simulacion/simulacion_entrevista.feature:42
-    Dado que el sistema tiene configurados los siguientes límites                       # features/preparacion/simulacion/steps/simulacion_steps.py:279
+    Dado que el sistema tiene configurados los siguientes límites:                      # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
@@ -739,7 +739,7 @@ Característica: Simulación de entrevista para migrantes # features/preparacion/s
     Y el mensaje informativo debe ser "Puede solicitar hasta 2 simulacros en total"     # features/preparacion/simulacion/steps/simulacion_steps.py:832
 
   Esquema del escenario: Consultar disponibilidad según simulacros realizados -- @1.2   # features/preparacion/simulacion/simulacion_entrevista.feature:43
-    Dado que el sistema tiene configurados los siguientes límites                       # features/preparacion/simulacion/steps/simulacion_steps.py:279
+    Dado que el sistema tiene configurados los siguientes límites:                      # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
@@ -751,7 +751,7 @@ Característica: Simulación de entrevista para migrantes # features/preparacion/s
     Y el mensaje informativo debe ser "Tiene 1 simulacro disponible restante"           # features/preparacion/simulacion/steps/simulacion_steps.py:832
 
   Esquema del escenario: Consultar disponibilidad según simulacros realizados -- @1.3      # features/preparacion/simulacion/simulacion_entrevista.feature:44
-    Dado que el sistema tiene configurados los siguientes límites                          # features/preparacion/simulacion/steps/simulacion_steps.py:279
+    Dado que el sistema tiene configurados los siguientes límites:                         # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
@@ -763,7 +763,7 @@ Característica: Simulación de entrevista para migrantes # features/preparacion/s
     Y el mensaje informativo debe ser "Ha alcanzado el límite de 2 simulacros por proceso" # features/preparacion/simulacion/steps/simulacion_steps.py:832
 
   Escenario: Ingresar a sala de espera dentro del tiempo permitido               # features/preparacion/simulacion/simulacion_entrevista.feature:46
-    Dado que el sistema tiene configurados los siguientes límites                # features/preparacion/simulacion/steps/simulacion_steps.py:279
+    Dado que el sistema tiene configurados los siguientes límites:               # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
@@ -777,7 +777,7 @@ Característica: Simulación de entrevista para migrantes # features/preparacion/s
     Y el tiempo restante para inicio debe ser 10 minutos                         # features/preparacion/simulacion/steps/simulacion_steps.py:837
 
   Escenario: Iniciar sesión cuando asesor activa el simulacro               # features/preparacion/simulacion/simulacion_entrevista.feature:55
-    Dado que el sistema tiene configurados los siguientes límites           # features/preparacion/simulacion/steps/simulacion_steps.py:279
+    Dado que el sistema tiene configurados los siguientes límites:          # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
@@ -792,7 +792,7 @@ Característica: Simulación de entrevista para migrantes # features/preparacion/s
     Y el temporizador debe iniciar en 0                                     # features/preparacion/simulacion/steps/simulacion_steps.py:847
 
   Escenario: Finalizar simulacro por el asesor                     # features/preparacion/simulacion/simulacion_entrevista.feature:65
-    Dado que el sistema tiene configurados los siguientes límites  # features/preparacion/simulacion/steps/simulacion_steps.py:279
+    Dado que el sistema tiene configurados los siguientes límites: # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
@@ -808,21 +808,21 @@ Característica: Simulación de entrevista para migrantes # features/preparacion/s
     Y mi contador de simulacros debe ser 1                         # features/preparacion/simulacion/steps/simulacion_steps.py:804
     Y la grabación debe estar detenida                             # features/preparacion/simulacion/steps/simulacion_steps.py:857
 
-  Escenario: Acceder por primera vez a práctica individual        # features/preparacion/simulacion/simulacion_entrevista.feature:77
-    Dado que el sistema tiene configurados los siguientes límites # features/preparacion/simulacion/steps/simulacion_steps.py:279
+  Escenario: Acceder por primera vez a práctica individual         # features/preparacion/simulacion/simulacion_entrevista.feature:77
+    Dado que el sistema tiene configurados los siguientes límites: # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
       | horas_cancelación_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"     # features/preparacion/simulacion/steps/simulacion_steps.py:292
-    Y mi tipo de visa asignado es "Estudiante"                    # features/preparacion/simulacion/steps/simulacion_steps.py:328
-    Y nunca he accedido a "Práctica Individual"                   # features/preparacion/simulacion/steps/simulacion_steps.py:543
-    Cuando accedo a la sección de práctica individual             # features/preparacion/simulacion/steps/simulacion_steps.py:703
-    Entonces debo ver 4 tipos de visa disponibles                 # features/preparacion/simulacion/steps/simulacion_steps.py:862
-    Y el tipo "Estudiante" debe estar marcado como "Sugerido"     # features/preparacion/simulacion/steps/simulacion_steps.py:867
+    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"      # features/preparacion/simulacion/steps/simulacion_steps.py:292
+    Y mi tipo de visa asignado es "Estudiante"                     # features/preparacion/simulacion/steps/simulacion_steps.py:328
+    Y nunca he accedido a "Práctica Individual"                    # features/preparacion/simulacion/steps/simulacion_steps.py:543
+    Cuando accedo a la sección de práctica individual              # features/preparacion/simulacion/steps/simulacion_steps.py:703
+    Entonces debo ver 4 tipos de visa disponibles                  # features/preparacion/simulacion/steps/simulacion_steps.py:862
+    Y el tipo "Estudiante" debe estar marcado como "Sugerido"      # features/preparacion/simulacion/steps/simulacion_steps.py:867
 
   Esquema del escenario: Completar cuestionario de práctica -- @1.1   # features/preparacion/simulacion/simulacion_entrevista.feature:96
-    Dado que el sistema tiene configurados los siguientes límites     # features/preparacion/simulacion/steps/simulacion_steps.py:279
+    Dado que el sistema tiene configurados los siguientes límites:    # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
@@ -836,7 +836,7 @@ Característica: Simulación de entrevista para migrantes # features/preparacion/s
     Y el mensaje debe ser "¡Muy bien! Estás muy preparado"            # features/preparacion/simulacion/steps/simulacion_steps.py:890
 
   Esquema del escenario: Completar cuestionario de práctica -- @1.2        # features/preparacion/simulacion/simulacion_entrevista.feature:97
-    Dado que el sistema tiene configurados los siguientes límites          # features/preparacion/simulacion/steps/simulacion_steps.py:279
+    Dado que el sistema tiene configurados los siguientes límites:         # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
@@ -849,22 +849,22 @@ Característica: Simulación de entrevista para migrantes # features/preparacion/s
     Y la calificación debe ser "Bueno"                                     # features/preparacion/simulacion/steps/simulacion_steps.py:884
     Y el mensaje debe ser "Buen trabajo, repasa las preguntas incorrectas" # features/preparacion/simulacion/steps/simulacion_steps.py:890
 
-  Escenario: Revisar preguntas incorrectas del cuestionario       # features/preparacion/simulacion/simulacion_entrevista.feature:100
-    Dado que el sistema tiene configurados los siguientes límites # features/preparacion/simulacion/steps/simulacion_steps.py:279
+  Escenario: Revisar preguntas incorrectas del cuestionario        # features/preparacion/simulacion/simulacion_entrevista.feature:100
+    Dado que el sistema tiene configurados los siguientes límites: # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
       | horas_cancelación_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"     # features/preparacion/simulacion/steps/simulacion_steps.py:292
-    Y completé un cuestionario con 3 respuestas incorrectas       # features/preparacion/simulacion/steps/simulacion_steps.py:560
-    Cuando solicito ver las respuestas incorrectas                # features/preparacion/simulacion/steps/simulacion_steps.py:734
-    Entonces debo ver exactamente 3 preguntas                     # features/preparacion/simulacion/steps/simulacion_steps.py:896
-    Y cada pregunta debe mostrar mi respuesta como incorrecta     # features/preparacion/simulacion/steps/simulacion_steps.py:902
-    Y cada pregunta debe mostrar la respuesta correcta            # features/preparacion/simulacion/steps/simulacion_steps.py:908
-    Y cada pregunta debe incluir una explicación                  # features/preparacion/simulacion/steps/simulacion_steps.py:914
+    Dado que soy el migrante "Oscar Pérez" con ID "MIG-12345"      # features/preparacion/simulacion/steps/simulacion_steps.py:292
+    Y completé un cuestionario con 3 respuestas incorrectas        # features/preparacion/simulacion/steps/simulacion_steps.py:560
+    Cuando solicito ver las respuestas incorrectas                 # features/preparacion/simulacion/steps/simulacion_steps.py:734
+    Entonces debo ver exactamente 3 preguntas                      # features/preparacion/simulacion/steps/simulacion_steps.py:896
+    Y cada pregunta debe mostrar mi respuesta como incorrecta      # features/preparacion/simulacion/steps/simulacion_steps.py:902
+    Y cada pregunta debe mostrar la respuesta correcta             # features/preparacion/simulacion/steps/simulacion_steps.py:908
+    Y cada pregunta debe incluir una explicación                   # features/preparacion/simulacion/steps/simulacion_steps.py:914
 
   Escenario: Cancelar simulacro con menos de 24 horas de anticipación        # features/preparacion/simulacion/simulacion_entrevista.feature:109
-    Dado que el sistema tiene configurados los siguientes límites            # features/preparacion/simulacion/steps/simulacion_steps.py:279
+    Dado que el sistema tiene configurados los siguientes límites:           # features/preparacion/simulacion/steps/simulacion_steps.py:279
       | parámetro                     | valor |
       | máximo_simulacros_por_cliente | 2     |
       | minutos_anticipación_entrada  | 15    |
@@ -880,7 +880,7 @@ Característica: Agendamiento de entrevista # features/solicitudes/agendamiento/a
   Como solicitante de un trámite migratorio con solicitud previamente aprobada,
   quiero agendar una entrevista asociada a mi solicitud,
   para cumplir una etapa obligatoria del proceso y continuar con mi trámite.
-  Antecedentes:   # features/solicitudes/agendamiento/agendamiento_entrevista.feature:8
+  Característica: Agendamiento de entrevista  # features/solicitudes/agendamiento/agendamiento_entrevista.feature:3
 
   Esquema del escenario: Agendamiento con selección de horario específico -- @1.1                # features/solicitudes/agendamiento/agendamiento_entrevista.feature:31
     Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:207
@@ -1003,7 +1003,7 @@ Característica: Recepción de solicitudes # features/solicitudes/recepcion/recepc
   Como migrante de la agencia de migración
   quiero registrar mi solicitud de visa
   para garantizar una entrevista con la embajada
-  Antecedentes:   # features/solicitudes/recepcion/recepcion_solicitud.feature:11
+  Característica: Recepción de solicitudes  # features/solicitudes/recepcion/recepcion_solicitud.feature:3
 
   Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.1   # features/solicitudes/recepcion/recepcion_solicitud.feature:34
     Dado que existen los siguientes checklists de documentos por tipo de visa        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:222

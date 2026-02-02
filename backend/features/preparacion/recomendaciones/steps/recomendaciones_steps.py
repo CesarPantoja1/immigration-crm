@@ -374,7 +374,7 @@ def step_migrante_completo_simulacro_transcripcion(context, id_simulacro):
     context.simulacro_actual = simulacro
 
 
-@given(r'la IA analizó la transcripción del simulacro "([^"]*)" con los siguientes resultados')
+@given(r'la IA analiz(?:ó|o) la transcripci(?:ó|o)n del simulacro "([^"]*)" con los siguientes resultados:?')
 def step_ia_analizo_transcripcion(context, id_simulacro):
     """La IA analizó la transcripción con indicadores de desempeño."""
     simulacro = context.simulacros.get(id_simulacro)
@@ -468,7 +468,7 @@ def step_nivel_preparacion_calculado(context, nivel_esperado):
         f"Nivel esperado: {nivel_esperado}, actual: {documento.nivel_preparacion.value}"
 
 
-@then(r'el documento contiene las siguientes secciones')
+@then(r'el documento contiene las siguientes secciones:?')
 def step_documento_contiene_secciones(context):
     """Verifica que el documento contiene las secciones requeridas."""
     documento = context.documento_actual
@@ -498,7 +498,7 @@ def step_migrante_completo_con_transcripcion(context, id_simulacro):
     context.simulacro_actual = simulacro
 
 
-@given(r'la IA identificó los siguientes puntos de mejora en el simulacro "([^"]*)"')
+@given(r'la IA identific(?:ó|o) los siguientes puntos de mejora en el simulacro "([^"]*)":?')
 def step_ia_identifico_puntos_mejora(context, id_simulacro):
     """Configura los puntos de mejora identificados por la IA."""
     simulacro = context.simulacros.get(id_simulacro)
@@ -574,7 +574,7 @@ def step_se_genera_documento(context, id_simulacro):
         context.documento_actual = documento
 
 
-@then(r'el documento debe contener recomendaciones accionables clasificadas por categoría')
+@then(r'el documento debe contener recomendaciones accionables clasificadas por categor(?:í|i)a:?')
 def step_documento_recomendaciones_por_categoria(context):
     """Verifica que las recomendaciones estén clasificadas por categoría."""
     documento = context.documento_actual
@@ -624,7 +624,7 @@ def step_documento_tiene_fecha_generacion(context):
 # ESCENARIO 3: NIVEL DE PREPARACIÓN
 # =============================================================================
 
-@given(r'el análisis del simulacro "([^"]*)" tiene los siguientes resultados')
+@given(r'el an(?:á|a)lisis del simulacro "([^"]*)" tiene los siguientes resultados:?')
 def step_analisis_simulacro_resultados(context, id_simulacro):
     """Configura los resultados del análisis."""
     if not hasattr(context, 'simulacros'):
@@ -686,7 +686,7 @@ def step_nivel_preparacion_asignado(context, nivel_esperado):
 # ESCENARIO 4: TRAZABILIDAD
 # =============================================================================
 
-@given(r'que el simulacro "([^"]*)" tiene las siguientes preguntas y respuestas')
+@given(r'que el simulacro "([^"]*)" tiene las siguientes preguntas y respuestas:?')
 def step_simulacro_tiene_preguntas(context, id_simulacro):
     """Configura las preguntas del simulacro."""
     if not hasattr(context, 'simulacros'):
@@ -779,7 +779,7 @@ def step_recomendaciones_asociadas_preguntas(context):
             f"Recomendación {rec.id} no está asociada a una pregunta"
 
 
-@then(r'el documento debe permitir identificar para cada recomendación')
+@then(r'el documento debe permitir identificar para cada recomendaci(?:ó|o)n:?')
 def step_documento_permite_identificar(context):
     """Verifica que se puedan identificar los atributos de trazabilidad."""
     documento = context.documento_revisado
@@ -841,7 +841,7 @@ def step_sistema_organiza_por_impacto(context):
     context.recomendaciones_por_impacto = documento.agrupar_recomendaciones_por_impacto()
 
 
-@then(r'las recomendaciones deben quedar agrupadas por nivel de impacto')
+@then(r'las recomendaciones deben quedar agrupadas por nivel de impacto:?')
 def step_recomendaciones_agrupadas_impacto(context):
     """Verifica que las recomendaciones estén agrupadas por impacto."""
     impactos_esperados = [row['impacto'] for row in context.table]
@@ -946,7 +946,7 @@ def step_migrante_accede_seccion(context, seccion):
     context.seccion_accedida = seccion
 
 
-@then(r'el sistema debe mostrar el documento de recomendaciones asociado al simulacro "([^"]*)" con las secciones')
+@then(r'el sistema debe mostrar el documento de recomendaciones asociado al simulacro "([^"]*)" con las secciones:?')
 def step_sistema_muestra_documento_secciones(context, id_simulacro):
     """Verifica que se muestre el documento con las secciones."""
     documento = context.documentos.get(id_simulacro)

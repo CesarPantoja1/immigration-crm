@@ -67,7 +67,7 @@ def step_autenticado_con_email(context, email):
 # DASHBOARD - Visualización del portafolio
 # ============================================================
 
-@step(r'que tengo registrados los siguientes tr.*mites')
+@step(r'que tengo registrados los siguientes tr.*mites:?')
 def step_tramites_registrados(context):
     """Setup: cargar trámites desde la tabla de datos."""
     for row in context.table:
