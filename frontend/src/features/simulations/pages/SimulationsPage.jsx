@@ -188,9 +188,11 @@ export default function SimulationsPage() {
       const response = await solicitudesService.getMisSolicitudes()
       const solicitudes = Array.isArray(response) ? response : (response?.results || [])
       
-      // Filtrar solicitudes que pueden tener simulacro (estados del backend)
+      // Solo permitir simulacros para solicitudes APROBADAS POR LA EMBAJADA o con ENTREVISTA AGENDADA
+      // Los simulacros son para preparar la entrevista consular
+      // Si la entrevista está agendada, implica que la embajada ya aprobó la solicitud
       const disponibles = solicitudes.filter(s => 
-        ['pendiente', 'en_revision', 'aprobada', 'enviada_embajada', 'entrevista_agendada'].includes(s.estado)
+        s.estado === 'aprobada_embajada' || s.estado === 'entrevista_agendada'
       )
       
       setSolicitudesDisponibles(disponibles)
@@ -794,7 +796,9 @@ export default function SimulationsPage() {
               </select>
             ) : (
               <div className="p-4 bg-amber-50 text-amber-700 rounded-xl text-sm">
-                No tienes solicitudes activas para solicitar un simulacro. Primero debes crear una solicitud de visa.
+                <p className="font-medium mb-1">No tienes solicitudes elegibles para simulacro.</p>
+                <p>Los simulacros solo están disponibles después de que la embajada haya aprobado tu solicitud 
+                   o cuando la entrevista consular esté agendada. Esto te permite prepararte para la entrevista.</p>
               </div>
             )}
           </div>

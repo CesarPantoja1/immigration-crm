@@ -120,7 +120,7 @@ class SolicitudService:
         borrador -> pendiente
         pendiente -> en_revision, rechazada
         en_revision -> aprobada, rechazada
-        aprobada -> enviada_embajada
+        aprobada -> enviada_embajada, esperando_decision_embajada (atajo directo)
         enviada_embajada -> esperando_decision_embajada
         esperando_decision_embajada -> aprobada_embajada, rechazada_embajada
         aprobada_embajada -> entrevista_agendada (UNICO estado que permite agendar)
@@ -130,7 +130,7 @@ class SolicitudService:
             'borrador': ['pendiente'],
             'pendiente': ['en_revision', 'rechazada'],
             'en_revision': ['aprobada', 'rechazada'],
-            'aprobada': ['enviada_embajada'],
+            'aprobada': ['enviada_embajada', 'esperando_decision_embajada'],
             'enviada_embajada': ['esperando_decision_embajada'],
             'esperando_decision_embajada': ['aprobada_embajada', 'rechazada_embajada'],
             'aprobada_embajada': ['entrevista_agendada'],
@@ -268,6 +268,40 @@ class DocumentoService:
         )
 
     @staticmethod
+    def resubir_documento(documento: Documento, nuevo_archivo) -> tuple[bool, str | None]:
+        """
+        Permite al cliente resubir un documento que fue rechazado.
+        El documento vuelve a estado 'pendiente' para nueva revisión.
+        
+        Args:
+            documento: Instancia de Documento rechazado
+            nuevo_archivo: Nuevo archivo subido
+            
+        Returns:
+            Tuple (exito, mensaje_error)
+        """
+        # Solo documentos rechazados pueden ser resubidos
+        if documento.estado != 'rechazado':
+            return False, 'Solo se pueden resubir documentos rechazados'
+        
+        # Verificar que la solicitud permita modificaciones
+        if not documento.solicitud.puede_modificar_documentos():
+            return False, 'La solicitud ya fue enviada a la embajada, no se pueden modificar documentos'
+        
+        # Guardar el archivo anterior para referencia (opcional)
+        archivo_anterior = documento.archivo.name if documento.archivo else None
+        
+        # Actualizar el documento
+        documento.archivo = nuevo_archivo
+        documento.estado = 'pendiente'
+        documento.motivo_rechazo = ''  # Limpiar motivo anterior
+        documento.revisado_por = None
+        documento.fecha_revision = None
+        documento.save()
+        
+        return True, None
+
+    @staticmethod
     def puede_modificar_documento(documento: Documento) -> tuple[bool, str | None]:
         """
         Verifica si un documento puede ser modificado (aprobado/rechazado).
@@ -382,7 +416,24 @@ class EntrevistaService:
         Agenda una entrevista para una solicitud.
 
         CRITICO: Solo se puede agendar si la solicitud fue APROBADA POR LA EMBAJADA.
+        
+        FLUJO CORRECTO:
+        1. Asesor aprueba solicitud (estado: aprobada)
+        2. Asesor envía a embajada (estado: enviada_embajada o esperando_decision_embajada)
+        3. Asesor registra decisión de embajada
+        4. Si embajada aprueba -> estado: aprobada_embajada
+        5. SOLO ENTONCES se puede agendar entrevista -> estado: entrevista_agendada
+        
         Esto corrige el flujo anterior donde se saltaba la decision de la embajada.
+        
+        Args:
+            solicitud: Instancia de Solicitud (debe estar en estado 'aprobada_embajada')
+            fecha: Fecha de la entrevista (YYYY-MM-DD)
+            hora: Hora de la entrevista (HH:MM)
+            ubicacion: Ubicación de la entrevista
+            
+        Returns:
+            Tuple (Entrevista | None, error_mensaje | None)
         """
         # Validacion CRITICA: solo permitir si la embajada aprobo
         if not solicitud.puede_agendar_entrevista():
@@ -392,6 +443,8 @@ class EntrevistaService:
                 return None, 'La solicitud esta pendiente de decision de la embajada'
             elif solicitud.estado == 'rechazada_embajada':
                 return None, 'La solicitud fue rechazada por la embajada, no se puede agendar entrevista'
+            elif solicitud.estado == 'aprobada':
+                return None, 'La solicitud aun no ha sido enviada a la embajada. Primero debe enviarla y esperar la aprobacion de la embajada.'
             else:
                 return None, f'La solicitud debe estar aprobada por la embajada para agendar entrevista (estado actual: {solicitud.estado})'
 

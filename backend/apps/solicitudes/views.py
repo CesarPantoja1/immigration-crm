@@ -4,6 +4,7 @@ Views para la API de Solicitudes, Documentos y Entrevistas.
 from rest_framework import status, generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.auth import get_user_model
 
 from .models import Solicitud, Documento, Entrevista
@@ -363,6 +364,58 @@ class RechazarDocumentoView(APIView):
         })
 
 
+class ResubirDocumentoView(APIView):
+    """
+    POST /api/documentos/<id>/resubir/
+
+    Permite al CLIENTE resubir un documento que fue rechazado.
+    El documento vuelve a estado 'pendiente' para nueva revisión.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, pk):
+        # Solo el cliente dueño de la solicitud puede resubir
+        documento = DocumentoService.obtener_documento(pk, request.user)
+
+        if not documento:
+            return Response(
+                {'error': 'Documento no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Verificar que el usuario es el cliente de la solicitud
+        if request.user.rol == 'cliente' and documento.solicitud.cliente != request.user:
+            return Response(
+                {'error': 'No tienes permiso para modificar este documento'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Obtener el nuevo archivo
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            return Response(
+                {'error': 'Debe proporcionar un archivo'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        success, error = DocumentoService.resubir_documento(documento, archivo)
+
+        if not success:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Notificar al asesor que el documento fue resubido
+        try:
+            NotificacionService.notificar_documento_subido(documento, documento.solicitud)
+        except Exception:
+            pass
+
+        return Response({
+            'mensaje': 'Documento resubido exitosamente. Pendiente de nueva revisión.',
+            'documento': DocumentoSerializer(documento, context={'request': request}).data
+        })
+
+
 # =====================================================
 # VISTAS DE ENTREVISTAS
 # =====================================================
@@ -437,7 +490,20 @@ class HorariosDisponiblesView(APIView):
 
 
 class AgendarEntrevistaView(APIView):
-    """POST /api/entrevistas/agendar/"""
+    """
+    POST /api/entrevistas/agendar/
+    
+    Agenda una entrevista consular para una solicitud.
+    
+    FLUJO REQUERIDO:
+    1. Asesor aprueba solicitud (revisa documentos)
+    2. Asesor envía solicitud a embajada
+    3. Asesor registra decisión de embajada (aprobada/rechazada)
+    4. Si embajada aprueba -> estado 'aprobada_embajada'
+    5. SOLO ENTONCES se puede agendar entrevista
+    
+    La solicitud DEBE estar en estado 'aprobada_embajada' para poder agendar.
+    """
     permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
     
     def post(self, request):
@@ -584,12 +650,27 @@ class EntrevistasProximasView(APIView):
 
 
 class CalendarioEventosView(APIView):
-    """GET /api/entrevistas/calendario/?fecha_inicio=&fecha_fin="""
+    """GET /api/entrevistas/calendario/?mes=YYYY-MM o ?fecha_inicio=&fecha_fin="""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        from calendar import monthrange
+        
+        # Soportar tanto mes como fecha_inicio/fecha_fin
+        mes = request.query_params.get('mes')
         fecha_inicio = request.query_params.get('fecha_inicio')
         fecha_fin = request.query_params.get('fecha_fin')
+        
+        # Si se pasa mes, calcular fecha_inicio y fecha_fin
+        if mes and not (fecha_inicio and fecha_fin):
+            try:
+                year, month = mes.split('-')
+                year, month = int(year), int(month)
+                _, last_day = monthrange(year, month)
+                fecha_inicio = f"{year}-{month:02d}-01"
+                fecha_fin = f"{year}-{month:02d}-{last_day}"
+            except (ValueError, AttributeError):
+                pass
 
         entrevistas = EntrevistaService.obtener_eventos_calendario(
             request.user, fecha_inicio, fecha_fin
@@ -599,8 +680,16 @@ class CalendarioEventosView(APIView):
             'id': e.id,
             'title': f"{e.solicitud.cliente.nombre_completo()} - {e.solicitud.get_tipo_visa_display()}",
             'start': f"{e.fecha}T{e.hora}",
+            'fecha': str(e.fecha),
+            'hora': str(e.hora)[:5],  # HH:MM
             'tipo': 'entrevista',
             'estado': e.estado,
+            'ubicacion': e.ubicacion,
+            'cliente_nombre': e.solicitud.cliente.nombre_completo(),
+            'asesor_nombre': e.solicitud.asesor.nombre_completo() if e.solicitud.asesor else None,
+            'tipo_visa': e.solicitud.get_tipo_visa_display(),
+            'embajada': e.solicitud.get_embajada_display(),
+            'solicitud_id': e.solicitud.id,
         } for e in entrevistas]
 
         return Response(eventos)
@@ -648,24 +737,14 @@ class DecisionEmbajadaView(APIView):
         if not success:
             return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Notificar al cliente
+        # Notificar al cliente con notificaciones específicas
         try:
             if decision == 'aprobada':
-                NotificacionService.crear_notificacion_general(
-                    usuario=solicitud.cliente,
-                    titulo='Tu solicitud fue aprobada por la embajada',
-                    mensaje=f'Tu solicitud de visa {solicitud.get_tipo_visa_display()} fue aprobada. Ya puedes agendar tu entrevista consular.',
-                    url_accion=f'/solicitudes/{solicitud.id}'
-                )
+                NotificacionService.notificar_embajada_aprobada(solicitud)
             else:
-                NotificacionService.crear_notificacion_general(
-                    usuario=solicitud.cliente,
-                    titulo='Actualizacion sobre tu solicitud',
-                    mensaje=f'Tu solicitud de visa {solicitud.get_tipo_visa_display()} no fue aprobada por la embajada.',
-                    url_accion=f'/solicitudes/{solicitud.id}'
-                )
-        except Exception:
-            pass
+                NotificacionService.notificar_embajada_rechazada(solicitud, motivo)
+        except Exception as e:
+            print(f"Error creando notificación de embajada: {e}")
 
         return Response({
             'mensaje': f'Decision de embajada registrada: {decision}',

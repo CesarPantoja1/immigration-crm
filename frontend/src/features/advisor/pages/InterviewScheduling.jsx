@@ -1,22 +1,32 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Card, Button, Badge } from '../../../components/common'
 import { entrevistasService } from '../../../services/entrevistasService'
 import { solicitudesService } from '../../../services/solicitudesService'
 
 export default function InterviewScheduling() {
+  const [searchParams] = useSearchParams()
+  const solicitudIdFromUrl = searchParams.get('solicitud')
+  
   const [solicitudes, setSolicitudes] = useState([])
   const [entrevistas, setEntrevistas] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedTab, setSelectedTab] = useState('pendientes') // 'pendientes' | 'agendadas'
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [selectedSolicitud, setSelectedSolicitud] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
   const [scheduleForm, setScheduleForm] = useState({
     fecha: '',
     hora: '',
     ubicacion: '',
     ubicacionSeleccionada: '', // Para el dropdown
     ubicacionPersonalizada: '', // Para el campo de texto cuando selecciona "Otros"
-    modoAsignacion: 'fecha_fija' // 'fecha_fija' | 'opciones'
+    modoAsignacion: 'fecha_fija', // 'fecha_fija' | 'opciones'
+    // Campos adicionales para mejor experiencia
+    notas: '',
+    duracionEstimada: '30',
+    recordatorioEmail: true,
+    recordatorioSMS: false
   })
   const [opciones, setOpciones] = useState([
     { id: 'opt1', fecha: '', hora: '' }
@@ -24,13 +34,15 @@ export default function InterviewScheduling() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [solicitudIdFromUrl])
 
   const fetchData = async () => {
     try {
       setLoading(true)
+      
+      // Optimización: Pedir al backend solo solicitudes aprobadas por embajada
       const [solicitudesResponse, entrevistasResponse] = await Promise.all([
-        solicitudesService.getSolicitudesAsignadas().catch(() => []),
+        solicitudesService.getSolicitudesAsignadas({ estado: 'aprobada_embajada' }).catch(() => []),
         entrevistasService.getEntrevistasAsesor().catch(() => [])
       ])
 
@@ -43,15 +55,19 @@ export default function InterviewScheduling() {
         ? entrevistasResponse
         : (entrevistasResponse?.results || [])
 
-      // Transform solicitudes - only those approved without interview
+      // Transform solicitudes - SOLO las aprobadas por la embajada (listas para agendar entrevista)
+      // CRÍTICO: El flujo correcto es Asesor aprueba -> Envía a embajada -> Embajada aprueba -> ENTONCES se puede agendar
       const solList = solicitudesData
-        .filter(s => ['aprobada', 'enviada_embajada', 'APROBADA_SIN_ENTREVISTA', 'approved'].includes(s.estado))
+        .filter(s => s.estado === 'aprobada_embajada')
         .map(s => ({
           id: s.id || s.numero,
           cliente: s.cliente_nombre || s.cliente?.nombre || 'Cliente',
+          clienteEmail: s.cliente_email || s.cliente?.email || '',
+          clienteTelefono: s.cliente_telefono || s.cliente?.telefono || '',
           tipoVisa: s.tipo_visa_display || s.tipo_visa || 'Visa',
           embajada: s.embajada_display || s.embajada || 'Embajada',
-          estado: s.estado || 'APROBADA_SIN_ENTREVISTA',
+          embajadaCode: s.embajada,
+          estado: s.estado || 'aprobada_embajada',
           fechaSolicitud: s.fecha_creacion || s.created_at || '',
           prioridad: s.prioridad || 'media'
         }))
@@ -72,6 +88,15 @@ export default function InterviewScheduling() {
 
       setSolicitudes(solList)
       setEntrevistas(entList)
+      
+      // Si viene un ID de solicitud en la URL, abrir el modal automáticamente
+      if (solicitudIdFromUrl) {
+        const solicitudParaAgendar = solList.find(s => String(s.id) === String(solicitudIdFromUrl))
+        if (solicitudParaAgendar) {
+          setSelectedSolicitud(solicitudParaAgendar)
+          setShowScheduleModal(true)
+        }
+      }
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -123,57 +148,51 @@ export default function InterviewScheduling() {
 
   const handleScheduleInterview = (solicitud) => {
     setSelectedSolicitud(solicitud)
+    // Resetear el formulario con valores por defecto
+    setScheduleForm({
+      fecha: '',
+      hora: '',
+      ubicacion: '',
+      ubicacionSeleccionada: '',
+      ubicacionPersonalizada: '',
+      modoAsignacion: 'fecha_fija',
+      notas: '',
+      duracionEstimada: '30',
+      recordatorioEmail: true,
+      recordatorioSMS: false
+    })
     setShowScheduleModal(true)
   }
 
   const handleSubmitSchedule = async (e) => {
     e.preventDefault()
+    setSubmitting(true)
 
     try {
-      let endpoint = '/api/agendamiento/'
-      let body = {}
-
       // Determinar la ubicación final
       const ubicacionFinal = scheduleForm.ubicacionSeleccionada === 'otros'
         ? scheduleForm.ubicacionPersonalizada
         : scheduleForm.ubicacionSeleccionada
 
-      if (scheduleForm.modoAsignacion === 'fecha_fija') {
-        endpoint += 'asignar-fecha-fija/'
-        body = {
-          solicitud_id: selectedSolicitud.id,
-          embajada: selectedSolicitud.embajada,
+      // Usar el servicio de entrevistas para agendar
+      // Pasar solicitudId como primer parámetro y los datos como segundo parámetro
+      const response = await entrevistasService.agendarEntrevista(
+        selectedSolicitud.id,
+        {
           fecha: scheduleForm.fecha,
           hora: scheduleForm.hora,
-          ubicacion: ubicacionFinal
+          ubicacion: ubicacionFinal,
+          notas: scheduleForm.notas,
+          duracion_estimada: parseInt(scheduleForm.duracionEstimada),
+          recordatorio_email: scheduleForm.recordatorioEmail,
+          recordatorio_sms: scheduleForm.recordatorioSMS
         }
-      } else {
-        endpoint += 'ofrecer-opciones/'
-        body = {
-          solicitud_id: selectedSolicitud.id,
-          embajada: selectedSolicitud.embajada,
-          opciones: opciones.map((opt, idx) => ({
-            id: `opt${idx + 1}`,
-            fecha: opt.fecha,
-            hora: opt.hora
-          }))
-        }
-      }
+      )
 
-      console.log('Enviando datos:', body) // Para debug
-
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body)
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        alert('Entrevista agendada exitosamente')
+      if (response && (response.entrevista?.id || response.id || response.success)) {
+        // Mostrar mensaje de éxito
+        alert(`¡Entrevista agendada exitosamente!\n\nCliente: ${selectedSolicitud.cliente}\nFecha: ${scheduleForm.fecha}\nHora: ${scheduleForm.hora}\nUbicación: ${ubicacionFinal}\n\nSe ha enviado una notificación al cliente.`)
+        
         setShowScheduleModal(false)
         // Resetear formulario
         setScheduleForm({
@@ -182,16 +201,23 @@ export default function InterviewScheduling() {
           ubicacion: '',
           ubicacionSeleccionada: '',
           ubicacionPersonalizada: '',
-          modoAsignacion: 'fecha_fija'
+          modoAsignacion: 'fecha_fija',
+          notas: '',
+          duracionEstimada: '30',
+          recordatorioEmail: true,
+          recordatorioSMS: false
         })
         // Recargar datos
-        // En producción, hacer fetch real de la API
+        fetchData()
       } else {
-        alert('Error al agendar: ' + data.error)
+        throw new Error(response?.error || 'Error desconocido')
       }
     } catch (error) {
       console.error('Error completo:', error)
-      alert('Error al agendar la entrevista: ' + error.message)
+      const errorMsg = error.response?.data?.error || error.message || 'Error al agendar la entrevista'
+      alert('Error: ' + errorMsg)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -301,24 +327,46 @@ export default function InterviewScheduling() {
       {/* Content */}
       {selectedTab === 'pendientes' && (
         <Card>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Solicitudes Aprobadas - Pendientes de Agendar Entrevista
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Solicitud</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Cliente</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Tipo de Visa</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Embajada</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Prioridad</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Fecha Solicitud</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {solicitudes.map((solicitud) => (
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Solicitudes Aprobadas por la Embajada - Pendientes de Agendar Entrevista
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Solo se muestran solicitudes que ya fueron aprobadas por la embajada y están listas para agendar entrevista
+            </p>
+          </div>
+          
+          {solicitudes.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No hay solicitudes listas para agendar entrevista
+              </h3>
+              <p className="text-gray-500 max-w-md mx-auto">
+                Las solicitudes aparecerán aquí una vez que la embajada las haya aprobado. 
+                Recuerda que primero debes enviar las solicitudes a la embajada y esperar su decisión.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Solicitud</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Cliente</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Tipo de Visa</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Embajada</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Prioridad</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Fecha Solicitud</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {solicitudes.map((solicitud) => (
                   <tr key={solicitud.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <span className="font-medium text-gray-900">{solicitud.id}</span>
@@ -358,6 +406,7 @@ export default function InterviewScheduling() {
               </tbody>
             </table>
           </div>
+          )}
         </Card>
       )}
 
@@ -431,169 +480,227 @@ export default function InterviewScheduling() {
         </Card>
       )}
 
-      {/* Modal para Agendar Entrevista */}
+      {/* Modal para Agendar Entrevista - MEJORADO */}
       {showScheduleModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Agendar Entrevista</h2>
-              <p className="text-gray-600 mt-1">
-                Solicitud: {selectedSolicitud?.id} - {selectedSolicitud?.cliente}
-              </p>
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header con info del cliente */}
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-blue-50">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">📅 Agendar Entrevista Consular</h2>
+                  <div className="mt-3 space-y-1">
+                    <p className="text-gray-700">
+                      <span className="font-medium">Solicitud:</span> #{selectedSolicitud?.id}
+                    </p>
+                    <p className="text-gray-700">
+                      <span className="font-medium">Cliente:</span> {selectedSolicitud?.cliente}
+                    </p>
+                    <p className="text-gray-700">
+                      <span className="font-medium">Tipo de Visa:</span> {selectedSolicitud?.tipoVisa}
+                    </p>
+                    <p className="text-gray-700">
+                      <span className="font-medium">Embajada:</span> {selectedSolicitud?.embajada}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowScheduleModal(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSubmitSchedule} className="p-6 space-y-6">
-              {/* Modo de Asignación */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Modo de Asignación
-                </label>
-                <div className="flex gap-4">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="modoAsignacion"
-                      value="fecha_fija"
-                      checked={scheduleForm.modoAsignacion === 'fecha_fija'}
-                      onChange={(e) => setScheduleForm({ ...scheduleForm, modoAsignacion: e.target.value })}
-                      className="mr-2"
-                    />
-                    Fecha Fija (Embajada asigna)
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="modoAsignacion"
-                      value="opciones"
-                      checked={scheduleForm.modoAsignacion === 'opciones'}
-                      onChange={(e) => setScheduleForm({ ...scheduleForm, modoAsignacion: e.target.value })}
-                      className="mr-2"
-                    />
-                    Ofrecer Opciones (Cliente elige)
-                  </label>
+              {/* Información importante */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-sm text-blue-700">
+                    <p className="font-medium">Información importante</p>
+                    <p className="mt-1">Al confirmar la entrevista, se enviará automáticamente una notificación al cliente con todos los detalles de la cita.</p>
+                  </div>
                 </div>
               </div>
 
-              {scheduleForm.modoAsignacion === 'fecha_fija' ? (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Fecha *
-                      </label>
+              {/* Sección: Fecha y Hora */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <span className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-sm font-bold">1</span>
+                  Fecha y Hora de la Entrevista
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fecha *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      min={new Date().toISOString().split('T')[0]}
+                      value={scheduleForm.fecha}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, fecha: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Hora *
+                    </label>
+                    <select
+                      required
+                      value={scheduleForm.hora}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, hora: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    >
+                      <option value="">Seleccionar hora</option>
+                      <option value="08:00">08:00 AM</option>
+                      <option value="08:30">08:30 AM</option>
+                      <option value="09:00">09:00 AM</option>
+                      <option value="09:30">09:30 AM</option>
+                      <option value="10:00">10:00 AM</option>
+                      <option value="10:30">10:30 AM</option>
+                      <option value="11:00">11:00 AM</option>
+                      <option value="11:30">11:30 AM</option>
+                      <option value="12:00">12:00 PM</option>
+                      <option value="14:00">02:00 PM</option>
+                      <option value="14:30">02:30 PM</option>
+                      <option value="15:00">03:00 PM</option>
+                      <option value="15:30">03:30 PM</option>
+                      <option value="16:00">04:00 PM</option>
+                      <option value="16:30">04:30 PM</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Duración Estimada
+                    </label>
+                    <select
+                      value={scheduleForm.duracionEstimada}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, duracionEstimada: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    >
+                      <option value="15">15 minutos</option>
+                      <option value="30">30 minutos</option>
+                      <option value="45">45 minutos</option>
+                      <option value="60">1 hora</option>
+                      <option value="90">1 hora 30 min</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sección: Ubicación */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <span className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-sm font-bold">2</span>
+                  Ubicación
+                </h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sede de la Entrevista *
+                  </label>
+                  <select
+                    required
+                    value={scheduleForm.ubicacionSeleccionada}
+                    onChange={(e) => setScheduleForm({
+                      ...scheduleForm,
+                      ubicacionSeleccionada: e.target.value,
+                      ubicacionPersonalizada: ''
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="">Selecciona una ubicación</option>
+                    {(ubicacionesPorEmbajada[selectedSolicitud?.embajada] || ubicacionesPorEmbajada['Estados Unidos'] || []).map((ubicacion, idx) => (
+                      <option key={idx} value={ubicacion}>
+                        {ubicacion}
+                      </option>
+                    ))}
+                    <option value="otros">📍 Otra ubicación (especificar)</option>
+                  </select>
+
+                  {scheduleForm.ubicacionSeleccionada === 'otros' && (
+                    <div className="mt-3">
                       <input
-                        type="date"
+                        type="text"
                         required
-                        value={scheduleForm.fecha}
-                        onChange={(e) => setScheduleForm({ ...scheduleForm, fecha: e.target.value })}
+                        placeholder="Ingresa la dirección completa de la sede"
+                        value={scheduleForm.ubicacionPersonalizada}
+                        onChange={(e) => setScheduleForm({
+                          ...scheduleForm,
+                          ubicacionPersonalizada: e.target.value
+                        })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Hora *
-                      </label>
-                      <input
-                        type="time"
-                        required
-                        value={scheduleForm.hora}
-                        onChange={(e) => setScheduleForm({ ...scheduleForm, hora: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      />
-                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sección: Notas y Recordatorios */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <span className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-sm font-bold">3</span>
+                  Detalles Adicionales
+                </h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Notas para el Cliente (opcional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Ej: Llevar pasaporte original, fotografías tamaño pasaporte, comprobante de pago de la visa..."
+                      value={scheduleForm.notas}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, notas: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Ubicación *
+                      Recordatorios Automáticos
                     </label>
-                    <select
-                      required
-                      value={scheduleForm.ubicacionSeleccionada}
-                      onChange={(e) => setScheduleForm({
-                        ...scheduleForm,
-                        ubicacionSeleccionada: e.target.value,
-                        ubicacionPersonalizada: '' // Limpiar el campo personalizado
-                      })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    >
-                      <option value="">Selecciona una ubicación</option>
-                      {(ubicacionesPorEmbajada[selectedSolicitud?.embajada] || []).map((ubicacion, idx) => (
-                        <option key={idx} value={ubicacion}>
-                          {ubicacion}
-                        </option>
-                      ))}
-                      <option value="otros">Otros (especificar)</option>
-                    </select>
-
-                    {/* Campo de texto que aparece solo cuando selecciona "Otros" */}
-                    {scheduleForm.ubicacionSeleccionada === 'otros' && (
-                      <div className="mt-3">
+                    <div className="flex flex-wrap gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
-                          type="text"
-                          required
-                          placeholder="Escribe la ubicación personalizada"
-                          value={scheduleForm.ubicacionPersonalizada}
-                          onChange={(e) => setScheduleForm({
-                            ...scheduleForm,
-                            ubicacionPersonalizada: e.target.value
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          type="checkbox"
+                          checked={scheduleForm.recordatorioEmail}
+                          onChange={(e) => setScheduleForm({ ...scheduleForm, recordatorioEmail: e.target.checked })}
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                         />
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Opciones de Horario
-                    </label>
-                    <Button type="button" size="sm" onClick={addOpcion}>
-                      + Agregar Opción
-                    </Button>
-                  </div>
-
-                  {opciones.map((opcion, index) => (
-                    <div key={index} className="flex gap-4 items-start bg-gray-50 p-4 rounded-lg">
-                      <div className="flex-1 grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Fecha
-                          </label>
-                          <input
-                            type="date"
-                            required
-                            value={opcion.fecha}
-                            onChange={(e) => updateOpcion(index, 'fecha', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Hora
-                          </label>
-                          <input
-                            type="time"
-                            required
-                            value={opcion.hora}
-                            onChange={(e) => updateOpcion(index, 'hora', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                      {opciones.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeOpcion(index)}
-                          className="mt-6 text-red-600 hover:text-red-700"
-                        >
-                          ✕
-                        </button>
-                      )}
+                        <span className="text-sm text-gray-700">📧 Enviar recordatorio por email (24h antes)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={scheduleForm.recordatorioSMS}
+                          onChange={(e) => setScheduleForm({ ...scheduleForm, recordatorioSMS: e.target.checked })}
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <span className="text-sm text-gray-700">📱 Enviar recordatorio por SMS (2h antes)</span>
+                      </label>
                     </div>
-                  ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Resumen antes de confirmar */}
+              {scheduleForm.fecha && scheduleForm.hora && scheduleForm.ubicacionSeleccionada && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                  <h4 className="font-medium text-green-900 mb-2">✓ Resumen de la Entrevista</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm text-green-800">
+                    <p><span className="font-medium">Fecha:</span> {new Date(scheduleForm.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    <p><span className="font-medium">Hora:</span> {scheduleForm.hora}</p>
+                    <p className="col-span-2"><span className="font-medium">Ubicación:</span> {scheduleForm.ubicacionSeleccionada === 'otros' ? scheduleForm.ubicacionPersonalizada : scheduleForm.ubicacionSeleccionada}</p>
+                  </div>
                 </div>
               )}
 
@@ -604,11 +711,31 @@ export default function InterviewScheduling() {
                   variant="secondary"
                   onClick={() => setShowScheduleModal(false)}
                   className="flex-1"
+                  disabled={submitting}
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" className="flex-1">
-                  Agendar Entrevista
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  disabled={submitting || !scheduleForm.fecha || !scheduleForm.hora || !scheduleForm.ubicacionSeleccionada}
+                >
+                  {submitting ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Agendando...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Confirmar y Agendar
+                    </>
+                  )}
                 </Button>
               </div>
             </form>

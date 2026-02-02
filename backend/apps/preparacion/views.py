@@ -381,22 +381,40 @@ class EstadoSalaView(APIView):
 
 
 class PropuestasPendientesView(generics.ListAPIView):
-    """GET /api/simulacros/propuestas/ - Lista propuestas pendientes."""
+    """GET /api/simulacros/propuestas/ - Lista propuestas pendientes.
+    
+    Para ASESOR: Muestra solicitudes de clientes (estado='solicitado', propuesto_por='cliente')
+                 y contrapropuestas pendientes (estado='contrapropuesta')
+    Para CLIENTE: Muestra propuestas del asesor (estado='pendiente_respuesta', propuesto_por='asesor')
+    """
     serializer_class = SimulacroListSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
+        from django.db.models import Q
         user = self.request.user
-        filtros = {'estado': 'pendiente_respuesta', 'is_deleted': False}
         
         if user.rol == 'asesor':
-            filtros['asesor'] = user
+            # El asesor ve:
+            # 1. Solicitudes de clientes (estado='solicitado', propuesto_por='cliente')
+            # 2. Contrapropuestas de clientes (estado='contrapropuesta')
+            return Simulacro.objects.filter(
+                Q(asesor=user, is_deleted=False) &
+                (
+                    Q(estado='solicitado', propuesto_por='cliente') |
+                    Q(estado='contrapropuesta')
+                )
+            ).order_by('-created_at')
         elif user.rol == 'cliente':
-            filtros['cliente'] = user
+            # El cliente ve propuestas del asesor pendientes de su respuesta
+            return Simulacro.objects.filter(
+                cliente=user,
+                estado='pendiente_respuesta',
+                propuesto_por='asesor',
+                is_deleted=False
+            ).order_by('-created_at')
         else:
             return Simulacro.objects.none()
-        
-        return Simulacro.objects.filter(**filtros).order_by('-created_at')
 
 
 class SimulacrosCompletadosAsesorView(generics.ListAPIView):

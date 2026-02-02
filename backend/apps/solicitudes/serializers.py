@@ -101,6 +101,7 @@ class SolicitudDetailSerializer(serializers.ModelSerializer):
             'asesor', 'asesor_nombre', 'datos_personales', 'documentos',
             'observaciones', 'notas_asesor', 'documentos_adjuntos', 'entrevista',
             'fecha_asignacion', 'fecha_revision', 'fecha_envio_embajada',
+            'motivo_rechazo_embajada',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -180,12 +181,15 @@ class SolicitudUpdateSerializer(serializers.ModelSerializer):
     def validate_estado(self, value):
         instance = self.instance
         
-        # Validar transiciones de estado permitidas
+        # Validar transiciones de estado permitidas - SINCRONIZADA CON services.py
         transiciones_validas = {
+            'borrador': ['pendiente'],
             'pendiente': ['en_revision', 'rechazada'],
             'en_revision': ['aprobada', 'rechazada'],
-            'aprobada': ['enviada_embajada'],
-            'enviada_embajada': ['entrevista_agendada'],
+            'aprobada': ['enviada_embajada', 'esperando_decision_embajada'],
+            'enviada_embajada': ['esperando_decision_embajada'],
+            'esperando_decision_embajada': ['aprobada_embajada', 'rechazada_embajada'],
+            'aprobada_embajada': ['entrevista_agendada'],
             'entrevista_agendada': ['completada'],
         }
         

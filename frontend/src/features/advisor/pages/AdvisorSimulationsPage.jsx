@@ -58,14 +58,17 @@ export default function AdvisorSimulationsPage() {
         clientAvatar: getInitials(s.cliente_nombre || s.cliente?.nombre || 'C')
       }))
 
-      // Transform propuestas
+      // Transform propuestas (solicitudes de clientes pendientes de confirmación del asesor)
       const propList = propuestasData.map(p => ({
         id: p.id,
         client: p.cliente_nombre || p.cliente?.nombre || 'Cliente',
-        proposedDate: formatDateForDisplay(p.fecha_propuesta),
-        proposedTime: p.hora_propuesta || '10:00 AM - 11:00 AM',
-        visaType: p.tipo_visa || 'Visa',
-        note: p.nota || ''
+        proposedDate: formatDateForDisplay(p.fecha_propuesta || p.fecha),
+        proposedTime: p.hora_propuesta || p.hora || '10:00 AM',
+        visaType: p.solicitud_tipo || p.tipo_visa || 'Visa',
+        note: p.notas || p.nota || '',
+        estado: p.estado,
+        propuesto_por: p.propuesto_por || 'cliente',
+        solicitudId: p.solicitud_id
       }))
 
       // Transform completados
@@ -137,6 +140,17 @@ export default function AdvisorSimulationsPage() {
     setShowProposalModal(false)
     setSelectedProposal(null)
     setSelectedTime('')
+  }
+
+  // Confirmar solicitud de cliente directamente (sin modal)
+  const handleConfirmClientRequest = async (proposalId) => {
+    try {
+      await simulacrosService.aceptarPropuesta(proposalId)
+      fetchSimulationsData()
+    } catch (error) {
+      console.error('Error confirming client request:', error)
+      alert('Error al confirmar la solicitud')
+    }
   }
 
   // Abrir modal para subir transcripción
@@ -272,26 +286,32 @@ export default function AdvisorSimulationsPage() {
         </Card>
       </div>
 
-      {/* Proposals Section */}
+      {/* Solicitudes de Clientes - Pendientes de Confirmación */}
       {proposals.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/50">
+        <Card className="border-primary-200 bg-primary-50/50">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-              <h2 className="text-lg font-semibold text-gray-900">Propuestas Pendientes</h2>
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                📩 Solicitudes de Clientes
+              </h2>
             </div>
-            <Badge variant="warning">{proposals.length} nuevas</Badge>
+            <Badge variant="primary">{proposals.length} pendientes</Badge>
           </div>
+
+          <p className="text-sm text-gray-600 mb-4">
+            Estos clientes han solicitado un simulacro de entrevista. Confirma para agendar la sesión.
+          </p>
 
           <div className="grid md:grid-cols-2 gap-4">
             {proposals.map((proposal) => (
               <div 
                 key={proposal.id}
-                className="bg-white rounded-xl p-4 border border-amber-200"
+                className="bg-white rounded-xl p-4 border border-primary-200 shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 font-semibold">
+                    <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-semibold">
                       {proposal.client.charAt(0)}
                     </div>
                     <div>
@@ -299,6 +319,9 @@ export default function AdvisorSimulationsPage() {
                       <p className="text-sm text-gray-500">{proposal.visaType}</p>
                     </div>
                   </div>
+                  <Badge variant="info" className="text-xs">
+                    {proposal.estado === 'solicitado' ? 'Nueva solicitud' : 'Contrapropuesta'}
+                  </Badge>
                 </div>
 
                 <div className="space-y-2 mb-4">
@@ -316,7 +339,7 @@ export default function AdvisorSimulationsPage() {
                   </div>
                   {proposal.note && (
                     <div className="bg-gray-50 rounded-lg p-2 text-sm text-gray-600 italic">
-                      "{proposal.note}"
+                      💬 "{proposal.note}"
                     </div>
                   )}
                 </div>
@@ -326,19 +349,16 @@ export default function AdvisorSimulationsPage() {
                     variant="secondary" 
                     size="sm" 
                     className="flex-1"
-                    onClick={() => {/* Reject */}}
+                    onClick={() => {/* TODO: Proponer otra fecha */}}
                   >
-                    Rechazar
+                    Proponer Fecha
                   </Button>
                   <Button 
                     size="sm" 
-                    className="flex-1"
-                    onClick={() => {
-                      setSelectedProposal(proposal)
-                      setShowProposalModal(true)
-                    }}
+                    className="flex-1 bg-primary-600 hover:bg-primary-700"
+                    onClick={() => handleConfirmClientRequest(proposal.id)}
                   >
-                    Aceptar
+                    ✓ Confirmar
                   </Button>
                 </div>
               </div>

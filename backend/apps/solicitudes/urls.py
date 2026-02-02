@@ -26,6 +26,7 @@ from .views import (
     DocumentoDetailView,
     AprobarDocumentoView,
     RechazarDocumentoView,
+    ResubirDocumentoView,
 
     # Entrevistas
     EntrevistasListView,
@@ -68,6 +69,7 @@ urlpatterns = [
     path('documentos/<int:pk>/', DocumentoDetailView.as_view(), name='documento_detail'),
     path('documentos/<int:pk>/aprobar/', AprobarDocumentoView.as_view(), name='aprobar_documento'),
     path('documentos/<int:pk>/rechazar/', RechazarDocumentoView.as_view(), name='rechazar_documento'),
+    path('documentos/<int:pk>/resubir/', ResubirDocumentoView.as_view(), name='resubir_documento'),
     
     # ===== ENTREVISTAS =====
     path('entrevistas/', EntrevistasListView.as_view(), name='entrevistas_list'),

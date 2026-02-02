@@ -1,5 +1,5 @@
 import { Component } from 'react'
-import { Button } from './Button'
+import Button from './Button'
 
 /**
  * ErrorBoundary - Componente para capturar errores de renderizado

@@ -1,5 +1,5 @@
-#language: es
-Caracteristica: Simulacion de entrevista para migrantes
+# language: es
+Característica: Simulacion de entrevista para migrantes
   Como migrante en proceso de preparacion
   quiero realizar simulacros de entrevistas adaptados a mi visado
   para familiarizarme con el formato de preguntas antes de la cita con la embajada
@@ -82,6 +82,44 @@ Caracteristica: Simulacion de entrevista para migrantes
       | 0                     | disponible     | Puede solicitar hasta 2 simulacros en total        |
       | 1                     | disponible     | Tiene 1 simulacro disponible restante              |
       | 2                     | no_disponible  | Ha alcanzado el limite de 2 simulacros por proceso |
+
+#=====================================
+#  REQUISITO: SOLICITUD APROBADA POR EMBAJADA
+#=====================================
+
+  Escenario: Cliente puede solicitar simulacro con solicitud aprobada por embajada
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
+    Y tengo una solicitud de visa con estado "aprobada_embajada"
+    Y mi contador de simulacros realizados es 0
+    Cuando solicito un simulacro de entrevista para esa solicitud
+    Entonces el simulacro debe crearse correctamente con estado "Solicitado"
+    Y el asesor debe recibir la notificacion "Nueva solicitud de simulacro"
+
+  Escenario: Cliente puede solicitar simulacro cuando la entrevista esta agendada
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
+    Y tengo una solicitud de visa con estado "entrevista_agendada"
+    Y mi contador de simulacros realizados es 0
+    Cuando solicito un simulacro de entrevista para esa solicitud
+    Entonces el simulacro debe crearse correctamente con estado "Solicitado"
+    Y el asesor debe recibir la notificacion "Nueva solicitud de simulacro"
+
+  Esquema del escenario: Cliente NO puede solicitar simulacro si solicitud no esta aprobada por embajada
+    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"
+    Y tengo una solicitud de visa con estado "<estado_solicitud>"
+    Y mi contador de simulacros realizados es 0
+    Cuando intento solicitar un simulacro de entrevista para esa solicitud
+    Entonces el sistema rechaza la solicitud de simulacro
+    Y muestra el mensaje "Solo puede solicitar un simulacro cuando su solicitud haya sido aprobada por la embajada o cuando la entrevista este agendada"
+
+    Ejemplos:
+      | estado_solicitud        |
+      | borrador                |
+      | pendiente               |
+      | en_revision             |
+      | aprobada                |
+      | enviada_embajada        |
+      | esperando_decision_embajada |
+      | rechazada_embajada      |
 
 #=====================================
 #  SALA DE ESPERA Y SESION

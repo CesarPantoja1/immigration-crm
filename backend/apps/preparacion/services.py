@@ -101,6 +101,17 @@ class SimulacroService:
                             fecha_propuesta=None, hora_propuesta=None,
                             observaciones: str = '') -> tuple[Simulacro | None, str | None]:
         """Permite al cliente solicitar un simulacro."""
+        # Verificar que la solicitud esté aprobada por la embajada o que la entrevista esté agendada
+        # Los simulacros solo están disponibles después de la aprobación de la embajada
+        # Si la entrevista está agendada, implica que la embajada ya aprobó la solicitud
+        estados_permitidos = ['aprobada_embajada', 'entrevista_agendada']
+        
+        if solicitud.estado not in estados_permitidos:
+            return None, ('Solo puede solicitar un simulacro cuando su solicitud haya sido '
+                          'aprobada por la embajada o cuando la entrevista esté agendada. '
+                          'Estado actual: ' + 
+                          (solicitud.get_estado_display() if hasattr(solicitud, 'get_estado_display') else solicitud.estado))
+        
         # Verificar disponibilidad
         info = SimulacroService.verificar_disponibilidad(cliente)
         if info['disponibilidad'] != 'disponible':
@@ -151,8 +162,13 @@ class SimulacroService:
         return simulacro, None
     
     @staticmethod
-    def aceptar_propuesta(simulacro: Simulacro) -> tuple[bool, str | None]:
-        """Acepta una propuesta de simulacro."""
+    def aceptar_propuesta(simulacro: Simulacro, usuario_que_acepta=None) -> tuple[bool, str | None]:
+        """
+        Acepta una propuesta de simulacro.
+        
+        - Si el CLIENTE acepta (propuesto_por='asesor') → notifica al asesor
+        - Si el ASESOR acepta (propuesto_por='cliente') → notifica al cliente
+        """
         estados_aceptables = ['solicitado', 'propuesto', 'pendiente_respuesta']
         
         if simulacro.estado not in estados_aceptables:
@@ -160,6 +176,21 @@ class SimulacroService:
         
         simulacro.estado = 'confirmado'
         simulacro.save()
+        
+        # Enviar notificación según quién propuso originalmente
+        try:
+            from apps.notificaciones.services import NotificacionService
+            
+            if simulacro.propuesto_por == 'cliente':
+                # El asesor aceptó la solicitud del cliente → notificar al cliente
+                NotificacionService.notificar_simulacro_confirmado(simulacro)
+            elif simulacro.propuesto_por == 'asesor':
+                # El cliente aceptó la propuesta del asesor → notificar al asesor
+                NotificacionService.notificar_simulacro_confirmado(simulacro)
+        except Exception as e:
+            # No fallar si la notificación falla
+            pass
+        
         return True, None
     
     @staticmethod
