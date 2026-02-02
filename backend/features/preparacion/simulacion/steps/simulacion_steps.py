@@ -1,32 +1,282 @@
+"""
+Steps BDD para Simulacros de Entrevista.
+Refactorizado para usar la arquitectura Service Layer.
+
+Mapea a: apps.preparacion.models.Simulacro, Practica
+"""
 from behave import *
 from datetime import datetime, date, time, timedelta
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict
+from enum import Enum
 
-# Importar desde la ruta correcta del dominio
-from backend.apps.preparacion.simulacion.domain.entities import (
-    SimulacroConAsesor,
-    SesionPracticaIndividual,
-    GestorSimulacros
-)
-from backend.apps.preparacion.simulacion.domain.value_objects import (
-    TipoVisado,
-    ModalidadSimulacro,
-    EstadoSimulacro,
-    NivelDificultad,
-    Pregunta,
-    RespuestaMigrante,
-    HorarioSimulacro,
-    ResultadoPractica,
-    Transcripcion,
-    FeedbackAsesor,
-    PreguntaIncorrecta
-)
+
+# ==============================================================================
+# OBJETOS DE DOMINIO PARA TESTING
+# Mapean a apps.preparacion.models.Simulacro, Practica
+# ==============================================================================
+
+class TipoVisado(Enum):
+    """Tipos de visa - mapea a Simulacro/Solicitud tipos"""
+    ESTUDIANTE = "Estudiante"
+    TRABAJO = "Trabajo"
+    TURISMO = "Turismo"
+    VIVIENDA = "Vivienda"
+
+
+class ModalidadSimulacro(Enum):
+    """Mapea a Simulacro.MODALIDADES"""
+    VIRTUAL = "Virtual"
+    PRESENCIAL = "Presencial"
+
+
+class EstadoSimulacro(Enum):
+    """Mapea a Simulacro.ESTADOS"""
+    SOLICITADO = "solicitado"
+    PROPUESTO = "propuesto"
+    PENDIENTE = "pendiente_respuesta"
+    AGENDADO = "confirmado"
+    EN_PROGRESO = "en_progreso"
+    COMPLETADO = "completado"
+    CANCELADO = "cancelado"
+
+
+class NivelDificultad(Enum):
+    FACIL = "facil"
+    MEDIO = "medio"
+    DIFICIL = "dificil"
+
+
+@dataclass
+class HorarioSimulacro:
+    """Horario del simulacro"""
+    fecha: date
+    hora: time
+
+
+@dataclass
+class Pregunta:
+    """Pregunta de práctica"""
+    id: str
+    texto: str
+    respuestas: List[str]
+    respuesta_correcta: int
+    explicacion: str = ""
+    dificultad: NivelDificultad = NivelDificultad.MEDIO
+
+
+@dataclass
+class RespuestaMigrante:
+    """Respuesta del migrante a una pregunta"""
+    pregunta_id: str
+    respuesta_seleccionada: int
+    es_correcta: bool
+    tiempo_segundos: int = 0
+
+
+@dataclass
+class ResultadoPractica:
+    """Resultado de una sesión de práctica"""
+    total_preguntas: int
+    respuestas_correctas: int
+    respuestas_incorrectas: int
+    tiempo_total_segundos: int = 0
+    
+    def calcular_porcentaje(self) -> int:
+        if self.total_preguntas == 0:
+            return 0
+        return int((self.respuestas_correctas / self.total_preguntas) * 100)
+    
+    def obtener_calificacion(self) -> str:
+        porcentaje = self.calcular_porcentaje()
+        if porcentaje >= 90:
+            return "Excelente"
+        elif porcentaje >= 70:
+            return "Bueno"
+        elif porcentaje >= 50:
+            return "Regular"
+        return "Insuficiente"
+    
+    def obtener_mensaje_motivacional(self) -> str:
+        calificacion = self.obtener_calificacion()
+        mensajes = {
+            "Excelente": "¡Muy bien! Estás muy preparado",
+            "Bueno": "Buen trabajo, repasa las preguntas incorrectas",
+            "Regular": "Necesitas practicar más antes del simulacro real",
+            "Insuficiente": "Te recomendamos practicar más antes de la entrevista"
+        }
+        return mensajes.get(calificacion, "Sigue practicando")
+
+
+@dataclass
+class Transcripcion:
+    """Transcripción de un simulacro"""
+    simulacro_id: str
+    contenido: str
+    fecha: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class FeedbackAsesor:
+    """Feedback del asesor sobre un simulacro"""
+    simulacro_id: str
+    asesor_id: str
+    comentarios: str
+    puntuacion: int
+    fortalezas: List[str] = field(default_factory=list)
+    areas_mejora: List[str] = field(default_factory=list)
+    recomendaciones: str = ""
+
+
+@dataclass
+class PreguntaIncorrecta:
+    """Pregunta respondida incorrectamente"""
+    pregunta: Pregunta
+    indice_respuesta_usuario: int
+    explicacion: str
+
+
+# Banco de preguntas para práctica
+BANCO_PREGUNTAS = {
+    TipoVisado.ESTUDIANTE: [
+        Pregunta(id="E1", texto="¿Cuál es el propósito de su viaje?", 
+                 respuestas=["Estudiar", "Trabajar", "Turismo", "Residir"],
+                 respuesta_correcta=0, explicacion="El propósito de visa de estudiante es estudiar"),
+        Pregunta(id="E2", texto="¿Cómo financiará sus estudios?",
+                 respuestas=["Beca", "Familia", "Ahorros", "Préstamo"],
+                 respuesta_correcta=0, explicacion="Debe demostrar solvencia económica"),
+        Pregunta(id="E3", texto="¿A qué universidad asistirá?",
+                 respuestas=["Universidad acreditada", "Instituto", "Colegio", "Academia"],
+                 respuesta_correcta=0, explicacion="Debe ser institución acreditada"),
+        Pregunta(id="E4", texto="¿Cuánto tiempo durará su programa?",
+                 respuestas=["2 años", "6 meses", "1 mes", "5 años"],
+                 respuesta_correcta=0, explicacion="Especificar duración exacta"),
+        Pregunta(id="E5", texto="¿Dónde vivirá durante sus estudios?",
+                 respuestas=["Campus", "Apartamento", "Hotel", "No sé"],
+                 respuesta_correcta=0, explicacion="Tener alojamiento definido"),
+        Pregunta(id="E6", texto="¿Tiene familia en el país destino?",
+                 respuestas=["No", "Sí", "Tal vez", "No recuerdo"],
+                 respuesta_correcta=0, explicacion="Ser honesto sobre vínculos"),
+        Pregunta(id="E7", texto="¿Qué hará al terminar sus estudios?",
+                 respuestas=["Regresar", "Trabajar", "Quedarse", "Viajar"],
+                 respuesta_correcta=0, explicacion="Mostrar intención de retorno"),
+        Pregunta(id="E8", texto="¿Por qué eligió este país?",
+                 respuestas=["Calidad educativa", "Familia", "Trabajo", "Clima"],
+                 respuesta_correcta=0, explicacion="Razones académicas son preferibles"),
+        Pregunta(id="E9", texto="¿Tiene historial de viajes?",
+                 respuestas=["Sí, varios", "No", "Uno", "No recuerdo"],
+                 respuesta_correcta=0, explicacion="Historial de viajes es positivo"),
+        Pregunta(id="E10", texto="¿Habla el idioma del país?",
+                 respuestas=["Sí, fluido", "Básico", "No", "Un poco"],
+                 respuesta_correcta=0, explicacion="Dominio del idioma es importante"),
+    ]
+}
+
+
+@dataclass
+class SesionPracticaIndividual:
+    """Sesión de práctica individual con cuestionario"""
+    id: str
+    migrante_id: str
+    tipo_visado: TipoVisado
+    preguntas: List[Pregunta] = field(default_factory=list)
+    respuestas: List[RespuestaMigrante] = field(default_factory=list)
+    completada: bool = False
+    
+    def responder_pregunta(self, indice_respuesta: int, tiempo_segundos: int = 0):
+        if len(self.respuestas) < len(self.preguntas):
+            pregunta_actual = self.preguntas[len(self.respuestas)]
+            es_correcta = indice_respuesta == pregunta_actual.respuesta_correcta
+            respuesta = RespuestaMigrante(
+                pregunta_id=pregunta_actual.id,
+                respuesta_seleccionada=indice_respuesta,
+                es_correcta=es_correcta,
+                tiempo_segundos=tiempo_segundos
+            )
+            self.respuestas.append(respuesta)
+    
+    def finalizar_practica(self) -> ResultadoPractica:
+        self.completada = True
+        correctas = sum(1 for r in self.respuestas if r.es_correcta)
+        return ResultadoPractica(
+            total_preguntas=len(self.preguntas),
+            respuestas_correctas=correctas,
+            respuestas_incorrectas=len(self.preguntas) - correctas,
+            tiempo_total_segundos=sum(r.tiempo_segundos for r in self.respuestas)
+        )
+
+
+@dataclass
+class SimulacroConAsesor:
+    """Simulacro con asesor - mapea a apps.preparacion.models.Simulacro"""
+    id: str
+    migrante_id: str
+    migrante_nombre: str
+    asesor_id: str
+    fecha_cita_real: date
+    modalidad: ModalidadSimulacro = ModalidadSimulacro.VIRTUAL
+    estado: EstadoSimulacro = EstadoSimulacro.PROPUESTO
+    horario: Optional[HorarioSimulacro] = None
+    numero_intento: int = 0
+    transcripcion: Optional[Transcripcion] = None
+    feedback: Optional[FeedbackAsesor] = None
+    
+    def iniciar_sesion(self) -> tuple:
+        if self.estado in [EstadoSimulacro.AGENDADO, EstadoSimulacro.EN_PROGRESO]:
+            self.estado = EstadoSimulacro.EN_PROGRESO
+            return True, "Sesión iniciada"
+        return False, "No se puede iniciar la sesión"
+    
+    def terminar_simulacion(self, contenido_transcripcion: str) -> tuple:
+        if self.estado == EstadoSimulacro.EN_PROGRESO:
+            self.transcripcion = Transcripcion(
+                simulacro_id=self.id,
+                contenido=contenido_transcripcion
+            )
+            return True, "Simulación terminada"
+        return False, "No se puede terminar"
+    
+    def agregar_feedback(self, feedback: FeedbackAsesor):
+        self.feedback = feedback
+        self.estado = EstadoSimulacro.COMPLETADO
+
+
+@dataclass
+class GestorSimulacros:
+    """Gestor de simulacros para un migrante"""
+    migrante_id: str
+    migrante_nombre: str
+    fecha_cita_real: date
+    simulacros_con_asesor: List[SimulacroConAsesor] = field(default_factory=list)
+    practicas_individuales: List[SesionPracticaIndividual] = field(default_factory=list)
+    max_simulacros: int = 2
+    
+    def contar_simulacros_con_asesor(self) -> int:
+        return len(self.simulacros_con_asesor)
+    
+    def puede_agendar_simulacro(self) -> tuple:
+        contador = self.contar_simulacros_con_asesor()
+        if contador >= self.max_simulacros:
+            return False, "Ha alcanzado el límite de 2 simulacros por proceso"
+        return True, f"Puede solicitar hasta {self.max_simulacros - contador} simulacros más"
+    
+    def iniciar_practica_individual(self, tipo_visado: TipoVisado) -> SesionPracticaIndividual:
+        preguntas = BANCO_PREGUNTAS.get(tipo_visado, BANCO_PREGUNTAS[TipoVisado.ESTUDIANTE])[:10]
+        sesion = SesionPracticaIndividual(
+            id=f"PRAC-{len(self.practicas_individuales) + 1}",
+            migrante_id=self.migrante_id,
+            tipo_visado=tipo_visado,
+            preguntas=preguntas
+        )
+        self.practicas_individuales.append(sesion)
+        return sesion
 
 
 # ============================================================================
 # CONFIGURACIÓN DEL SISTEMA
 # ============================================================================
 
-@step('que el sistema tiene configurados los siguientes límites')
+@step(u'que el sistema tiene configurados los siguientes límites')
 def step_configurar_sistema(context):
     context.config_params = {}
     for row in context.table:

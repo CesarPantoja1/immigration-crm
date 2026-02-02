@@ -306,6 +306,14 @@ class SistemaMigratorio:
 # STEPS
 # ==============================================================================
 
+@step('que soy un solicitante autenticado en el sistema de gestión migratoria')
+def paso_solicitante_autenticado(context):
+    if not hasattr(context, 'sistema') or context.sistema is None:
+        context.sistema = SistemaMigratorio()
+    context.sistema.autenticar_solicitante()
+    assert context.sistema.solicitante_autenticado is True
+
+
 @step('gestiono la solicitud "{id_solicitud}" en estado "{estado}"')
 def paso_gestiona_solicitud(context, id_solicitud, estado):
     context.sistema.establecer_solicitud(id_solicitud, estado)

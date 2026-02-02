@@ -39,6 +39,7 @@ def before_all(context):
         'features.preparacion.simulacion.steps.simulacion_steps',
         'features.preparacion.recomendaciones.steps.recomendaciones_steps',
         'features.notificaciones.steps.seguimiento_solicitud',
+        'features.notificaciones.steps.alertas_entrevista',
         'features.solicitudes.agendamiento.steps.agendamiento_entrevista',
         'features.solicitudes.recepcion.steps.recepcion_solicitud',
     ]
