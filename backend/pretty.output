@@ -1,108 +1,141 @@
-Caracter�stica: Simulacion de entrevista para migrantes # features/preparacion/simulacion/simulacion_entrevista.feature:2
-  Como migrante en proceso de preparacion
-  quiero realizar simulacros de entrevistas adaptados a mi visado
-  para familiarizarme con el formato de preguntas antes de la cita con la embajada
-  Antecedentes:   # features/preparacion/simulacion/simulacion_entrevista.feature:7
+Característica: Generacion de recomendaciones personalizadas basadas en analisis de IA # features/preparacion/recomendaciones/generacion_recomendaciones.feature:2
+  Como migrante que completo un simulacro de entrevista consular
+  Quiero recibir recomendaciones personalizadas generadas por IA
+  Para identificar mis fortalezas, corregir debilidades y prepararme mejor para mi entrevista real
+  Característica: Generacion de recomendaciones personalizadas basadas en analisis de IA  # features/preparacion/recomendaciones/generacion_recomendaciones.feature:2
 
-  Escenario: Asesor crea propuesta de simulacro para cliente                         # features/preparacion/simulacion/simulacion_entrevista.feature:18
-    Dado que el sistema tiene configurados los siguientes limites                    # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el asesor "Carlos Ruiz" con ID "ASE-001"                            # None
-    Y tengo asignado al cliente "Oscar Perez" con ID "MIG-12345"                     # None
-    Cuando creo una propuesta de simulacro con los siguientes datos                  # None
-      | fecha      | hora  | modalidad |
-      | 2026-02-10 | 15:00 | Virtual   |
-    Entonces se crea el simulacro con estado "Pendiente de respuesta"                # None
-    Y el cliente "Oscar Perez" recibe la notificacion "Nueva propuesta de simulacro" # None
+  Escenario: Subir un archivo en formato .txt                                          # features/preparacion/recomendaciones/generacion_recomendaciones.feature:18
+    Dado que el asesor tiene simulacros completados                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:262
+      | asesor      | cliente      | estado     | codigo  |
+      | Asesor Demo | Maria Garcia | completado | SIM-001 |
+      | Asesor Demo | Juan Perez   | completado | SIM-002 |
+      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
+    Dado que el asesor "Asesor Demo" tiene un simulacro completado con "Maria Garcia"  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:311
+    Cuando sube el archivo "transcripcion_maria.txt" con la conversacion del simulacro # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:327
+    Entonces el sistema confirma "Transcripcion subida exitosamente"                   # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:377
+    Y muestra la cantidad de caracteres y lineas del archivo                           # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:391
 
-  Escenario: Cliente acepta propuesta de simulacro del asesor     # features/preparacion/simulacion/simulacion_entrevista.feature:27
-    Dado que el sistema tiene configurados los siguientes limites # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"     # None
-    Y mi contador de simulacros realizados es 0                   # None
-    Y tengo una propuesta de simulacro con los siguientes datos   # None
-      | id      | fecha      | hora  | modalidad | estado                 | propuesto_por |
-      | SIM-001 | 2026-02-10 | 15:00 | Virtual   | Pendiente de respuesta | asesor        |
-    Cuando acepto la propuesta de simulacro "SIM-001"             # None
-    Entonces el estado del simulacro debe cambiar a "Confirmado"  # None
-    Y mi contador de simulacros debe ser 1                        # None
+  Escenario: Subir un archivo que no es .txt                                          # features/preparacion/recomendaciones/generacion_recomendaciones.feature:24
+    Dado que el asesor tiene simulacros completados                                   # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:262
+      | asesor      | cliente      | estado     | codigo  |
+      | Asesor Demo | Maria Garcia | completado | SIM-001 |
+      | Asesor Demo | Juan Perez   | completado | SIM-002 |
+      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
+    Dado que el asesor "Asesor Demo" tiene un simulacro completado con "Maria Garcia" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:311
+    Cuando intenta subir el archivo "transcripcion_maria.pdf"                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:365
+    Entonces el sistema muestra "El archivo debe ser de texto (.txt)"                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:384
+    Y el simulacro no cuenta con transcripcion subida                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:398
 
-  Escenario: Cliente NO puede aceptar propuesta que el mismo creo                        # features/preparacion/simulacion/simulacion_entrevista.feature:37
-    Dado que el sistema tiene configurados los siguientes limites                        # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                            # None
-    Y tengo una propuesta de simulacro con los siguientes datos                          # None
-      | id      | fecha      | hora  | modalidad | estado     | propuesto_por |
-      | SIM-002 | 2026-02-12 | 10:00 | Virtual   | Solicitado | cliente       |
-    Cuando intento aceptar la propuesta de simulacro "SIM-002"                           # None
-    Entonces el sistema rechaza la accion                                                # None
-    Y muestra el mensaje de error "No puedes aceptar una propuesta que tu mismo creaste" # None
-    Y el estado del simulacro permanece "Solicitado"                                     # None
+  Escenario: Asesor genera recomendaciones con IA exitosamente                                # features/preparacion/recomendaciones/generacion_recomendaciones.feature:34
+    Dado que el asesor tiene simulacros completados                                           # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:262
+      | asesor      | cliente      | estado     | codigo  |
+      | Asesor Demo | Maria Garcia | completado | SIM-001 |
+      | Asesor Demo | Juan Perez   | completado | SIM-002 |
+      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
+    Dado que el asesor "Asesor Demo" tiene un simulacro con transcripcion subida exitosamente # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:408
+    Y tiene configurada su API key de Gemini                                                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:428
+    Cuando hace clic en "Generar con IA"                                                      # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:462
+    Entonces el sistema analiza la transcripcion con Gemini                                   # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:496
+    Y genera el documento de recomendaciones                                                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:502
+    Y el cliente "Maria Garcia" recibe la notificacion "Recomendaciones disponibles"          # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:509
+    Y el simulacro tiene la opcion de ver feedback disponible                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:516
 
-  Escenario: Asesor acepta solicitud de simulacro del cliente                              # features/preparacion/simulacion/simulacion_entrevista.feature:47
-    Dado que el sistema tiene configurados los siguientes limites                          # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el asesor "Carlos Ruiz" con ID "ASE-001"                                  # None
-    Y existe una solicitud de simulacro del cliente "Oscar Perez" con los siguientes datos # None
-      | id      | fecha      | hora  | modalidad | estado     | propuesto_por |
-      | SIM-002 | 2026-02-12 | 10:00 | Virtual   | Solicitado | cliente       |
-    Cuando acepto la propuesta de simulacro "SIM-002"                                      # None
-    Entonces el estado del simulacro debe cambiar a "Confirmado"                           # None
-    Y el cliente recibe la notificacion "Tu solicitud de simulacro fue confirmada"         # None
+  Escenario: Asesor intenta generar recomendaciones sin API key configurada                                                 # features/preparacion/recomendaciones/generacion_recomendaciones.feature:43
+    Dado que el asesor tiene simulacros completados                                                                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:262
+      | asesor      | cliente      | estado     | codigo  |
+      | Asesor Demo | Maria Garcia | completado | SIM-001 |
+      | Asesor Demo | Juan Perez   | completado | SIM-002 |
+      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
+    Dado que el asesor "Asesor Demo" no ha configurado su API key de Gemini                                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:442
+    Y tiene un simulacro con transcripcion disponible                                                                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:450
+    Cuando hace clic en "Generar con IA"                                                                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:462
+    Entonces el sistema muestra "No se ha configurado una API key de IA valida. Por favor, configura tu API key de Gemini." # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:384
 
-  Escenario: Proponer fecha alternativa para simulacro                                  # features/preparacion/simulacion/simulacion_entrevista.feature:60
-    Dado que el sistema tiene configurados los siguientes limites                       # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                           # None
-    Y mi contador de simulacros realizados es 0                                         # None
-    Y tengo una propuesta de simulacro con ID "SIM-001" para "2026-02-10 15:00"         # None
-    Cuando propongo la fecha alternativa "2026-02-12 16:00" para el simulacro "SIM-001" # None
-    Entonces el estado del simulacro debe cambiar a "Contrapropuesta pendiente"         # None
-    Y la fecha propuesta debe ser "2026-02-12 16:00"                                    # None
-    Y mi contador de simulacros debe permanecer en 0                                    # None
+  Escenario: Cliente consulta sus recomendaciones                                                            # features/preparacion/recomendaciones/generacion_recomendaciones.feature:53
+    Dado que el asesor tiene simulacros completados                                                          # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:262
+      | asesor      | cliente      | estado     | codigo  |
+      | Asesor Demo | Maria Garcia | completado | SIM-001 |
+      | Asesor Demo | Juan Perez   | completado | SIM-002 |
+      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
+    Dado que el cliente "Maria Garcia" completo un simulacro                                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:526
+    Y el asesor ya genero las recomendaciones con IA                                                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:537
+    Cuando el cliente accede a "Ver Resumen" en la seccion de simulacros completados y "Ver Recomendaciones" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:546
+    Entonces puede ver la lista de recomendaciones disponibles:                                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:558
+      | campo                | descripcion                          |
+      | Fecha del simulacro  | Fecha en que se realizo el simulacro |
+      | Nivel de preparacion | Segun nivel (alto/medio/bajo)        |
+    Y puede expandir las secciones colapsables:                                                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:570
+      | seccion                  |
+      | Indicadores de Desempeno |
+      | Fortalezas Identificadas |
+      | Puntos de Mejora         |
+      | Recomendaciones          |
 
-  Esquema del escenario: Consultar disponibilidad segun simulacros realizados -- @1.1   # features/preparacion/simulacion/simulacion_entrevista.feature:82
-    Dado que el sistema tiene configurados los siguientes limites                       # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                           # None
-    Y mi contador de simulacros realizados es 0                                         # None
-    Cuando consulto la disponibilidad para nuevo simulacro                              # None
-    Entonces la disponibilidad debe ser "disponible"                                    # None
-    Y el mensaje informativo debe ser "Puede solicitar hasta 2 simulacros en total"     # None
+  Escenario: Cliente sin recomendaciones intenta descargar PDF            # features/preparacion/recomendaciones/generacion_recomendaciones.feature:68
+    Dado que el asesor tiene simulacros completados                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:262
+      | asesor      | cliente      | estado     | codigo  |
+      | Asesor Demo | Maria Garcia | completado | SIM-001 |
+      | Asesor Demo | Juan Perez   | completado | SIM-002 |
+      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
+    Dado que el cliente "Juan Perez" tiene un simulacro completado        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:596
+    Pero el simulacro no tiene recomendaciones generadas                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:607
+    Cuando intenta descargar el PDF de recomendaciones                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:616
+    Entonces el sistema muestra "Este simulacro no tiene recomendaciones" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:384
 
-  Esquema del escenario: Consultar disponibilidad segun simulacros realizados -- @1.2   # features/preparacion/simulacion/simulacion_entrevista.feature:83
-    Dado que el sistema tiene configurados los siguientes limites                       # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                           # None
-    Y mi contador de simulacros realizados es 1                                         # None
-    Cuando consulto la disponibilidad para nuevo simulacro                              # None
-    Entonces la disponibilidad debe ser "disponible"                                    # None
-    Y el mensaje informativo debe ser "Tiene 1 simulacro disponible restante"           # None
+  Escenario: La IA evalua los 4 indicadores de desempeno                               # features/preparacion/recomendaciones/generacion_recomendaciones.feature:79
+    Dado que el asesor tiene simulacros completados                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:262
+      | asesor      | cliente      | estado     | codigo  |
+      | Asesor Demo | Maria Garcia | completado | SIM-001 |
+      | Asesor Demo | Juan Perez   | completado | SIM-002 |
+      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
+    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:634
+    Cuando el cliente consulta sus recomendaciones                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:655
+    Entonces la recomendacion incluye los indicadores:                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:665
+      | indicador   | descripcion                             | valores_posibles  |
+      | Claridad    | Que tan claras son las respuestas       | alto, medio, bajo |
+      | Coherencia  | Si el discurso es logico y estructurado | alto, medio, bajo |
+      | Seguridad   | Nivel de confianza al responder         | alto, medio, bajo |
+      | Pertinencia | Si las respuestas abordan lo preguntado | alto, medio, bajo |
 
-  Esquema del escenario: Consultar disponibilidad segun simulacros realizados -- @1.3      # features/preparacion/simulacion/simulacion_entrevista.feature:84
-    Dado que el sistema tiene configurados los siguientes limites                          # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
+  Escenario: La IA genera fortalezas identificadas                                     # features/preparacion/recomendaciones/generacion_recomendaciones.feature:93
+    Dado que el asesor tiene simulacros completados                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:262
+      | asesor      | cliente      | estado     | codigo  |
+      | Asesor Demo | Maria Garcia | completado | SIM-001 |
+      | Asesor Demo | Juan Perez   | completado | SIM-002 |
+      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
+    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:634
+    Entonces cada fortaleza identificada contiene:                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:683
+      | campo                | descripcion                                   |
+      | Categoria            | Area de la fortaleza                          |
+      | Descripcion          | Explicacion de por que es una fortaleza       |
+      | Pregunta relacionada | Referencia a la pregunta del simulacro        |
+      | Impacto              | Nivel de impacto positivo (alto, medio, bajo) |
+
+  Escenario: La IA genera puntos de mejora                                             # features/preparacion/recomendaciones/generacion_recomendaciones.feature:102
+    Dado que el asesor tiene simulacros completados                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:262
+      | asesor      | cliente      | estado     | codigo  |
+      | Asesor Demo | Maria Garcia | completado | SIM-001 |
+      | Asesor Demo | Juan Perez   | completado | SIM-002 |
+      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
+    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:634
+    Entonces cada punto de mejora contiene:                                            # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:705
+      | campo                | descripcion                               |
+      | Categoria            | Area a mejorar                            |
+      | Descripcion          | Explicacion del aspecto a mejorar         |
+      | Pregunta relacionada | Referencia a la pregunta donde se detecto |
+      | Impacto              | Nivel de impacto en la entrevista         |
+
+  Escenario: La IA genera recomendaciones accionables                                  # features/preparacion/recomendaciones/generacion_recomendaciones.feature:111
+    Dado que el asesor tiene simulacros completados                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:262
+      | asesor      | cliente      | estado     | codigo  |
+      | Asesor Demo | Maria Garcia | completado | SIM-001 |
+      | Asesor Demo | Juan Perez   | completado | SIM-002 |
+      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
+    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:634
+    Entonces cada recomendacion contiene:                                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:726
+      | campo           | descripcion                                  |
+      | Titulo          | Nombre corto de la recomendacion             |
+      | Descripcion     | Explicacion detallada                        |
+      | Accion concreta | Paso especifico que el cliente debe realizar |
+      | Impacto         | Nivel de impacto si se implementa            |
+

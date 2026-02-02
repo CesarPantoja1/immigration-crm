@@ -1,1050 +1,744 @@
+# -*- coding: utf-8 -*-
 """
-Steps para la feature de Generación de Recomendaciones basadas en análisis de IA.
-Refactorizado para usar la arquitectura Service Layer.
+Steps para los escenarios de Generacion de Recomendaciones.
+Implementacion de los pasos BDD definidos en generacion_recomendaciones.feature
 
-Mapea a: apps.preparacion.models.Recomendacion, Simulacro
-
-Este módulo implementa los step definitions para validar:
-- Generación de documentos de recomendaciones post-simulacro
-- Análisis de transcripciones de entrevistas por agente de IA
-- Clasificación y priorización de recomendaciones accionables
-- Trazabilidad de recomendaciones hacia preguntas específicas
-- Cálculo de nivel de preparación del migrante
+Los objetos de dominio se definen como dataclasses locales para testing.
+Valida la logica de negocio sin conexion a base de datos.
 """
 from behave import given, when, then, step, use_step_matcher
-from datetime import datetime
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
-from enum import Enum
+from typing import List, Dict, Optional
+from datetime import date, time
+
+use_step_matcher("parse")
 
 
 # ==============================================================================
-# OBJETOS DE DOMINIO PARA TESTING
-# Mapean a apps.preparacion.models.Recomendacion
+# OBJETOS DE DOMINIO PARA TESTING (dataclasses locales)
+# Mapean a los modelos Django existentes
 # ==============================================================================
 
-class NivelIndicador(Enum):
-    """Niveles de indicador de desempeño"""
-    ALTA = "alta"
-    ALTO = "alto"
-    MEDIA = "media"
-    MEDIO = "medio"
-    BAJA = "baja"
-    BAJO = "bajo"
-
-
-class NivelPreparacion(Enum):
-    """Mapea a Recomendacion.NIVELES_PREPARACION"""
-    ALTO = "alto"
-    MEDIO = "medio"
-    BAJO = "bajo"
-
-
-class NivelImpacto(Enum):
-    """Mapea a Recomendacion.NIVELES_IMPACTO"""
-    ALTO = "alto"
-    MEDIO = "medio"
-    BAJO = "bajo"
-
-
-class CategoriaRecomendacion(Enum):
-    """Categorías de recomendaciones - mapea a campos de Recomendacion"""
-    CLARIDAD = "claridad"
-    COHERENCIA = "coherencia"
-    SEGURIDAD = "seguridad"
-    PERTINENCIA = "pertinencia"
-
-
-class TipoPregunta(Enum):
-    """Tipos de preguntas en simulacros"""
-    MOTIVO_VIAJE = "motivo_viaje"
-    SITUACION_ECONOMICA = "situacion_economica"
-    PLANES_PERMANENCIA = "planes_permanencia"
-    DOCUMENTACION = "documentacion"
-    LAZOS_FAMILIARES = "lazos_familiares"
-
-
-class EstadoSimulacro(Enum):
-    """Estados del simulacro"""
-    PENDIENTE = "pendiente"
-    EN_PROGRESO = "en_progreso"
-    COMPLETADO = "completado"
-    FEEDBACK_GENERADO = "Feedback generado"
-    PUBLICADO = "publicado"
-
-
-class FormatoDocumento(Enum):
-    """Formatos de exportación"""
-    PDF = "pdf"
-    HTML = "html"
-
-
-# Secciones del documento
-SECCIONES_DOCUMENTO = [
-    "Resumen ejecutivo",
-    "Indicadores de desempeño",
-    "Fortalezas",
-    "Puntos de mejora",
-    "Recomendaciones",
-    "Recomendaciones accionables",
-    "Nivel de preparación",
-    "Acción sugerida"
-]
-
-
 @dataclass
-class IndicadorDesempeno:
-    """Indicador de desempeño del simulacro"""
-    nombre: str
-    valor: NivelIndicador
-
-
-@dataclass
-class PuntoMejora:
-    """Punto de mejora identificado"""
-    categoria: CategoriaRecomendacion = CategoriaRecomendacion.CLARIDAD
-    descripcion: str = ""
-
-
-@dataclass
-class Fortaleza:
-    """Fortaleza identificada"""
-    descripcion: str = ""
-    categoria: Optional[CategoriaRecomendacion] = None
-
-
-@dataclass
-class RecomendacionAccionable:
-    """Recomendación accionable"""
-    id: str
-    categoria: CategoriaRecomendacion
-    descripcion: str
-    accion_concreta: str
-    metrica_exito: str
-    impacto: NivelImpacto
-    numero_pregunta_origen: Optional[int] = None
-    tipo_pregunta_origen: Optional[TipoPregunta] = None
+class Usuario:
+    """Representa un usuario - mapea a apps.usuarios.models.Usuario"""
+    id: int = 0
+    email: str = ""
+    first_name: str = ""
+    last_name: str = ""
+    rol: str = "cliente"
+    is_active: bool = True
     
-    def es_trazable(self) -> bool:
-        return self.numero_pregunta_origen is not None
+    def nombre_completo(self) -> str:
+        return f"{self.first_name} {self.last_name}"
 
 
 @dataclass
-class PreguntaSimulacro:
-    """Pregunta de un simulacro"""
-    numero: int
-    tipo: TipoPregunta
-    texto: str
-
-
-@dataclass
-class MetadatosDocumento:
-    """Metadatos del documento de recomendaciones"""
-    simulacro_id: str
-    nivel_preparacion: NivelPreparacion = NivelPreparacion.MEDIO
-    estado_simulacro: EstadoSimulacro = EstadoSimulacro.COMPLETADO
-    fecha_generacion: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class AccionSugerida:
-    """Acción sugerida según nivel de preparación"""
-    nivel: NivelPreparacion
-    descripcion: str
+class Simulacro:
+    """Representa un simulacro - mapea a apps.preparacion.models.Simulacro"""
+    id: int = 0
+    codigo: str = ""
+    cliente: Usuario = None
+    asesor: Usuario = None
+    fecha: date = None
+    hora: time = None
+    estado: str = "completado"
+    modalidad: str = "virtual"
+    transcripcion_texto: str = ""
+    transcripcion_archivo: str = ""
+    tiene_recomendaciones: bool = False
     
-    @classmethod
-    def para_nivel(cls, nivel: NivelPreparacion) -> 'AccionSugerida':
+    def tiene_transcripcion(self) -> bool:
+        return bool(self.transcripcion_texto and len(self.transcripcion_texto.strip()) >= 50)
+
+
+@dataclass
+class ConfiguracionIA:
+    """Representa configuracion de IA - mapea a apps.preparacion.models.ConfiguracionIA"""
+    id: int = 0
+    asesor: Usuario = None
+    api_key: str = ""
+    modelo: str = "gemini-2.0-flash"
+    activo: bool = True
+    
+    def esta_configurada(self) -> bool:
+        return bool(self.api_key and self.activo)
+
+
+@dataclass
+class Recomendacion:
+    """Representa una recomendacion - mapea a apps.preparacion.models.Recomendacion"""
+    id: int = 0
+    simulacro: Simulacro = None
+    estado_feedback: str = "pendiente"
+    
+    # Indicadores de desempeno
+    claridad: str = "medio"
+    coherencia: str = "medio"
+    seguridad: str = "medio"
+    pertinencia: str = "medio"
+    
+    # Nivel global
+    nivel_preparacion: str = "medio"
+    
+    # Contenido estructurado
+    fortalezas: List[Dict] = field(default_factory=list)
+    puntos_mejora: List[Dict] = field(default_factory=list)
+    recomendaciones: List[Dict] = field(default_factory=list)
+    
+    # Accion sugerida
+    accion_sugerida: str = ""
+    resumen_ejecutivo: str = ""
+    publicada: bool = False
+    
+    def calcular_nivel_preparacion(self) -> str:
+        """Calcula el nivel de preparacion basado en los indicadores."""
+        niveles = {'bajo': 1, 'medio': 2, 'alto': 3}
+        indicadores = [self.claridad, self.coherencia, self.seguridad, self.pertinencia]
+        promedio = sum(niveles.get(i.lower(), 2) for i in indicadores) / len(indicadores)
+        
+        if promedio >= 2.5:
+            return 'alto'
+        elif promedio >= 1.5:
+            return 'medio'
+        return 'bajo'
+    
+    def obtener_accion_sugerida(self) -> str:
+        """Obtiene la accion sugerida segun el nivel de preparacion."""
         acciones = {
-            NivelPreparacion.BAJO: "Realizar un nuevo simulacro con asesor",
-            NivelPreparacion.MEDIO: "Reforzar los puntos de mejora identificados",
-            NivelPreparacion.ALTO: "Mantener el plan actual de preparación"
+            'bajo': 'Realizar un nuevo simulacro con asesor',
+            'medio': 'Reforzar los puntos de mejora identificados',
+            'alto': 'Mantener el plan actual de preparacion'
         }
-        return cls(nivel=nivel, descripcion=acciones[nivel])
+        return acciones.get(self.nivel_preparacion, acciones['medio'])
 
 
 @dataclass
-class TranscripcionSimulacro:
-    """Transcripción de un simulacro"""
-    simulacro_id: str
-    contenido: str = ""
-    preguntas: List[PreguntaSimulacro] = field(default_factory=list)
-    fecha_simulacro: datetime = field(default_factory=datetime.now)
+class Notificacion:
+    """Representa una notificacion"""
+    id: int = 0
+    usuario: Usuario = None
+    mensaje: str = ""
+    leida: bool = False
 
 
-@dataclass
-class AnalisisIA:
-    """Análisis de IA de un simulacro"""
-    simulacro_id: str
-    indicadores: List[IndicadorDesempeno] = field(default_factory=list)
-    puntos_mejora: List[PuntoMejora] = field(default_factory=list)
-    completado: bool = False
+# ==============================================================================
+# SERVICIOS DE LOGICA DE NEGOCIO
+# ==============================================================================
+
+class TranscripcionService:
+    """Servicio para validar y procesar transcripciones."""
     
-    def agregar_indicador(self, indicador: IndicadorDesempeno):
-        self.indicadores.append(indicador)
+    EXTENSION_VALIDA = '.txt'
+    MIN_CARACTERES = 50
     
-    def agregar_punto_mejora(self, punto: PuntoMejora):
-        self.puntos_mejora.append(punto)
+    @staticmethod
+    def validar_archivo(nombre_archivo: str) -> tuple:
+        """Valida que el archivo sea .txt"""
+        if not nombre_archivo.endswith(TranscripcionService.EXTENSION_VALIDA):
+            return False, "El archivo debe ser de texto (.txt)"
+        return True, None
     
-    def marcar_completado(self):
-        self.completado = True
+    @staticmethod
+    def validar_contenido(contenido: str) -> tuple:
+        """Valida que el contenido tenga minimo 50 caracteres."""
+        if len(contenido.strip()) < TranscripcionService.MIN_CARACTERES:
+            return False, f"La transcripcion es muy corta (minimo {TranscripcionService.MIN_CARACTERES} caracteres)"
+        return True, None
     
-    def obtener_puntos_mejora_por_categoria(self, categoria: CategoriaRecomendacion) -> List[PuntoMejora]:
-        return [pm for pm in self.puntos_mejora if pm.categoria == categoria]
-    
-    def obtener_nivel_preparacion(self) -> NivelPreparacion:
-        if not self.indicadores:
-            return NivelPreparacion.MEDIO
-        
-        valores = {'bajo': 1, 'baja': 1, 'medio': 2, 'media': 2, 'alto': 3, 'alta': 3}
-        suma = sum(valores.get(ind.valor.value, 2) for ind in self.indicadores)
-        promedio = suma / len(self.indicadores)
-        
-        # Thresholds ajustados para cumplir con el feature:
-        # SIM-001: Alta, Alta, Media, Alta → (3+3+2+3)/4 = 2.75 → Alto
-        # SIM-002: Media, Media, Media, Baja → (2+2+2+1)/4 = 1.75 → Medio
-        # SIM-003: Baja, Media, Baja, Media → (1+2+1+2)/4 = 1.5 → Bajo
-        if promedio > 2.5:
-            return NivelPreparacion.ALTO
-        elif promedio > 1.5:
-            return NivelPreparacion.MEDIO
-        return NivelPreparacion.BAJO
+    @staticmethod
+    def procesar_transcripcion(contenido: str) -> dict:
+        """Procesa la transcripcion y retorna estadisticas."""
+        return {
+            'caracteres': len(contenido),
+            'lineas': len(contenido.split('\n'))
+        }
 
 
-def calcular_nivel_preparacion(indicadores: Dict[str, str]) -> NivelPreparacion:
-    """Calcula nivel de preparación basado en indicadores"""
-    valores = {'bajo': 1, 'baja': 1, 'medio': 2, 'media': 2, 'alto': 3, 'alta': 3}
-    suma = sum(valores.get(v.lower(), 2) for v in indicadores.values())
-    promedio = suma / len(indicadores) if indicadores else 2
+class RecomendacionIAService:
+    """Servicio para generar recomendaciones con IA."""
     
-    # Thresholds ajustados (estrictamente mayor)
-    if promedio > 2.5:
-        return NivelPreparacion.ALTO
-    elif promedio > 1.5:
-        return NivelPreparacion.MEDIO
-    return NivelPreparacion.BAJO
+    @staticmethod
+    def validar_configuracion(config: ConfiguracionIA) -> tuple:
+        """Valida que el asesor tenga API key configurada."""
+        if not config or not config.esta_configurada():
+            return False, "No se ha configurado una API key de IA valida. Por favor, configura tu API key de Gemini."
+        return True, None
+    
+    @staticmethod
+    def validar_transcripcion(simulacro: Simulacro) -> tuple:
+        """Valida que el simulacro tenga transcripcion."""
+        if not simulacro.tiene_transcripcion():
+            return False, f"No es posible generar recomendaciones: la transcripcion del simulacro {simulacro.codigo} no esta disponible"
+        return True, None
+    
+    @staticmethod
+    def generar_recomendacion(simulacro: Simulacro) -> Recomendacion:
+        """Genera una recomendacion con IA (simulado para testing)."""
+        recomendacion = Recomendacion(
+            id=1,
+            simulacro=simulacro,
+            estado_feedback='generado',
+            claridad='alto',
+            coherencia='medio',
+            seguridad='alto',
+            pertinencia='medio',
+            nivel_preparacion='medio',
+            fortalezas=[
+                {
+                    'categoria': 'Claridad',
+                    'descripcion': 'Respuestas claras y directas',
+                    'pregunta_relacionada': 'Proposito del viaje',
+                    'impacto': 'alto'
+                }
+            ],
+            puntos_mejora=[
+                {
+                    'categoria': 'Seguridad',
+                    'descripcion': 'Mostrar mas confianza al responder',
+                    'pregunta_relacionada': 'Vinculos familiares',
+                    'impacto': 'medio'
+                }
+            ],
+            recomendaciones=[
+                {
+                    'titulo': 'Practicar respuestas',
+                    'descripcion': 'Ensayar las respuestas frente a un espejo',
+                    'accion_concreta': 'Dedicar 30 minutos diarios a practicar',
+                    'impacto': 'alto'
+                }
+            ],
+            accion_sugerida='Reforzar los puntos de mejora identificados',
+            publicada=True
+        )
+        recomendacion.nivel_preparacion = recomendacion.calcular_nivel_preparacion()
+        return recomendacion
 
 
-@dataclass
-class DocumentoRecomendaciones:
-    """Documento de recomendaciones - mapea a apps.preparacion.models.Recomendacion"""
-    simulacro_id: str
-    estado: EstadoSimulacro = EstadoSimulacro.FEEDBACK_GENERADO
-    nivel_preparacion: NivelPreparacion = NivelPreparacion.MEDIO
-    fortalezas: List[Fortaleza] = field(default_factory=list)
-    puntos_mejora: List[PuntoMejora] = field(default_factory=list)
-    recomendaciones: List[RecomendacionAccionable] = field(default_factory=list)
-    accion_sugerida: Optional[AccionSugerida] = None
-    metadatos: Optional[MetadatosDocumento] = None
-    fecha_generacion: datetime = field(default_factory=datetime.now)
-    publicado: bool = False
+class PDFService:
+    """Servicio para descargar PDF de recomendaciones."""
     
-    def tiene_seccion(self, seccion: str) -> bool:
-        return seccion in SECCIONES_DOCUMENTO
-    
-    def agregar_recomendacion(self, rec: RecomendacionAccionable):
-        self.recomendaciones.append(rec)
-    
-    def agrupar_recomendaciones_por_categoria(self) -> Dict[CategoriaRecomendacion, List[RecomendacionAccionable]]:
-        resultado = {}
-        for rec in self.recomendaciones:
-            if rec.categoria not in resultado:
-                resultado[rec.categoria] = []
-            resultado[rec.categoria].append(rec)
-        return resultado
-    
-    def agrupar_recomendaciones_por_impacto(self) -> Dict[NivelImpacto, List[RecomendacionAccionable]]:
-        resultado = {NivelImpacto.ALTO: [], NivelImpacto.MEDIO: [], NivelImpacto.BAJO: []}
-        for rec in self.recomendaciones:
-            resultado[rec.impacto].append(rec)
-        return resultado
-    
-    def obtener_atributos_trazabilidad(self) -> List[str]:
-        return ["numero_pregunta_origen", "tipo_pregunta_origen"]
-    
-    def publicar(self):
-        self.publicado = True
-        self.estado = EstadoSimulacro.PUBLICADO
-    
-    def esta_publicado(self) -> bool:
-        return self.publicado
-    
-    def puede_descargarse(self) -> bool:
-        return self.publicado
-    
-    def exportar_formato(self, formato: FormatoDocumento) -> bytes:
-        return b""  # Simulación
+    @staticmethod
+    def validar_descarga(simulacro: Simulacro, tiene_recomendaciones: bool) -> tuple:
+        """Valida que el simulacro tenga recomendaciones para descargar."""
+        if not tiene_recomendaciones:
+            return False, "Este simulacro no tiene recomendaciones"
+        return True, None
 
 
-@dataclass
-class SimulacroParaRecomendaciones:
-    """Simulacro para generar recomendaciones"""
-    id: str
-    migrante_id: str = "migrante-001"
-    migrante_nombre: str = "Test"
-    transcripcion: Optional[TranscripcionSimulacro] = None
-    analisis: Optional[AnalisisIA] = None
-    documento: Optional[DocumentoRecomendaciones] = None
-    
-    def puede_generar_documento(self) -> bool:
-        return self.transcripcion is not None and self.analisis is not None and self.analisis.completado
-    
-    def generar_documento_recomendaciones(self) -> DocumentoRecomendaciones:
-        if not self.puede_generar_documento():
-            raise ValueError("No se puede generar documento")
-        
-        documento = DocumentoRecomendaciones(simulacro_id=self.id)
-        
-        if self.analisis:
-            documento.nivel_preparacion = self.analisis.obtener_nivel_preparacion()
-            documento.accion_sugerida = AccionSugerida.para_nivel(documento.nivel_preparacion)
-        
-        self.documento = documento
-        return documento
+# ==============================================================================
+# HELPERS
+# ==============================================================================
+
+def crear_usuario(id: int, nombre: str, apellido: str, rol: str) -> Usuario:
+    """Helper para crear usuarios de prueba."""
+    return Usuario(
+        id=id,
+        email=f"{nombre.lower().replace(' ', '.')}@test.com",
+        first_name=nombre,
+        last_name=apellido,
+        rol=rol
+    )
 
 
-use_step_matcher("re")
+def crear_simulacro(id: int, codigo: str, asesor: Usuario, cliente: Usuario, estado: str = 'completado') -> Simulacro:
+    """Helper para crear simulacros de prueba."""
+    return Simulacro(
+        id=id,
+        codigo=codigo,
+        asesor=asesor,
+        cliente=cliente,
+        fecha=date.today(),
+        hora=time(10, 0),
+        estado=estado,
+        modalidad='virtual'
+    )
 
 
-# =============================================================================
-# ANTECEDENTES - Configuración inicial del sistema
-# =============================================================================
+# ==============================================================================
+# ANTECEDENTES
+# ==============================================================================
 
-@given(r'que el módulo de simulacros de entrevista consular está operativo')
-def step_modulo_simulacros_operativo(context):
-    """Verifica que el módulo de simulacros esté disponible y funcionando."""
+@step("que el asesor tiene simulacros completados")
+def step_asesor_tiene_simulacros(context):
+    """Configura los simulacros completados segun la tabla."""
+    context.asesores = {}
+    context.clientes = {}
     context.simulacros = {}
-    context.documentos = {}
-    context.analisis = {}
-    context.errores = []
-    context.modulo_operativo = True
-    context.errores = []
-    context.modulo_operativo = True
-
-
-@given(r'el sistema almacena transcripciones en formato .txt de cada simulacro completado')
-def step_sistema_almacena_transcripciones(context):
-    """Confirma que las transcripciones .txt están habilitadas."""
-    context.transcripciones_habilitadas = True
-    context.formato_transcripcion = ".txt"
-
-
-@given(r'el agente de IA para análisis de entrevistas está habilitado')
-def step_agente_ia_habilitado(context):
-    """Configura el agente de IA."""
-    context.agente_ia_habilitado = True
-
-
-@given(r'la generación de documentos de recomendaciones está disponible')
-def step_generacion_documentos_disponible(context):
-    """Confirma que la generación de documentos está habilitada."""
-    context.generacion_documentos_habilitada = True
-    context.formatos_exportacion = [FormatoDocumento.PDF, FormatoDocumento.HTML]
-
-
-# =============================================================================
-# ESCENARIO 1: GENERACIÓN DEL DOCUMENTO DE RECOMENDACIONES
-# =============================================================================
-
-@given(r'que el migrante completó el simulacro "([^"]*)" con transcripción disponible')
-def step_migrante_completo_simulacro_transcripcion(context, id_simulacro):
-    """Registra un simulacro completado con transcripción disponible."""
-    if not hasattr(context, 'simulacros'):
-        context.simulacros = {}
+    context.configuraciones_ia = {}
+    context.recomendaciones = {}
     
-    simulacro = SimulacroParaRecomendaciones(
-        id=id_simulacro,
-        migrante_id="migrante-001",
-        migrante_nombre="Oscar",
-    )
-    
-    # Transcripción en formato .txt
-    transcripcion = TranscripcionSimulacro(
-        simulacro_id=id_simulacro,
-        contenido="""
-        Entrevistador: ¿Cuál es el motivo de su viaje?
-        Migrante: Quiero estudiar una maestría en ciencias de datos.
-        Entrevistador: ¿Cómo financiará sus estudios?
-        Migrante: Tengo una beca completa y apoyo familiar documentado.
-        """,
-        fecha_simulacro=datetime.now()
-    )
-    simulacro.transcripcion = transcripcion
-    
-    context.simulacros[id_simulacro] = simulacro
-    context.simulacro_actual = simulacro
-
-
-@given(r'la IA analiz(?:ó|o) la transcripci(?:ó|o)n del simulacro "([^"]*)" con los siguientes resultados:?')
-def step_ia_analizo_transcripcion(context, id_simulacro):
-    """La IA analizó la transcripción con indicadores de desempeño."""
-    simulacro = context.simulacros.get(id_simulacro)
-    if not simulacro:
-        simulacro = SimulacroParaRecomendaciones(id=id_simulacro)
-        context.simulacros[id_simulacro] = simulacro
-    
-    analisis = AnalisisIA(simulacro_id=id_simulacro)
-    
-    nivel_map = {
-        "Alta": NivelIndicador.ALTA,
-        "Alto": NivelIndicador.ALTO,
-        "Media": NivelIndicador.MEDIA,
-        "Medio": NivelIndicador.MEDIO,
-        "Baja": NivelIndicador.BAJA,
-        "Bajo": NivelIndicador.BAJO,
-    }
+    user_id = 1
+    sim_id = 1
     
     for row in context.table:
-        nombre = row['indicador']
-        valor_str = row['valor']
-        valor = nivel_map.get(valor_str, NivelIndicador.MEDIA)
-        indicador = IndicadorDesempeno(nombre=nombre, valor=valor)
-        analisis.agregar_indicador(indicador)
-    
-    analisis.marcar_completado()
-    simulacro.analisis = analisis
-    context.analisis_actual = analisis
-    context.simulacro_actual = simulacro
-
-
-@when(r'se genera el documento de recomendaciones para el simulacro "([^"]*)"')
-def step_genera_documento_para_simulacro(context, id_simulacro):
-    """Se genera el documento de recomendaciones con validaciones."""
-    simulacro = context.simulacros.get(id_simulacro)
-    
-    # Validar transcripción disponible
-    if not simulacro or not simulacro.transcripcion:
-        context.errores.append(
-            f"No es posible generar recomendaciones: la transcripción del simulacro {id_simulacro} no está disponible"
-        )
-        context.documento_generado = False
-        return
-    
-    # Validar análisis completado
-    if not simulacro.analisis or not simulacro.analisis.completado:
-        context.errores.append(
-            f"No es posible generar recomendaciones: el análisis de IA del simulacro {id_simulacro} no se ha completado"
-        )
-        context.documento_generado = False
-        return
-    
-    # Generar documento
-    documento = simulacro.generar_documento_recomendaciones()
-    
-    if not hasattr(context, 'documentos'):
-        context.documentos = {}
-    
-    context.documentos[id_simulacro] = documento
-    context.documento_actual = documento
-    context.documento_generado = True
-
-
-@then(r'el documento tiene estado "([^"]*)"')
-def step_documento_tiene_estado(context, estado_esperado):
-    """Verifica el estado del documento."""
-    documento = context.documento_actual
-    assert documento is not None, "No se generó el documento"
-    
-    # Comparar con el valor del enum o el string del estado
-    estado_actual = documento.estado.value if hasattr(documento.estado, 'value') else str(documento.estado)
-    # Normalizar para comparación
-    estado_esperado_normalizado = estado_esperado.lower().replace(" ", "_")
-    estado_actual_normalizado = estado_actual.lower().replace(" ", "_")
-    
-    assert estado_esperado_normalizado == estado_actual_normalizado, \
-        f"Estado esperado: '{estado_esperado}', actual: '{estado_actual}'"
-
-
-@then(r'el nivel de preparación calculado es "([^"]*)"')
-def step_nivel_preparacion_calculado(context, nivel_esperado):
-    """Verifica el nivel de preparación calculado."""
-    documento = context.documento_actual
-    nivel_map = {
-        "Alto": NivelPreparacion.ALTO,
-        "Medio": NivelPreparacion.MEDIO,
-        "Bajo": NivelPreparacion.BAJO,
-    }
-    nivel_esperado_enum = nivel_map.get(nivel_esperado)
-    assert documento.nivel_preparacion == nivel_esperado_enum, \
-        f"Nivel esperado: {nivel_esperado}, actual: {documento.nivel_preparacion.value}"
-
-
-@then(r'el documento contiene las siguientes secciones:?')
-def step_documento_contiene_secciones(context):
-    """Verifica que el documento contiene las secciones requeridas."""
-    documento = context.documento_actual
-    
-    for row in context.table:
-        seccion = row['seccion']
-        assert documento.tiene_seccion(seccion), \
-            f"Sección '{seccion}' no encontrada en el documento"
-
-
-# =============================================================================
-# ESCENARIO 2: RECOMENDACIONES ACCIONABLES POR CATEGORÍA
-# =============================================================================
-
-@given(r'que el migrante completó el simulacro "([^"]*)" con transcripción procesada')
-def step_migrante_completo_con_transcripcion(context, id_simulacro):
-    """El migrante completó simulacro con transcripción procesada."""
-    if not hasattr(context, 'simulacros'):
-        context.simulacros = {}
-    
-    simulacro = SimulacroParaRecomendaciones(id=id_simulacro)
-    simulacro.transcripcion = TranscripcionSimulacro(
-        simulacro_id=id_simulacro,
-        contenido="Transcripción del simulacro procesada."
-    )
-    context.simulacros[id_simulacro] = simulacro
-    context.simulacro_actual = simulacro
-
-
-@given(r'la IA identific(?:ó|o) los siguientes puntos de mejora en el simulacro "([^"]*)":?')
-def step_ia_identifico_puntos_mejora(context, id_simulacro):
-    """Configura los puntos de mejora identificados por la IA."""
-    simulacro = context.simulacros.get(id_simulacro)
-    
-    if not simulacro:
-        simulacro = SimulacroParaRecomendaciones(id=id_simulacro)
-        context.simulacros[id_simulacro] = simulacro
-    
-    if not simulacro.analisis:
-        simulacro.analisis = AnalisisIA(simulacro_id=id_simulacro)
-    
-    categoria_map = {
-        "Claridad": CategoriaRecomendacion.CLARIDAD,
-        "Coherencia": CategoriaRecomendacion.COHERENCIA,
-        "Seguridad": CategoriaRecomendacion.SEGURIDAD,
-        "Pertinencia": CategoriaRecomendacion.PERTINENCIA,
-    }
-    
-    for row in context.table:
-        categoria_str = row['categoria']
-        descripcion = row['descripcion']
+        nombre_asesor = row['asesor']
+        nombre_cliente = row['cliente']
+        estado = row['estado']
+        codigo = row['codigo']
         
-        categoria = categoria_map.get(categoria_str, CategoriaRecomendacion.CLARIDAD)
-        
-        punto = PuntoMejora(
-            categoria=categoria,
-            descripcion=descripcion
-        )
-        simulacro.analisis.agregar_punto_mejora(punto)
-    
-    simulacro.analisis.marcar_completado()
-    
-    # Asegurar que tiene transcripción
-    if not simulacro.transcripcion:
-        simulacro.transcripcion = TranscripcionSimulacro(
-            simulacro_id=id_simulacro,
-            contenido="Transcripción de prueba"
-        )
-    
-    context.simulacro_actual = simulacro
-
-
-@when(r'se genera el documento de recomendaciones del simulacro "([^"]*)"')
-def step_se_genera_documento(context, id_simulacro):
-    """Se genera el documento de recomendaciones."""
-    simulacro = context.simulacros.get(id_simulacro)
-    
-    if simulacro and simulacro.puede_generar_documento():
-        documento = simulacro.generar_documento_recomendaciones()
-        
-        # Agregar recomendaciones basadas en puntos de mejora
-        categorias_con_mejora = set(
-            pm.categoria for pm in simulacro.analisis.puntos_mejora
-        )
-        
-        for categoria in categorias_con_mejora:
-            puntos = simulacro.analisis.obtener_puntos_mejora_por_categoria(categoria)
-            for i, punto in enumerate(puntos):
-                rec = RecomendacionAccionable(
-                    id=f"REC-{id_simulacro}-{categoria.value}-{i+1}",
-                    categoria=categoria,
-                    descripcion=f"Mejorar {categoria.value.lower()}",
-                    accion_concreta=f"Practicar técnicas de {categoria.value.lower()}",
-                    metrica_exito=f"Lograr nivel Alto en próximo simulacro",
-                    impacto=NivelImpacto.MEDIO
-                )
-                documento.agregar_recomendacion(rec)
-        
-        if not hasattr(context, 'documentos'):
-            context.documentos = {}
-        
-        context.documentos[id_simulacro] = documento
-        context.documento_actual = documento
-
-
-@then(r'el documento debe contener recomendaciones accionables clasificadas por categor(?:í|i)a:?')
-def step_documento_recomendaciones_por_categoria(context):
-    """Verifica que las recomendaciones estén clasificadas por categoría."""
-    documento = context.documento_actual
-    assert documento is not None, "No hay documento actual"
-    
-    categorias_esperadas = [row['categoria'] for row in context.table]
-    categorias_documento = documento.agrupar_recomendaciones_por_categoria()
-    
-    categoria_map = {
-        "Claridad": CategoriaRecomendacion.CLARIDAD,
-        "Coherencia": CategoriaRecomendacion.COHERENCIA,
-        "Seguridad": CategoriaRecomendacion.SEGURIDAD,
-        "Pertinencia": CategoriaRecomendacion.PERTINENCIA,
-    }
-    
-    for cat_str in categorias_esperadas:
-        cat = categoria_map.get(cat_str)
-        assert cat in categorias_documento, \
-            f"Categoría '{cat_str}' no encontrada en el documento"
-
-
-@then(r'cada categoría debe contener al menos una recomendación concreta y medible')
-def step_cada_categoria_tiene_recomendacion(context):
-    """Verifica que cada categoría tenga al menos una recomendación."""
-    documento = context.documento_actual
-    categorias = documento.agrupar_recomendaciones_por_categoria()
-    
-    for categoria, recomendaciones in categorias.items():
-        assert len(recomendaciones) > 0, \
-            f"Categoría {categoria.value} no tiene recomendaciones"
-        
-        # Verificar que sean concretas y medibles
-        for rec in recomendaciones:
-            assert rec.accion_concreta, "La recomendación no tiene acción concreta"
-            assert rec.metrica_exito, "La recomendación no tiene métrica de éxito"
-
-
-@then(r'el documento debe registrar la fecha de generación del feedback')
-def step_documento_tiene_fecha_generacion(context):
-    """Verifica que el documento tenga fecha de generación."""
-    documento = context.documento_actual
-    assert documento.fecha_generacion is not None, \
-        "El documento no tiene fecha de generación"
-
-
-# =============================================================================
-# ESCENARIO 3: NIVEL DE PREPARACIÓN
-# =============================================================================
-
-@given(r'el an(?:á|a)lisis del simulacro "([^"]*)" tiene los siguientes resultados:?')
-def step_analisis_simulacro_resultados(context, id_simulacro):
-    """Configura los resultados del análisis."""
-    if not hasattr(context, 'simulacros'):
-        context.simulacros = {}
-    
-    simulacro = context.simulacros.get(id_simulacro)
-    
-    if not simulacro:
-        simulacro = SimulacroParaRecomendaciones(id=id_simulacro)
-        context.simulacros[id_simulacro] = simulacro
-    
-    analisis = AnalisisIA(simulacro_id=id_simulacro)
-    
-    nivel_map = {
-        "Alta": NivelIndicador.ALTA,
-        "Alto": NivelIndicador.ALTO,
-        "Media": NivelIndicador.MEDIA,
-        "Medio": NivelIndicador.MEDIO,
-        "Baja": NivelIndicador.BAJA,
-        "Bajo": NivelIndicador.BAJO,
-    }
-    
-    for row in context.table:
-        nombre = row['indicador']
-        valor_str = row['valor']
-        valor = nivel_map.get(valor_str, NivelIndicador.MEDIA)
-        
-        indicador = IndicadorDesempeno(nombre=nombre, valor=valor)
-        analisis.agregar_indicador(indicador)
-    
-    analisis.marcar_completado()
-    simulacro.analisis = analisis
-    context.analisis_actual = analisis
-
-
-@when(r'el sistema calcula el nivel global de preparación')
-def step_sistema_calcula_nivel(context):
-    """El sistema calcula el nivel de preparación."""
-    analisis = context.analisis_actual
-    context.nivel_calculado = analisis.obtener_nivel_preparacion()
-
-
-@then(r'el nivel de preparación asignado debe ser "([^"]*)"')
-def step_nivel_preparacion_asignado(context, nivel_esperado):
-    """Verifica el nivel de preparación asignado."""
-    nivel_map = {
-        "Alto": NivelPreparacion.ALTO,
-        "Medio": NivelPreparacion.MEDIO,
-        "Bajo": NivelPreparacion.BAJO,
-    }
-    
-    nivel_esperado_enum = nivel_map.get(nivel_esperado)
-    
-    assert context.nivel_calculado == nivel_esperado_enum, \
-        f"Nivel esperado: {nivel_esperado}, calculado: {context.nivel_calculado.value}"
-
-
-# =============================================================================
-# ESCENARIO 4: TRAZABILIDAD
-# =============================================================================
-
-@given(r'que el simulacro "([^"]*)" tiene las siguientes preguntas y respuestas:?')
-def step_simulacro_tiene_preguntas(context, id_simulacro):
-    """Configura las preguntas del simulacro."""
-    if not hasattr(context, 'simulacros'):
-        context.simulacros = {}
-    
-    simulacro = context.simulacros.get(id_simulacro)
-    
-    if not simulacro:
-        simulacro = SimulacroParaRecomendaciones(id=id_simulacro)
-        context.simulacros[id_simulacro] = simulacro
-    
-    tipo_map = {
-        "Motivo del viaje": TipoPregunta.MOTIVO_VIAJE,
-        "Situación económica": TipoPregunta.SITUACION_ECONOMICA,
-        "Planes de permanencia": TipoPregunta.PLANES_PERMANENCIA,
-    }
-    
-    preguntas = []
-    for row in context.table:
-        numero = int(row['numero_pregunta'])
-        tipo_str = row['tipo_pregunta']
-        tipo = tipo_map.get(tipo_str, TipoPregunta.MOTIVO_VIAJE)
-        
-        pregunta = PreguntaSimulacro(
-            numero=numero,
-            tipo=tipo,
-            texto=tipo_str
-        )
-        preguntas.append(pregunta)
-    
-    # Crear transcripción con preguntas
-    simulacro.transcripcion = TranscripcionSimulacro(
-        simulacro_id=id_simulacro,
-        preguntas=preguntas,
-        contenido="Transcripción con preguntas"
-    )
-    
-    context.preguntas_simulacro = preguntas
-
-
-@given(r'el agente de IA ha generado recomendaciones asociadas al simulacro "([^"]*)"')
-def step_ia_genero_recomendaciones(context, id_simulacro):
-    """La IA ha generado recomendaciones."""
-    if not hasattr(context, 'documentos'):
-        context.documentos = {}
-    
-    simulacro = context.simulacros.get(id_simulacro)
-    
-    if not simulacro.analisis:
-        simulacro.analisis = AnalisisIA(simulacro_id=id_simulacro)
-        simulacro.analisis.marcar_completado()
-    
-    # Generar documento con recomendaciones trazables
-    documento = DocumentoRecomendaciones(simulacro_id=id_simulacro)
-    
-    # Crear recomendaciones asociadas a las preguntas
-    if hasattr(context, 'preguntas_simulacro'):
-        for pregunta in context.preguntas_simulacro:
-            rec = RecomendacionAccionable(
-                id=f"REC-{id_simulacro}-{pregunta.numero}",
-                categoria=CategoriaRecomendacion.CLARIDAD,
-                descripcion=f"Mejorar respuesta a {pregunta.tipo.value}",
-                accion_concreta="Practicar la respuesta",
-                metrica_exito="Lograr coherencia",
-                impacto=NivelImpacto.ALTO,
-                numero_pregunta_origen=pregunta.numero,
-                tipo_pregunta_origen=pregunta.tipo,
+        # Crear asesor si no existe
+        if nombre_asesor not in context.asesores:
+            parts = nombre_asesor.split(' ', 1)
+            context.asesores[nombre_asesor] = crear_usuario(
+                user_id, parts[0], parts[1] if len(parts) > 1 else '', 'asesor'
             )
-            documento.agregar_recomendacion(rec)
-    
-    simulacro.documento = documento
-    context.documentos[id_simulacro] = documento
-    context.documento_actual = documento
-
-
-@when(r'el asesor revisa el documento de recomendaciones del simulacro "([^"]*)"')
-def step_asesor_revisa_documento(context, id_simulacro):
-    """El asesor revisa el documento."""
-    documento = context.documentos.get(id_simulacro)
-    context.documento_revisado = documento
-
-
-@then(r'cada recomendación debe estar asociada a una pregunta del simulacro')
-def step_recomendaciones_asociadas_preguntas(context):
-    """Verifica que las recomendaciones estén asociadas a preguntas."""
-    documento = context.documento_revisado
-    
-    for rec in documento.recomendaciones:
-        assert rec.es_trazable(), \
-            f"Recomendación {rec.id} no está asociada a una pregunta"
-
-
-@then(r'el documento debe permitir identificar para cada recomendaci(?:ó|o)n:?')
-def step_documento_permite_identificar(context):
-    """Verifica que se puedan identificar los atributos de trazabilidad."""
-    documento = context.documento_revisado
-    atributos_esperados = [row['atributo'] for row in context.table]
-    atributos_disponibles = documento.obtener_atributos_trazabilidad()
-    
-    # Mapeo de nombres amigables a nombres técnicos
-    mapeo_atributos = {
-        "Número de pregunta": "numero_pregunta_origen",
-        "Tipo de pregunta": "tipo_pregunta_origen",
-    }
-    
-    for atributo in atributos_esperados:
-        atributo_tecnico = mapeo_atributos.get(atributo, atributo)
-        assert atributo_tecnico in atributos_disponibles, \
-            f"Atributo '{atributo}' no disponible en el documento"
-
-
-# =============================================================================
-# ESCENARIO 5: CLASIFICACIÓN POR IMPACTO
-# =============================================================================
-
-@given(r'que existe un documento de recomendaciones generado para el simulacro "([^"]*)"')
-def step_existe_documento_generado(context, id_simulacro):
-    """Existe un documento de recomendaciones."""
-    if not hasattr(context, 'documentos'):
-        context.documentos = {}
-    
-    documento = DocumentoRecomendaciones(simulacro_id=id_simulacro)
-    
-    # Agregar recomendaciones con diferentes impactos
-    for impacto in [NivelImpacto.ALTO, NivelImpacto.MEDIO, NivelImpacto.BAJO]:
-        rec = RecomendacionAccionable(
-            id=f"REC-{id_simulacro}-{impacto.value}",
-            categoria=CategoriaRecomendacion.CLARIDAD,
-            descripcion=f"Recomendación de impacto {impacto.value}",
-            accion_concreta="Acción concreta",
-            metrica_exito="Métrica de éxito",
-            impacto=impacto
+            user_id += 1
+        
+        # Crear cliente si no existe
+        if nombre_cliente not in context.clientes:
+            parts = nombre_cliente.split(' ', 1)
+            context.clientes[nombre_cliente] = crear_usuario(
+                user_id, parts[0], parts[1] if len(parts) > 1 else '', 'cliente'
+            )
+            user_id += 1
+        
+        # Crear simulacro
+        simulacro = crear_simulacro(
+            sim_id, codigo,
+            context.asesores[nombre_asesor],
+            context.clientes[nombre_cliente],
+            estado
         )
-        documento.agregar_recomendacion(rec)
+        context.simulacros[codigo] = simulacro
+        sim_id += 1
+
+
+# ==============================================================================
+# SUBIR TRANSCRIPCION
+# ==============================================================================
+
+@step('que el asesor "{nombre_asesor}" tiene un simulacro completado con "{nombre_cliente}"')
+def step_asesor_tiene_simulacro_con_cliente(context, nombre_asesor, nombre_cliente):
+    """El asesor tiene un simulacro completado con el cliente."""
+    context.asesor_actual = context.asesores[nombre_asesor]
+    context.cliente_actual = context.clientes[nombre_cliente]
     
-    context.documentos[id_simulacro] = documento
-    context.documento_actual = documento
-
-
-@given(r'el documento de recomendaciones del simulacro "([^"]*)" contiene recomendaciones con impacto clasificado')
-def step_documento_tiene_impactos(context, id_simulacro):
-    """El documento tiene recomendaciones con impacto clasificado."""
-    documento = context.documentos.get(id_simulacro)
-    assert documento is not None, "Documento no encontrado"
-    assert len(documento.recomendaciones) > 0, "El documento no tiene recomendaciones"
-
-
-@when(r'el sistema organiza las recomendaciones por impacto')
-def step_sistema_organiza_por_impacto(context):
-    """El sistema organiza las recomendaciones por impacto."""
-    documento = context.documento_actual
-    context.recomendaciones_por_impacto = documento.agrupar_recomendaciones_por_impacto()
-
-
-@then(r'las recomendaciones deben quedar agrupadas por nivel de impacto:?')
-def step_recomendaciones_agrupadas_impacto(context):
-    """Verifica que las recomendaciones estén agrupadas por impacto."""
-    impactos_esperados = [row['impacto'] for row in context.table]
+    # Buscar el simulacro correspondiente
+    for codigo, sim in context.simulacros.items():
+        if sim.asesor == context.asesor_actual and sim.cliente == context.cliente_actual:
+            context.simulacro_actual = sim
+            break
     
-    impacto_map = {
-        "Alto": NivelImpacto.ALTO,
-        "Medio": NivelImpacto.MEDIO,
-        "Bajo": NivelImpacto.BAJO,
-    }
+    assert context.simulacro_actual is not None, "No se encontro simulacro"
+    assert context.simulacro_actual.estado == 'completado', "El simulacro no esta completado"
+
+
+@step('sube el archivo "{nombre_archivo}" con la conversacion del simulacro')
+def step_sube_archivo_txt(context, nombre_archivo):
+    """El asesor sube un archivo .txt de transcripcion."""
+    # Validar extension
+    valido, error = TranscripcionService.validar_archivo(nombre_archivo)
     
-    for impacto_str in impactos_esperados:
-        impacto = impacto_map.get(impacto_str)
-        assert impacto in context.recomendaciones_por_impacto, \
-            f"Nivel de impacto '{impacto_str}' no encontrado"
-
-
-@then(r'cada recomendación debe registrar su nivel de impacto')
-def step_recomendaciones_registran_impacto(context):
-    """Verifica que cada recomendación tenga nivel de impacto."""
-    documento = context.documento_actual
+    if not valido:
+        context.upload_exitoso = False
+        context.mensaje_sistema = error
+        return
     
-    for rec in documento.recomendaciones:
-        assert rec.impacto is not None, \
-            f"Recomendación {rec.id} no tiene nivel de impacto"
-
-
-# =============================================================================
-# ESCENARIO 6: ACCIÓN SUGERIDA
-# =============================================================================
-
-@given(r'que el documento de recomendaciones del simulacro "([^"]*)" tiene nivel de preparación "([^"]*)"')
-def step_documento_tiene_nivel(context, id_simulacro, nivel_str):
-    """El documento tiene un nivel de preparación."""
-    if not hasattr(context, 'documentos'):
-        context.documentos = {}
+    # Contenido de prueba
+    contenido = """
+    Entrevistador: Buenos dias, cual es el proposito de su viaje?
+    Cliente: Buenos dias, mi proposito es estudiar una maestria en administracion.
+    Entrevistador: Como financiara sus estudios?
+    Cliente: Cuento con una beca parcial y mis padres cubriran el resto.
+    Entrevistador: Tiene vinculos en su pais de origen?
+    Cliente: Si, mi familia vive aqui y tengo propiedades a mi nombre.
+    """ * 3
     
-    documento = context.documentos.get(id_simulacro)
+    # Validar contenido
+    valido, error = TranscripcionService.validar_contenido(contenido)
+    if not valido:
+        context.upload_exitoso = False
+        context.mensaje_sistema = error
+        return
     
-    if not documento:
-        documento = DocumentoRecomendaciones(simulacro_id=id_simulacro)
-        context.documentos[id_simulacro] = documento
+    # Procesar
+    context.simulacro_actual.transcripcion_texto = contenido
+    stats = TranscripcionService.procesar_transcripcion(contenido)
     
-    nivel_map = {
-        "Alto": NivelPreparacion.ALTO,
-        "Medio": NivelPreparacion.MEDIO,
-        "Bajo": NivelPreparacion.BAJO,
-    }
+    context.upload_exitoso = True
+    context.mensaje_sistema = "Transcripcion subida exitosamente"
+    context.caracteres = stats['caracteres']
+    context.lineas = stats['lineas']
+
+
+@step('intenta subir el archivo "{nombre_archivo}"')
+def step_intenta_subir_archivo(context, nombre_archivo):
+    """El asesor intenta subir un archivo (puede no ser .txt)."""
+    valido, error = TranscripcionService.validar_archivo(nombre_archivo)
     
-    documento.nivel_preparacion = nivel_map.get(nivel_str, NivelPreparacion.MEDIO)
-    documento.accion_sugerida = AccionSugerida.para_nivel(documento.nivel_preparacion)
-    context.documento_actual = documento
+    if not valido:
+        context.upload_exitoso = False
+        context.mensaje_sistema = error
+    else:
+        context.upload_exitoso = True
 
 
-@when(r'el migrante consulta su documento de recomendaciones')
-def step_migrante_consulta_documento(context):
-    """El migrante consulta el documento."""
-    context.documento_consultado = context.documento_actual
+@step('el sistema confirma "{mensaje}"')
+def step_sistema_confirma(context, mensaje):
+    """Verifica que el sistema muestre un mensaje de confirmacion."""
+    assert context.mensaje_sistema == mensaje, \
+        f"Esperado: '{mensaje}', Obtenido: '{context.mensaje_sistema}'"
 
 
-@then(r'el sistema debe sugerir la siguiente acción posterior: "([^"]*)"')
-def step_sistema_sugiere_accion(context, accion_esperada):
-    """Verifica la acción sugerida."""
-    documento = context.documento_consultado
+@step('el sistema muestra "{mensaje}"')
+def step_sistema_muestra(context, mensaje):
+    """Verifica que el sistema muestre un mensaje."""
+    assert context.mensaje_sistema == mensaje, \
+        f"Esperado: '{mensaje}', Obtenido: '{context.mensaje_sistema}'"
+
+
+@step("muestra la cantidad de caracteres y lineas del archivo")
+def step_muestra_caracteres_lineas(context):
+    """Verifica que se muestren las estadisticas del archivo."""
+    assert context.caracteres > 0, "Debe haber caracteres"
+    assert context.lineas > 0, "Debe haber lineas"
+
+
+@step("el simulacro no cuenta con transcripcion subida")
+def step_simulacro_sin_transcripcion(context):
+    """Verifica que el simulacro no tiene transcripcion."""
+    assert not context.simulacro_actual.tiene_transcripcion(), "El simulacro no deberia tener transcripcion"
+
+
+# ==============================================================================
+# GENERAR RECOMENDACIONES CON IA
+# ==============================================================================
+
+@step('que el asesor "{nombre_asesor}" tiene un simulacro con transcripcion subida exitosamente')
+def step_asesor_tiene_simulacro_con_transcripcion(context, nombre_asesor):
+    """El asesor tiene un simulacro con transcripcion."""
+    context.asesor_actual = context.asesores[nombre_asesor]
     
-    assert documento.accion_sugerida is not None, "No hay acción sugerida"
-    assert documento.accion_sugerida.descripcion == accion_esperada, \
-        f"Acción esperada: '{accion_esperada}', actual: '{documento.accion_sugerida.descripcion}'"
-
-
-# =============================================================================
-# ESCENARIO 7: CONSULTA Y DESCARGA
-# =============================================================================
-
-@given(r'que existe un documento de recomendaciones publicado para el simulacro "([^"]*)"')
-def step_documento_publicado(context, id_simulacro):
-    """Existe un documento publicado."""
-    if not hasattr(context, 'documentos'):
-        context.documentos = {}
+    for codigo, sim in context.simulacros.items():
+        if sim.asesor == context.asesor_actual:
+            context.simulacro_actual = sim
+            context.cliente_actual = sim.cliente
+            break
     
-    documento = DocumentoRecomendaciones(simulacro_id=id_simulacro)
-    documento.metadatos = MetadatosDocumento(
-        simulacro_id=id_simulacro,
-        nivel_preparacion=NivelPreparacion.MEDIO,
-        estado_simulacro=EstadoSimulacro.PUBLICADO,
+    # Agregar transcripcion de prueba
+    context.simulacro_actual.transcripcion_texto = """
+    Entrevistador: Buenos dias, cual es el proposito de su viaje?
+    Cliente: Buenos dias, mi proposito es estudiar una maestria.
+    Entrevistador: Como financiara sus estudios?
+    Cliente: Tengo una beca y apoyo de mi familia.
+    """ * 5
+
+
+@step("tiene configurada su API key de Gemini")
+def step_tiene_api_key(context):
+    """El asesor tiene configurada su API key."""
+    config = ConfiguracionIA(
+        id=1,
+        asesor=context.asesor_actual,
+        api_key='test-api-key-12345',
+        modelo='gemini-2.0-flash',
+        activo=True
     )
-    documento.publicar()
+    context.configuraciones_ia[context.asesor_actual.email] = config
+    context.config_ia = config
+
+
+@step('que el asesor "{nombre_asesor}" no ha configurado su API key de Gemini')
+def step_asesor_sin_api_key(context, nombre_asesor):
+    """El asesor no tiene API key configurada."""
+    context.asesor_actual = context.asesores[nombre_asesor]
+    # No crear configuracion = sin API key
+    context.config_ia = None
+
+
+@step("tiene un simulacro con transcripcion disponible")
+def step_tiene_simulacro_con_transcripcion(context):
+    """El asesor tiene un simulacro con transcripcion."""
+    for codigo, sim in context.simulacros.items():
+        if sim.asesor == context.asesor_actual:
+            context.simulacro_actual = sim
+            context.cliente_actual = sim.cliente
+            break
     
-    # Agregar contenido
-    documento.fortalezas.append(Fortaleza(descripcion="Buena claridad"))
-    documento.puntos_mejora.append(PuntoMejora(
-        categoria=CategoriaRecomendacion.SEGURIDAD,
-        descripcion="Mejorar seguridad"
-    ))
+    context.simulacro_actual.transcripcion_texto = "Transcripcion de prueba con contenido suficiente " * 5
+
+
+@step('hace clic en "Generar con IA"')
+def step_generar_con_ia(context):
+    """El asesor hace clic en generar con IA."""
+    # Validar configuracion de IA
+    valido, error = RecomendacionIAService.validar_configuracion(context.config_ia)
+    if not valido:
+        context.mensaje_sistema = error
+        context.generacion_exitosa = False
+        return
     
-    context.documentos[id_simulacro] = documento
-    context.documento_actual = documento
-
-
-@when(r'el migrante accede a la sección "([^"]*)"')
-def step_migrante_accede_seccion(context, seccion):
-    """El migrante accede a una sección."""
-    context.seccion_accedida = seccion
-
-
-@then(r'el sistema debe mostrar el documento de recomendaciones asociado al simulacro "([^"]*)" con las secciones:?')
-def step_sistema_muestra_documento_secciones(context, id_simulacro):
-    """Verifica que se muestre el documento con las secciones."""
-    documento = context.documentos.get(id_simulacro)
-    assert documento is not None, f"No hay documento para {id_simulacro}"
-    assert documento.esta_publicado(), "El documento no está publicado"
+    # Validar transcripcion
+    valido, error = RecomendacionIAService.validar_transcripcion(context.simulacro_actual)
+    if not valido:
+        context.mensaje_sistema = error
+        context.generacion_exitosa = False
+        return
     
-    for row in context.table:
-        seccion = row['seccion']
-        assert documento.tiene_seccion(seccion), \
-            f"Sección '{seccion}' no encontrada"
+    # Generar recomendacion
+    recomendacion = RecomendacionIAService.generar_recomendacion(context.simulacro_actual)
+    context.recomendacion_actual = recomendacion
+    context.recomendaciones[context.simulacro_actual.codigo] = recomendacion
+    context.simulacro_actual.tiene_recomendaciones = True
+    
+    context.generacion_exitosa = True
+    context.mensaje_sistema = "Recomendaciones generadas exitosamente"
+    
+    # Crear notificacion
+    context.notificacion = Notificacion(
+        id=1,
+        usuario=context.cliente_actual,
+        mensaje="Recomendaciones disponibles"
+    )
 
 
-@then(r'debe permitir descargar el documento en formato "([^"]*)"')
-def step_permitir_descargar_formato(context, formato_str):
-    """Verifica que se pueda descargar en el formato."""
-    documento = context.documento_actual
+@step("el sistema analiza la transcripcion con Gemini")
+def step_analiza_con_gemini(context):
+    """Verifica que se analice con Gemini."""
+    assert context.generacion_exitosa, "La generacion debio ser exitosa"
+
+
+@step("genera el documento de recomendaciones")
+def step_genera_documento(context):
+    """Verifica que se genere el documento."""
+    assert context.recomendacion_actual is not None, "Debe existir recomendacion"
+    assert context.recomendacion_actual.estado_feedback == 'generado', "Estado debe ser 'generado'"
+
+
+@step('el cliente "{nombre_cliente}" recibe la notificacion "{mensaje}"')
+def step_cliente_recibe_notificacion(context, nombre_cliente, mensaje):
+    """Verifica que el cliente reciba notificacion."""
+    assert context.recomendacion_actual.publicada, "Recomendacion debe estar publicada"
+    assert context.notificacion is not None, "Debe existir notificacion"
+
+
+@step("el simulacro tiene la opcion de ver feedback disponible")
+def step_simulacro_tiene_feedback(context):
+    """Verifica que el simulacro tenga feedback disponible."""
+    assert context.simulacro_actual.tiene_recomendaciones, "Simulacro debe tener recomendaciones"
+
+
+# ==============================================================================
+# CLIENTE CONSULTA RECOMENDACIONES
+# ==============================================================================
+
+@step('que el cliente "{nombre_cliente}" completo un simulacro')
+def step_cliente_completo_simulacro(context, nombre_cliente):
+    """El cliente completo un simulacro."""
+    context.cliente_actual = context.clientes[nombre_cliente]
     
-    assert documento.puede_descargarse(), "El documento no puede descargarse"
+    for codigo, sim in context.simulacros.items():
+        if sim.cliente == context.cliente_actual:
+            context.simulacro_actual = sim
+            break
+
+
+@step("el asesor ya genero las recomendaciones con IA")
+def step_asesor_genero_recomendaciones(context):
+    """El asesor genero las recomendaciones."""
+    recomendacion = RecomendacionIAService.generar_recomendacion(context.simulacro_actual)
+    context.recomendacion_actual = recomendacion
+    context.recomendaciones[context.simulacro_actual.codigo] = recomendacion
+    context.simulacro_actual.tiene_recomendaciones = True
+
+
+@step('el cliente accede a "Ver Resumen" en la seccion de simulacros completados y "Ver Recomendaciones"')
+def step_cliente_accede_ver_resumen_recomendaciones(context):
+    """El cliente navega a Ver Resumen y luego Ver Recomendaciones."""
+    # Simula la navegacion del cliente
+    codigo = context.simulacro_actual.codigo
+    if codigo in context.recomendaciones:
+        context.recomendacion_actual = context.recomendaciones[codigo]
+        context.recomendaciones_lista = [context.recomendacion_actual]
+    else:
+        context.recomendaciones_lista = []
+
+
+@then("puede ver la lista de recomendaciones disponibles:")
+def step_ve_lista_recomendaciones(context):
+    """Verifica que pueda ver la lista."""
+    assert context.recomendaciones_lista is not None, "Debe haber lista de recomendaciones"
+    assert len(context.recomendaciones_lista) > 0, "La lista no debe estar vacia"
     
-    formato_map = {
-        "PDF": FormatoDocumento.PDF,
-        "HTML": FormatoDocumento.HTML,
+    # Verificar campos segun la tabla
+    rec = context.recomendacion_actual
+    assert rec.simulacro.fecha is not None, "Debe tener fecha del simulacro"
+    assert rec.nivel_preparacion in ['alto', 'medio', 'bajo'], "Debe tener nivel de preparacion"
+
+
+@then("puede expandir las secciones colapsables:")
+def step_expandir_secciones(context):
+    """Verifica las secciones colapsables disponibles."""
+    secciones_esperadas = [row['seccion'] for row in context.table]
+    
+    # Verificar que las secciones existen en la recomendacion
+    rec = context.recomendacion_actual
+    
+    secciones_disponibles = []
+    if hasattr(rec, 'claridad'):
+        secciones_disponibles.append('Indicadores de Desempeno')
+    if rec.fortalezas:
+        secciones_disponibles.append('Fortalezas Identificadas')
+    if rec.puntos_mejora:
+        secciones_disponibles.append('Puntos de Mejora')
+    if rec.recomendaciones:
+        secciones_disponibles.append('Recomendaciones')
+    
+    for seccion in secciones_esperadas:
+        assert seccion in secciones_disponibles, f"Seccion '{seccion}' no disponible"
+
+
+# ==============================================================================
+# CLIENTE SIN RECOMENDACIONES / DESCARGA PDF
+# ==============================================================================
+
+@step('que el cliente "{nombre_cliente}" tiene un simulacro completado')
+def step_cliente_tiene_simulacro_completado(context, nombre_cliente):
+    """El cliente tiene simulacro completado."""
+    context.cliente_actual = context.clientes[nombre_cliente]
+    
+    for codigo, sim in context.simulacros.items():
+        if sim.cliente == context.cliente_actual:
+            context.simulacro_actual = sim
+            break
+
+
+@step("el simulacro no tiene recomendaciones generadas")
+def step_simulacro_sin_recomendaciones(context):
+    """El simulacro no tiene recomendaciones."""
+    context.simulacro_actual.tiene_recomendaciones = False
+    codigo = context.simulacro_actual.codigo
+    if codigo in context.recomendaciones:
+        del context.recomendaciones[codigo]
+
+
+@step("intenta descargar el PDF de recomendaciones")
+def step_intenta_descargar_pdf(context):
+    """El cliente intenta descargar el PDF."""
+    valido, error = PDFService.validar_descarga(
+        context.simulacro_actual, 
+        context.simulacro_actual.tiene_recomendaciones
+    )
+    
+    if not valido:
+        context.mensaje_sistema = error
+    else:
+        context.mensaje_sistema = "PDF descargado exitosamente"
+
+
+# ==============================================================================
+# ANALISIS DE IA: INDICADORES
+# ==============================================================================
+
+@step('que el asesor "{nombre_asesor}" genero recomendaciones con IA para "{nombre_cliente}"')
+def step_asesor_genero_recomendaciones_para_cliente(context, nombre_asesor, nombre_cliente):
+    """El asesor genero recomendaciones para el cliente."""
+    context.asesor_actual = context.asesores[nombre_asesor]
+    context.cliente_actual = context.clientes[nombre_cliente]
+    
+    for codigo, sim in context.simulacros.items():
+        if sim.asesor == context.asesor_actual and sim.cliente == context.cliente_actual:
+            context.simulacro_actual = sim
+            break
+    
+    # Agregar transcripcion
+    context.simulacro_actual.transcripcion_texto = "Transcripcion de prueba " * 20
+    
+    # Generar recomendacion
+    recomendacion = RecomendacionIAService.generar_recomendacion(context.simulacro_actual)
+    context.recomendacion_actual = recomendacion
+    context.recomendaciones[context.simulacro_actual.codigo] = recomendacion
+    context.simulacro_actual.tiene_recomendaciones = True
+
+
+@step("el cliente consulta sus recomendaciones")
+def step_cliente_consulta_recomendaciones(context):
+    """El cliente consulta sus recomendaciones."""
+    codigo = context.simulacro_actual.codigo
+    if codigo in context.recomendaciones:
+        context.recomendaciones_lista = [context.recomendaciones[codigo]]
+    else:
+        context.recomendaciones_lista = []
+
+
+@then("la recomendacion incluye los indicadores:")
+def step_recomendacion_incluye_indicadores(context):
+    """Verifica que la recomendacion tenga los indicadores."""
+    rec = context.recomendacion_actual
+    
+    indicadores = ['claridad', 'coherencia', 'seguridad', 'pertinencia']
+    valores_validos = ['alto', 'medio', 'bajo']
+    
+    for indicador in indicadores:
+        valor = getattr(rec, indicador)
+        assert valor in valores_validos, \
+            f"Indicador {indicador} tiene valor invalido: {valor}"
+
+
+# ==============================================================================
+# ANALISIS DE IA: CONTENIDO GENERADO
+# ==============================================================================
+
+@then("cada fortaleza identificada contiene:")
+def step_fortaleza_contiene_campos(context):
+    """Verifica estructura de fortalezas."""
+    rec = context.recomendacion_actual
+    
+    # Mapear campos de la tabla a campos reales
+    campos_mapping = {
+        'Categoria': 'categoria',
+        'Descripcion': 'descripcion',
+        'Pregunta relacionada': 'pregunta_relacionada',
+        'Impacto': 'impacto'
     }
     
-    formato = formato_map.get(formato_str, FormatoDocumento.PDF)
+    campos_requeridos = [campos_mapping[row['campo']] for row in context.table]
     
-    # Verificar que se puede exportar
-    try:
-        documento.exportar_formato(formato)
-    except Exception as e:
-        assert False, f"Error al exportar: {e}"
-
-
-# =============================================================================
-# ESCENARIOS 8 y 9: MANEJO DE ERRORES
-# =============================================================================
-
-@given(r'que el migrante completó el simulacro "([^"]*)" sin transcripción generada')
-def step_simulacro_sin_transcripcion(context, id_simulacro):
-    """El simulacro no tiene transcripción."""
-    if not hasattr(context, 'simulacros'):
-        context.simulacros = {}
+    assert len(rec.fortalezas) > 0, "No hay fortalezas"
     
-    simulacro = SimulacroParaRecomendaciones(id=id_simulacro)
-    # No asignar transcripción
-    simulacro.transcripcion = None
-    context.simulacros[id_simulacro] = simulacro
+    for fortaleza in rec.fortalezas:
+        for campo in campos_requeridos:
+            assert campo in fortaleza, f"Falta campo {campo} en fortaleza"
 
 
-@when(r'se intenta generar el documento de recomendaciones para el simulacro "([^"]*)"')
-def step_intenta_generar_documento(context, id_simulacro):
-    """Se intenta generar el documento (puede fallar)."""
-    simulacro = context.simulacros.get(id_simulacro)
+@then("cada punto de mejora contiene:")
+def step_punto_mejora_contiene_campos(context):
+    """Verifica estructura de puntos de mejora."""
+    rec = context.recomendacion_actual
     
-    # Validar transcripción disponible
-    if not simulacro or not simulacro.transcripcion:
-        context.errores.append(
-            f"No es posible generar recomendaciones: la transcripción del simulacro {id_simulacro} no está disponible"
-        )
-        context.documento_generado = False
-        return
+    campos_mapping = {
+        'Categoria': 'categoria',
+        'Descripcion': 'descripcion',
+        'Pregunta relacionada': 'pregunta_relacionada',
+        'Impacto': 'impacto'
+    }
     
-    # Validar análisis completado
-    if not simulacro.analisis or not simulacro.analisis.completado:
-        context.errores.append(
-            f"No es posible generar recomendaciones: el análisis de IA del simulacro {id_simulacro} no se ha completado"
-        )
-        context.documento_generado = False
-        return
+    campos_requeridos = [campos_mapping[row['campo']] for row in context.table]
     
-    # Si pasó validaciones, generar
-    documento = simulacro.generar_documento_recomendaciones()
-    if not hasattr(context, 'documentos'):
-        context.documentos = {}
-    context.documentos[id_simulacro] = documento
-    context.documento_actual = documento
-    context.documento_generado = True
+    assert len(rec.puntos_mejora) > 0, "No hay puntos de mejora"
+    
+    for punto in rec.puntos_mejora:
+        for campo in campos_requeridos:
+            assert campo in punto, f"Falta campo {campo} en punto de mejora"
 
 
-@given(r'el análisis de IA del simulacro "([^"]*)" está incompleto')
-def step_analisis_incompleto(context, id_simulacro):
-    """El análisis de IA está incompleto."""
-    simulacro = context.simulacros.get(id_simulacro)
-    if simulacro:
-        # Crear análisis pero NO marcarlo como completado
-        simulacro.analisis = AnalisisIA(simulacro_id=id_simulacro)
-        # No llamar a marcar_completado()
-
-
-@then(r'el sistema debe mostrar el mensaje de error "([^"]*)"')
-def step_sistema_muestra_error(context, mensaje_esperado):
-    """Verifica que se muestre el mensaje de error."""
-    assert len(context.errores) > 0, "No se registró ningún error"
-    assert mensaje_esperado in context.errores, \
-        f"Mensaje esperado: '{mensaje_esperado}', errores: {context.errores}"
-
-
-@then(r'el documento no debe ser generado')
-def step_documento_no_generado(context):
-    """Verifica que el documento no fue generado."""
-    assert context.documento_generado == False, "El documento fue generado cuando no debía"
+@then("cada recomendacion contiene:")
+def step_recomendacion_contiene_campos(context):
+    """Verifica estructura de recomendaciones."""
+    rec = context.recomendacion_actual
+    
+    campos_mapping = {
+        'Titulo': 'titulo',
+        'Descripcion': 'descripcion',
+        'Accion concreta': 'accion_concreta',
+        'Impacto': 'impacto'
+    }
+    
+    campos_requeridos = [campos_mapping[row['campo']] for row in context.table]
+    
+    assert len(rec.recomendaciones) > 0, "No hay recomendaciones"
+    
+    for recomendacion in rec.recomendaciones:
+        for campo in campos_requeridos:
+            assert campo in recomendacion, f"Falta campo {campo} en recomendacion"

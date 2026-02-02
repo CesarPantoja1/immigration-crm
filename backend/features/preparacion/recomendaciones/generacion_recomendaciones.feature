@@ -1,174 +1,118 @@
-#language: es
-Característica: Generación de recomendaciones personalizadas basadas en análisis de IA
-  Como migrante que ha completado un simulacro de entrevista consular
-  Quiero recibir un documento con recomendaciones específicas generadas por IA a partir de la transcripción de mi entrevista
-  Para identificar mis fortalezas, corregir debilidades concretas y aumentar mis probabilidades de éxito en la entrevista real
+# language: es
+Característica: Generacion de recomendaciones personalizadas basadas en analisis de IA
+  Como migrante que completo un simulacro de entrevista consular
+  Quiero recibir recomendaciones personalizadas generadas por IA
+  Para identificar mis fortalezas, corregir debilidades y prepararme mejor para mi entrevista real
 
   Antecedentes:
-    Dado que el módulo de simulacros de entrevista consular está operativo
-    Y el sistema almacena transcripciones en formato .txt de cada simulacro completado
-    Y el agente de IA para análisis de entrevistas está habilitado
-    Y la generación de documentos de recomendaciones está disponible
+    Dado que el asesor tiene simulacros completados
+      | asesor       | cliente       | estado     | codigo   |
+      | Asesor Demo  | Maria Garcia  | completado | SIM-001  |
+      | Asesor Demo  | Juan Perez    | completado | SIM-002  |
+      | Asesor Demo | Pedro Ruiz    | completado | SIM-003  |
 
   # =============================================================================
-  # ESCENARIO 1: GENERACIÓN DEL DOCUMENTO DE RECOMENDACIONES
+  # FLUJO DEL ASESOR: SUBIR TRANSCRIPCION
   # =============================================================================
-  Esquema del escenario: El migrante recibe documento de retroalimentación tras análisis de IA
-    Dado que el migrante completó el simulacro "<id_simulacro>" con transcripción disponible
-    Y la IA analizó la transcripción del simulacro "<id_simulacro>" con los siguientes resultados:
-      | indicador                     | valor          |
-      | Claridad en respuestas        | <claridad>     |
-      | Coherencia del discurso       | <coherencia>   |
-      | Seguridad al responder        | <seguridad>    |
-      | Pertinencia de la información | <pertinencia>  |
-    Cuando se genera el documento de recomendaciones para el simulacro "<id_simulacro>"
-    Entonces el documento tiene estado "Feedback generado"
-    Y el nivel de preparación calculado es "<nivel_preparacion>"
-    Y el documento contiene las siguientes secciones:
-      | seccion              |
-      | Fortalezas           |
-      | Puntos de mejora     |
-      | Recomendaciones      |
-      | Nivel de preparación |
 
-    Ejemplos:
-      | id_simulacro | claridad | coherencia | seguridad | pertinencia | nivel_preparacion |
-      | SIM-001      | Alta     | Alta       | Media     | Alta        | Alto              |
-      | SIM-002      | Media    | Media      | Media     | Baja        | Medio             |
-      | SIM-003      | Baja     | Media      | Baja      | Media       | Bajo              |
+  Escenario: Subir un archivo en formato .txt
+    Dado que el asesor "Asesor Demo" tiene un simulacro completado con "Maria Garcia"
+    Cuando sube el archivo "transcripcion_maria.txt" con la conversacion del simulacro
+    Entonces el sistema confirma "Transcripcion subida exitosamente"
+    Y muestra la cantidad de caracteres y lineas del archivo
+
+  Escenario: Subir un archivo que no es .txt
+    Dado que el asesor "Asesor Demo" tiene un simulacro completado con "Maria Garcia"
+    Cuando intenta subir el archivo "transcripcion_maria.pdf"
+    Entonces el sistema muestra "El archivo debe ser de texto (.txt)"
+    Y el simulacro no cuenta con transcripcion subida
 
   # =============================================================================
-  # ESCENARIO 2: RECOMENDACIONES ACCIONABLES POR CATEGORÍA
+  # FLUJO DEL ASESOR: GENERAR RECOMENDACIONES CON IA
   # =============================================================================
-  Esquema del escenario: Las recomendaciones son accionables y clasificadas por área de mejora
-    Dado que el migrante completó el simulacro "<id_simulacro>" con transcripción procesada
-    Y la IA identificó los siguientes puntos de mejora en el simulacro "<id_simulacro>":
-      | categoria   | descripcion                                                  |
-      | Claridad    | Las respuestas incluyen frases incompletas                   |
-      | Seguridad   | Se detecta inseguridad en respuestas a preguntas críticas    |
-      | Pertinencia | Algunas respuestas no abordan directamente lo solicitado     |
-    Cuando se genera el documento de recomendaciones del simulacro "<id_simulacro>"
-    Entonces el documento debe contener recomendaciones accionables clasificadas por categoría:
-      | categoria   |
-      | Claridad    |
-      | Seguridad   |
-      | Pertinencia |
-    Y cada categoría debe contener al menos una recomendación concreta y medible
-    Y el documento debe registrar la fecha de generación del feedback
 
-    Ejemplos:
-      | id_simulacro |
-      | SIM-004      |
-      | SIM-005      |
+  Escenario: Asesor genera recomendaciones con IA exitosamente
+    Dado que el asesor "Asesor Demo" tiene un simulacro con transcripcion subida exitosamente
+    Y tiene configurada su API key de Gemini
+    Cuando hace clic en "Generar con IA"
+    Entonces el sistema analiza la transcripcion con Gemini
+    Y genera el documento de recomendaciones
+    Y el cliente "Maria Garcia" recibe la notificacion "Recomendaciones disponibles"
+    Y el simulacro tiene la opcion de ver feedback disponible
+
+  Escenario: Asesor intenta generar recomendaciones sin API key configurada
+    Dado que el asesor "Asesor Demo" no ha configurado su API key de Gemini
+    Y tiene un simulacro con transcripcion disponible
+    Cuando hace clic en "Generar con IA"
+    Entonces el sistema muestra "No se ha configurado una API key de IA valida. Por favor, configura tu API key de Gemini."
 
   # =============================================================================
-  # ESCENARIO 3: CÁLCULO DEL NIVEL DE PREPARACIÓN
+  # FLUJO DEL CLIENTE: CONSULTAR RECOMENDACIONES
   # =============================================================================
-  Esquema del escenario: El nivel de preparación refleja el desempeño global del migrante
-    Dado el análisis del simulacro "<id_simulacro>" tiene los siguientes resultados:
-      | indicador                     | valor          |
-      | Claridad en respuestas        | <claridad>     |
-      | Coherencia del discurso       | <coherencia>   |
-      | Seguridad al responder        | <seguridad>    |
-      | Pertinencia de la información | <pertinencia>  |
-    Cuando el sistema calcula el nivel global de preparación
-    Entonces el nivel de preparación asignado debe ser "<nivel_preparacion>"
 
-    Ejemplos:
-      | id_simulacro | claridad | coherencia | seguridad | pertinencia | nivel_preparacion |
-      | SIM-006      | Alta     | Alta       | Alta      | Alta        | Alto              |
-      | SIM-007      | Media    | Media      | Media     | Media       | Medio             |
-      | SIM-008      | Baja     | Media      | Baja      | Media       | Bajo              |
+  Escenario: Cliente consulta sus recomendaciones
+    Dado que el cliente "Maria Garcia" completo un simulacro
+    Y el asesor ya genero las recomendaciones con IA
+    Cuando el cliente accede a "Ver Resumen" en la seccion de simulacros completados y "Ver Recomendaciones"
+    Entonces puede ver la lista de recomendaciones disponibles:
+      | campo                | descripcion                                    |
+      | Fecha del simulacro  | Fecha en que se realizo el simulacro           |
+      | Nivel de preparacion | Segun nivel (alto/medio/bajo)  |
+    Y puede expandir las secciones colapsables:
+      | seccion                  |
+      | Indicadores de Desempeno |
+      | Fortalezas Identificadas |
+      | Puntos de Mejora         |
+      | Recomendaciones          |
 
-  # =============================================================================
-  # ESCENARIO 4: TRAZABILIDAD DE RECOMENDACIONES
-  # =============================================================================
-  Esquema del escenario: Cada recomendación está vinculada a una pregunta específica del simulacro
-    Dado que el simulacro "<id_simulacro>" tiene las siguientes preguntas y respuestas:
-      | numero_pregunta | tipo_pregunta           |
-      | 1               | Motivo del viaje        |
-      | 2               | Situación económica     |
-      | 3               | Planes de permanencia   |
-    Y el agente de IA ha generado recomendaciones asociadas al simulacro "<id_simulacro>"
-    Cuando el asesor revisa el documento de recomendaciones del simulacro "<id_simulacro>"
-    Entonces cada recomendación debe estar asociada a una pregunta del simulacro
-    Y el documento debe permitir identificar para cada recomendación:
-      | atributo                 |
-      | Número de pregunta       |
-      | Tipo de pregunta         |
+  Escenario: Cliente sin recomendaciones intenta descargar PDF
+    Dado que el cliente "Juan Perez" tiene un simulacro completado
+    Pero el simulacro no tiene recomendaciones generadas
+    Cuando intenta descargar el PDF de recomendaciones
+    Entonces el sistema muestra "Este simulacro no tiene recomendaciones"
 
-    Ejemplos:
-      | id_simulacro |
-      | SIM-009      |
-      | SIM-010      |
 
   # =============================================================================
-  # ESCENARIO 5: PRIORIZACIÓN POR IMPACTO
+  # ANALISIS DE IA: INDICADORES DE DESEMPENO
   # =============================================================================
-  Esquema del escenario: Las recomendaciones están priorizadas según su impacto en la entrevista
-    Dado que existe un documento de recomendaciones generado para el simulacro "<id_simulacro>"
-    Y el documento de recomendaciones del simulacro "<id_simulacro>" contiene recomendaciones con impacto clasificado
-    Cuando el sistema organiza las recomendaciones por impacto
-    Entonces las recomendaciones deben quedar agrupadas por nivel de impacto:
-      | impacto |
-      | Alto    |
-      | Medio   |
-      | Bajo    |
-    Y cada recomendación debe registrar su nivel de impacto
 
-    Ejemplos:
-      | id_simulacro |
-      | SIM-011      |
-      | SIM-012      |
+  Escenario: La IA evalua los 4 indicadores de desempeno
+    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia"
+    Cuando el cliente consulta sus recomendaciones
+    Entonces la recomendacion incluye los indicadores:
+      | indicador   | descripcion                              | valores_posibles   |
+      | Claridad    | Que tan claras son las respuestas        | alto, medio, bajo  |
+      | Coherencia  | Si el discurso es logico y estructurado  | alto, medio, bajo  |
+      | Seguridad   | Nivel de confianza al responder          | alto, medio, bajo  |
+      | Pertinencia | Si las respuestas abordan lo preguntado  | alto, medio, bajo  |
 
   # =============================================================================
-  # ESCENARIO 6: SUGERENCIA DE PRÓXIMOS PASOS
+  # ANALISIS DE IA: CONTENIDO GENERADO
   # =============================================================================
-  Esquema del escenario: El migrante recibe sugerencia de próximo paso según su nivel
-    Dado que el documento de recomendaciones del simulacro "<id_simulacro>" tiene nivel de preparación "<nivel>"
-    Cuando el migrante consulta su documento de recomendaciones
-    Entonces el sistema debe sugerir la siguiente acción posterior: "<accion_sugerida>"
 
-    Ejemplos:
-      | id_simulacro | nivel | accion_sugerida                             |
-      | SIM-013      | Bajo  | Realizar un nuevo simulacro con asesor      |
-      | SIM-014      | Medio | Reforzar los puntos de mejora identificados |
-      | SIM-015      | Alto  | Mantener el plan actual de preparación      |
+  Escenario: La IA genera fortalezas identificadas
+    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia"
+    Entonces cada fortaleza identificada contiene:
+      | campo                | descripcion                                      |
+      | Categoria            | Area de la fortaleza                             |
+      | Descripcion          | Explicacion de por que es una fortaleza          |
+      | Pregunta relacionada | Referencia a la pregunta del simulacro           |
+      | Impacto              | Nivel de impacto positivo (alto, medio, bajo)    |
 
-  # =============================================================================
-  # ESCENARIO 7: CONSULTA Y DESCARGA DEL DOCUMENTO
-  # =============================================================================
-  Esquema del escenario: El migrante puede consultar y descargar su documento de recomendaciones
-    Dado que existe un documento de recomendaciones publicado para el simulacro "<id_simulacro>"
-    Cuando el migrante accede a la sección "Mis recomendaciones"
-    Entonces el sistema debe mostrar el documento de recomendaciones asociado al simulacro "<id_simulacro>" con las secciones:
-      | seccion              |
-      | Fortalezas           |
-      | Puntos de mejora     |
-      | Recomendaciones      |
-      | Nivel de preparación |
-    Y debe permitir descargar el documento en formato "<formato>"
+  Escenario: La IA genera puntos de mejora
+    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia"
+    Entonces cada punto de mejora contiene:
+      | campo                | descripcion                                       |
+      | Categoria            | Area a mejorar                                    |
+      | Descripcion          | Explicacion del aspecto a mejorar                 |
+      | Pregunta relacionada | Referencia a la pregunta donde se detecto         |
+      | Impacto              | Nivel de impacto en la entrevista                 |
 
-    Ejemplos:
-      | id_simulacro | formato |
-      | SIM-016      | PDF     |
-      | SIM-017      | PDF     |
-
-  # =============================================================================
-  # ESCENARIO 8: MANEJO DE ERRORES - TRANSCRIPCIÓN NO DISPONIBLE
-  # =============================================================================
-  Escenario: El sistema notifica cuando la transcripción no está disponible para análisis
-    Dado que el migrante completó el simulacro "SIM-ERR-001" sin transcripción generada
-    Cuando se intenta generar el documento de recomendaciones para el simulacro "SIM-ERR-001"
-    Entonces el sistema debe mostrar el mensaje de error "No es posible generar recomendaciones: la transcripción del simulacro SIM-ERR-001 no está disponible"
-    Y el documento no debe ser generado
-
-  # =============================================================================
-  # ESCENARIO 9: MANEJO DE ERRORES - ANÁLISIS DE IA INCOMPLETO
-  # =============================================================================
-  Escenario: El sistema notifica cuando el análisis de IA no se completó
-    Dado que el migrante completó el simulacro "SIM-ERR-002" con transcripción disponible
-    Y el análisis de IA del simulacro "SIM-ERR-002" está incompleto
-    Cuando se intenta generar el documento de recomendaciones para el simulacro "SIM-ERR-002"
-    Entonces el sistema debe mostrar el mensaje de error "No es posible generar recomendaciones: el análisis de IA del simulacro SIM-ERR-002 no se ha completado"
-    Y el documento no debe ser generado
+  Escenario: La IA genera recomendaciones accionables
+    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia"
+    Entonces cada recomendacion contiene:
+      | campo           | descripcion                                    |
+      | Titulo          | Nombre corto de la recomendacion               |
+      | Descripcion     | Explicacion detallada                          |
+      | Accion concreta | Paso especifico que el cliente debe realizar   |
+      | Impacto         | Nivel de impacto si se implementa              |
