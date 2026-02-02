@@ -1,12 +1,9 @@
 """
-Views para la API de Solicitudes.
+Views para la API de Solicitudes, Documentos y Entrevistas.
 """
 from rest_framework import status, generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
-from django.db.models import Q
-from django.utils import timezone
 from django.contrib.auth import get_user_model
 
 from .models import Solicitud, Documento, Entrevista
@@ -19,6 +16,7 @@ from .serializers import (
     EntrevistaSerializer,
     AsignarAsesorSerializer,
 )
+from .services import SolicitudService, DocumentoService, EntrevistaService
 
 # Importar servicio de notificaciones
 from apps.notificaciones.services import NotificacionService
@@ -30,16 +28,8 @@ Usuario = get_user_model()
 # PERMISOS PERSONALIZADOS
 # =====================================================
 
-class EsClienteOAsesor(permissions.BasePermission):
-    """Permite acceso a clientes y asesores."""
-    
-    def has_permission(self, request, view):
-        return request.user.rol in ['cliente', 'asesor', 'admin']
-
-
 class EsAsesorOAdmin(permissions.BasePermission):
     """Solo permite acceso a asesores y admins."""
-    
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
@@ -47,32 +37,25 @@ class EsAsesorOAdmin(permissions.BasePermission):
 
 
 # =====================================================
-# VISTAS DE CLIENTE
+# VISTAS DE SOLICITUDES - CLIENTE
 # =====================================================
 
 class MisSolicitudesView(generics.ListAPIView):
     """
     GET /api/solicitudes/mis-solicitudes/
-    Lista las solicitudes del cliente autenticado.
+    Lista las solicitudes del usuario autenticado.
     """
     serializer_class = SolicitudListSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        user = self.request.user
-        
-        if user.rol == 'cliente':
-            return Solicitud.objects.filter(cliente=user, is_deleted=False)
-        elif user.rol == 'asesor':
-            return Solicitud.objects.filter(asesor=user, is_deleted=False)
-        else:
-            return Solicitud.objects.filter(is_deleted=False)
+        return SolicitudService.listar_solicitudes(self.request.user)
 
 
 class CrearSolicitudView(generics.CreateAPIView):
     """
     POST /api/solicitudes/nueva/
-    Crea una nueva solicitud (solo clientes).
+    Crea una nueva solicitud.
     """
     serializer_class = SolicitudCreateSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -84,7 +67,6 @@ class CrearSolicitudView(generics.CreateAPIView):
     
     def perform_create(self, serializer):
         solicitud = serializer.save()
-        # Crear notificación de solicitud creada
         try:
             NotificacionService.notificar_solicitud_creada(solicitud)
         except Exception as e:
@@ -100,54 +82,65 @@ class SolicitudDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        user = self.request.user
+        return SolicitudService.listar_solicitudes(self.request.user)
+
+
+class EnviarSolicitudView(APIView):
+    """
+    POST /api/solicitudes/<id>/enviar/
+    Envía una solicitud (cambia de borrador a pendiente).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, pk):
+        solicitud = SolicitudService.obtener_solicitud(pk, request.user)
         
-        if user.rol == 'cliente':
-            return Solicitud.objects.filter(cliente=user, is_deleted=False)
-        elif user.rol == 'asesor':
-            return Solicitud.objects.filter(
-                Q(asesor=user) | Q(asesor__isnull=True),
-                is_deleted=False
+        if not solicitud:
+            return Response({'error': 'Solicitud no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        
+        success, error = SolicitudService.enviar_solicitud(solicitud)
+        
+        if not success:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            NotificacionService.crear_notificacion_general(
+                usuario=request.user,
+                titulo='Solicitud enviada correctamente',
+                mensaje=f'Tu solicitud de visa {solicitud.get_tipo_visa_display()} está pendiente de revisión.',
+                url_accion=f'/solicitudes/{solicitud.id}'
             )
-        else:
-            return Solicitud.objects.filter(is_deleted=False)
+        except Exception:
+            pass
+        
+        return Response({
+            'mensaje': 'Solicitud enviada exitosamente',
+            'solicitud': SolicitudDetailSerializer(solicitud).data
+        })
 
 
 # =====================================================
-# VISTAS DE ASESOR
+# VISTAS DE SOLICITUDES - ASESOR
 # =====================================================
 
 class SolicitudesAsignadasView(generics.ListAPIView):
     """
     GET /api/solicitudes/asignadas/
-    Lista las solicitudes asignadas al asesor con documentos.
+    Lista las solicitudes asignadas al asesor.
     """
     serializer_class = SolicitudDetailSerializer
     permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
     
     def get_queryset(self):
-        user = self.request.user
-        queryset = Solicitud.objects.filter(is_deleted=False).prefetch_related('documentos_adjuntos')
-        
-        if user.rol == 'asesor':
-            queryset = queryset.filter(asesor=user)
-        
-        # Filtros opcionales
         estado = self.request.query_params.get('estado')
-        if estado:
-            queryset = queryset.filter(estado=estado)
-        
         tipo_visa = self.request.query_params.get('tipo_visa')
-        if tipo_visa:
-            queryset = queryset.filter(tipo_visa=tipo_visa)
-        
-        return queryset
+        return SolicitudService.listar_solicitudes(self.request.user, estado, tipo_visa)
 
 
 class SolicitudesPendientesView(generics.ListAPIView):
     """
     GET /api/solicitudes/pendientes/
-    Lista solicitudes pendientes de asignación (admin).
+    Lista solicitudes pendientes de asignación.
     """
     serializer_class = SolicitudListSerializer
     permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
@@ -163,134 +156,30 @@ class SolicitudesPendientesView(generics.ListAPIView):
 class ActualizarSolicitudView(generics.UpdateAPIView):
     """
     PATCH /api/solicitudes/<id>/actualizar/
-    Actualiza el estado y notas de una solicitud (asesor).
+    Actualiza el estado y notas de una solicitud.
     """
     serializer_class = SolicitudUpdateSerializer
     permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
     
     def get_queryset(self):
-        user = self.request.user
-        if user.rol == 'asesor':
-            return Solicitud.objects.filter(asesor=user, is_deleted=False)
-        return Solicitud.objects.filter(is_deleted=False)
+        return SolicitudService.listar_solicitudes(self.request.user)
     
     def perform_update(self, serializer):
         instance = serializer.save()
         
-        # Registrar fecha de revisión si se actualiza
-        if instance.estado in ['aprobada', 'rechazada']:
-            instance.fecha_revision = timezone.now()
-            instance.save()
-            
-            # Crear notificación según el nuevo estado
-            try:
-                if instance.estado == 'aprobada':
-                    NotificacionService.notificar_solicitud_aprobada(instance)
-                elif instance.estado == 'rechazada':
-                    motivo = serializer.validated_data.get('observaciones', '')
-                    NotificacionService.notificar_solicitud_rechazada(instance, motivo)
-            except Exception as e:
-                print(f"Error creando notificación: {e}")
-        
-        # Notificar si pasa a revisión
-        if instance.estado == 'en_revision':
-            try:
+        # Notificaciones según el estado
+        try:
+            if instance.estado == 'aprobada':
+                NotificacionService.notificar_solicitud_aprobada(instance)
+            elif instance.estado == 'rechazada':
+                motivo = serializer.validated_data.get('observaciones', '')
+                NotificacionService.notificar_solicitud_rechazada(instance, motivo)
+            elif instance.estado == 'en_revision':
                 NotificacionService.notificar_solicitud_en_revision(instance)
-            except Exception as e:
-                print(f"Error creando notificación: {e}")
-        
-        # Notificar si se envía a embajada
-        if instance.estado == 'enviada_embajada':
-            try:
+            elif instance.estado == 'enviada_embajada':
                 NotificacionService.notificar_solicitud_enviada_embajada(instance)
-            except Exception as e:
-                print(f"Error creando notificación: {e}")
-
-
-class EnviarSolicitudView(APIView):
-    """
-    POST /api/solicitudes/<id>/enviar/
-    Envía/confirma una solicitud (cambia de borrador a pendiente).
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request, pk):
-        try:
-            solicitud = Solicitud.objects.get(pk=pk, cliente=request.user, is_deleted=False)
-        except Solicitud.DoesNotExist:
-            return Response(
-                {'error': 'Solicitud no encontrada'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        if solicitud.estado not in ['borrador', 'pendiente']:
-            return Response(
-                {'error': 'La solicitud ya ha sido enviada'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        solicitud.estado = 'pendiente'
-        solicitud.save()
-        
-        # Notificar que la solicitud fue enviada
-        try:
-            NotificacionService.crear_notificacion_general(
-                usuario=request.user,
-                titulo='Solicitud enviada correctamente',
-                mensaje=f'Tu solicitud de visa {solicitud.get_tipo_visa_display()} ha sido enviada y está pendiente de revisión.',
-                url_accion=f'/solicitudes/{solicitud.id}'
-            )
         except Exception as e:
             print(f"Error creando notificación: {e}")
-        
-        return Response({
-            'mensaje': 'Solicitud enviada exitosamente',
-            'solicitud': SolicitudDetailSerializer(solicitud).data
-        })
-
-
-class SubirDocumentoView(APIView):
-    """
-    POST /api/solicitudes/<id>/documentos/
-    Sube un documento a una solicitud.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request, pk):
-        try:
-            solicitud = Solicitud.objects.get(pk=pk, cliente=request.user, is_deleted=False)
-        except Solicitud.DoesNotExist:
-            return Response(
-                {'error': 'Solicitud no encontrada'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        archivo = request.FILES.get('archivo')
-        nombre = request.data.get('nombre', 'Documento')
-        
-        if not archivo:
-            return Response(
-                {'error': 'No se ha enviado ningún archivo'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        documento = Documento.objects.create(
-            solicitud=solicitud,
-            nombre=nombre,
-            archivo=archivo,
-            estado='pendiente'
-        )
-        
-        # Notificar al asesor que el cliente subió un documento
-        try:
-            NotificacionService.notificar_documento_subido(documento, solicitud)
-        except Exception as e:
-            print(f"Error creando notificación: {e}")
-        
-        return Response({
-            'mensaje': 'Documento subido exitosamente',
-            'documento': DocumentoSerializer(documento, context={'request': request}).data
-        }, status=status.HTTP_201_CREATED)
 
 
 class AsignarAsesorView(APIView):
@@ -301,233 +190,401 @@ class AsignarAsesorView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
     
     def post(self, request, pk):
-        try:
-            solicitud = Solicitud.objects.get(pk=pk, is_deleted=False)
-        except Solicitud.DoesNotExist:
-            return Response(
-                {'error': 'Solicitud no encontrada'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        solicitud = SolicitudService.obtener_solicitud(pk)
         
-        if not solicitud.puede_ser_asignada():
-            return Response(
-                {'error': 'La solicitud ya tiene un asesor asignado'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if not solicitud:
+            return Response({'error': 'Solicitud no encontrada'}, status=status.HTTP_404_NOT_FOUND)
         
         serializer = AsignarAsesorSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        asesor = Usuario.objects.get(id=serializer.validated_data['asesor_id'])
-        solicitud.asignar_asesor(asesor)
+        success, error = SolicitudService.asignar_asesor(
+            solicitud, 
+            serializer.validated_data['asesor_id']
+        )
         
-        # Notificar asignación a cliente y asesor
+        if not success:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
             NotificacionService.notificar_solicitud_asignada(solicitud)
-        except Exception as e:
-            print(f"Error creando notificación: {e}")
+        except Exception:
+            pass
         
         return Response({
-            'mensaje': f'Solicitud asignada a {asesor.nombre_completo()}',
+            'mensaje': f'Solicitud asignada a {solicitud.asesor.nombre_completo()}',
             'solicitud': SolicitudDetailSerializer(solicitud).data
         })
 
 
 # =====================================================
-# ESTADÍSTICAS Y DASHBOARD
+# ESTADÍSTICAS
 # =====================================================
 
 class EstadisticasClienteView(APIView):
-    """
-    GET /api/solicitudes/estadisticas/cliente/
-    Estadísticas del dashboard del cliente.
-    """
+    """GET /api/solicitudes/estadisticas/cliente/"""
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request):
-        user = request.user
-        
-        solicitudes = Solicitud.objects.filter(cliente=user, is_deleted=False)
-        
-        return Response({
-            'total_solicitudes': solicitudes.count(),
-            'en_proceso': solicitudes.filter(
-                estado__in=['pendiente', 'en_revision', 'aprobada']
-            ).count(),
-            'aprobadas': solicitudes.filter(estado='aprobada').count(),
-            'completadas': solicitudes.filter(estado='completada').count(),
-            'rechazadas': solicitudes.filter(estado='rechazada').count(),
-            'con_entrevista': solicitudes.filter(
-                estado='entrevista_agendada'
-            ).count(),
-        })
+        return Response(SolicitudService.obtener_estadisticas_cliente(request.user))
 
 
 class EstadisticasAsesorView(APIView):
-    """
-    GET /api/solicitudes/estadisticas/asesor/
-    Estadísticas del dashboard del asesor.
-    """
+    """GET /api/solicitudes/estadisticas/asesor/"""
     permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
     
     def get(self, request):
-        user = request.user
-        hoy = timezone.now().date()
-        
-        if user.rol == 'asesor':
-            solicitudes = Solicitud.objects.filter(asesor=user, is_deleted=False)
-        else:
-            solicitudes = Solicitud.objects.filter(is_deleted=False)
-        
-        return Response({
-            'total_asignadas': solicitudes.count(),
-            'asignadas_hoy': solicitudes.filter(
-                fecha_asignacion__date=hoy
-            ).count(),
-            'pendientes_revision': solicitudes.filter(
-                estado='pendiente'
-            ).count(),
-            'en_revision': solicitudes.filter(estado='en_revision').count(),
-            'aprobadas': solicitudes.filter(estado='aprobada').count(),
-            'enviadas_embajada': solicitudes.filter(
-                estado='enviada_embajada'
-            ).count(),
-            'limite_diario': user.limite_solicitudes_diarias if user.rol == 'asesor' else None,
-            'disponibilidad': user.limite_solicitudes_diarias - solicitudes.filter(
-                fecha_asignacion__date=hoy
-            ).count() if user.rol == 'asesor' else None,
-        })
+        return Response(SolicitudService.obtener_estadisticas_asesor(request.user))
 
 
 # =====================================================
 # VISTAS DE DOCUMENTOS
 # =====================================================
 
-class DocumentoDetailView(generics.RetrieveAPIView):
+class SubirDocumentoView(APIView):
     """
-    GET /api/documentos/<id>/
-    Obtiene el detalle de un documento.
+    POST /api/solicitudes/<id>/documentos/
+    Sube un documento a una solicitud.
     """
-    serializer_class = DocumentoSerializer
     permission_classes = [permissions.IsAuthenticated]
     
-    def get_queryset(self):
-        user = self.request.user
-        if user.rol == 'cliente':
-            return Documento.objects.filter(solicitud__cliente=user)
-        elif user.rol == 'asesor':
-            return Documento.objects.filter(solicitud__asesor=user)
-        return Documento.objects.all()
-
-
-class AprobarDocumentoView(APIView):
-    """
-    PATCH /api/documentos/<id>/aprobar/
-    Aprueba un documento (asesor).
-    """
-    permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
-    
-    def patch(self, request, pk):
+    def post(self, request, pk):
+        solicitud = SolicitudService.obtener_solicitud(pk, request.user)
+        
+        if not solicitud:
+            return Response({'error': 'Solicitud no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        
+        archivo = request.FILES.get('archivo')
+        nombre = request.data.get('nombre', 'Documento')
+        
+        if not archivo:
+            return Response({'error': 'No se ha enviado ningún archivo'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        documento = DocumentoService.subir_documento(solicitud, archivo, nombre)
+        
         try:
-            documento = Documento.objects.get(pk=pk)
-            
-            # Verificar que el asesor tenga permiso
-            user = request.user
-            if user.rol == 'asesor' and documento.solicitud.asesor != user:
-                return Response(
-                    {'error': 'No tienes permiso para aprobar este documento'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            
-            documento.estado = 'aprobado'
-            documento.revisado_por = user
-            documento.fecha_revision = timezone.now()
-            documento.motivo_rechazo = ''
-            documento.save()
-            
-            # Notificar al cliente
-            try:
-                NotificacionService.notificar_documento_aprobado(documento, documento.solicitud)
-            except Exception as e:
-                print(f"Error creando notificación: {e}")
-            
-            return Response({
-                'mensaje': 'Documento aprobado exitosamente',
-                'documento': DocumentoSerializer(documento, context={'request': request}).data
-            })
-        except Documento.DoesNotExist:
-            return Response(
-                {'error': 'Documento no encontrado'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-
-class RechazarDocumentoView(APIView):
-    """
-    PATCH /api/documentos/<id>/rechazar/
-    Rechaza un documento (asesor).
-    """
-    permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
-    
-    def patch(self, request, pk):
-        try:
-            documento = Documento.objects.get(pk=pk)
-            
-            # Verificar que el asesor tenga permiso
-            user = request.user
-            if user.rol == 'asesor' and documento.solicitud.asesor != user:
-                return Response(
-                    {'error': 'No tienes permiso para rechazar este documento'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            
-            motivo = request.data.get('motivo_rechazo', '')
-            if not motivo:
-                return Response(
-                    {'error': 'Debe proporcionar un motivo de rechazo'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            documento.estado = 'rechazado'
-            documento.revisado_por = user
-            documento.fecha_revision = timezone.now()
-            documento.motivo_rechazo = motivo
-            documento.save()
-            
-            # Notificar al cliente
-            try:
-                NotificacionService.notificar_documento_rechazado(documento, documento.solicitud, motivo)
-            except Exception as e:
-                print(f"Error creando notificación: {e}")
-            
-            return Response({
-                'mensaje': 'Documento rechazado',
-                'documento': DocumentoSerializer(documento, context={'request': request}).data
-            })
-        except Documento.DoesNotExist:
-            return Response(
-                {'error': 'Documento no encontrado'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            NotificacionService.notificar_documento_subido(documento, solicitud)
+        except Exception:
+            pass
+        
+        return Response({
+            'mensaje': 'Documento subido exitosamente',
+            'documento': DocumentoSerializer(documento, context={'request': request}).data
+        }, status=status.HTTP_201_CREATED)
 
 
 class ListarDocumentosSolicitudView(generics.ListAPIView):
     """
-    GET /api/solicitudes/<id>/documentos/
-    Lista todos los documentos de una solicitud.
+    GET /api/solicitudes/<id>/documentos/lista/
+    Lista documentos de una solicitud.
     """
     serializer_class = DocumentoSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        solicitud_id = self.kwargs.get('pk')
-        user = self.request.user
+        return DocumentoService.listar_documentos(
+            self.kwargs.get('pk'),
+            self.request.user
+        )
+
+
+class DocumentoDetailView(generics.RetrieveAPIView):
+    """GET /api/documentos/<id>/"""
+    serializer_class = DocumentoSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_object(self):
+        return DocumentoService.obtener_documento(self.kwargs['pk'], self.request.user)
+
+
+class AprobarDocumentoView(APIView):
+    """PATCH /api/documentos/<id>/aprobar/"""
+    permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
+    
+    def patch(self, request, pk):
+        documento = DocumentoService.obtener_documento(pk, request.user)
         
-        queryset = Documento.objects.filter(solicitud_id=solicitud_id)
+        if not documento:
+            return Response({'error': 'Documento no encontrado'}, status=status.HTTP_404_NOT_FOUND)
         
-        if user.rol == 'cliente':
-            queryset = queryset.filter(solicitud__cliente=user)
-        elif user.rol == 'asesor':
-            queryset = queryset.filter(solicitud__asesor=user)
+        DocumentoService.aprobar_documento(documento, request.user)
         
-        return queryset
+        try:
+            NotificacionService.notificar_documento_aprobado(documento, documento.solicitud)
+        except Exception:
+            pass
+        
+        return Response({
+            'mensaje': 'Documento aprobado exitosamente',
+            'documento': DocumentoSerializer(documento, context={'request': request}).data
+        })
+
+
+class RechazarDocumentoView(APIView):
+    """PATCH /api/documentos/<id>/rechazar/"""
+    permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
+    
+    def patch(self, request, pk):
+        documento = DocumentoService.obtener_documento(pk, request.user)
+        
+        if not documento:
+            return Response({'error': 'Documento no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        
+        motivo = request.data.get('motivo_rechazo', '')
+        if not motivo:
+            return Response({'error': 'Debe proporcionar un motivo de rechazo'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        DocumentoService.rechazar_documento(documento, request.user, motivo)
+        
+        try:
+            NotificacionService.notificar_documento_rechazado(documento, documento.solicitud, motivo)
+        except Exception:
+            pass
+        
+        return Response({
+            'mensaje': 'Documento rechazado',
+            'documento': DocumentoSerializer(documento, context={'request': request}).data
+        })
+
+
+# =====================================================
+# VISTAS DE ENTREVISTAS
+# =====================================================
+
+class EntrevistasListView(APIView):
+    """GET /api/entrevistas/"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        estado = request.query_params.get('estado')
+        entrevistas = EntrevistaService.listar_entrevistas(request.user, estado)
+        
+        data = [{
+            'id': e.id,
+            'solicitud_id': e.solicitud_id,
+            'solicitud_tipo': e.solicitud.get_tipo_visa_display(),
+            'cliente_nombre': e.solicitud.cliente.nombre_completo(),
+            'fecha': e.fecha,
+            'hora': e.hora,
+            'ubicacion': e.ubicacion,
+            'estado': e.estado,
+            'estado_display': e.get_estado_display(),
+            'veces_reprogramada': e.veces_reprogramada,
+        } for e in entrevistas]
+        
+        return Response(data)
+
+
+class EntrevistaDetailView(APIView):
+    """GET /api/entrevistas/<id>/"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        entrevista = EntrevistaService.obtener_entrevista(pk, request.user)
+        
+        if not entrevista:
+            return Response({'error': 'Entrevista no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({
+            'id': entrevista.id,
+            'solicitud_id': entrevista.solicitud_id,
+            'solicitud_tipo': entrevista.solicitud.get_tipo_visa_display(),
+            'embajada': entrevista.solicitud.embajada,
+            'cliente': {
+                'id': entrevista.solicitud.cliente.id,
+                'nombre': entrevista.solicitud.cliente.nombre_completo(),
+                'email': entrevista.solicitud.cliente.email,
+            },
+            'fecha': entrevista.fecha,
+            'hora': entrevista.hora,
+            'ubicacion': entrevista.ubicacion,
+            'estado': entrevista.estado,
+            'estado_display': entrevista.get_estado_display(),
+            'veces_reprogramada': entrevista.veces_reprogramada,
+            'notas': entrevista.notas,
+            'created_at': entrevista.created_at,
+        })
+
+
+class HorariosDisponiblesView(APIView):
+    """GET /api/entrevistas/horarios/?fecha=YYYY-MM-DD"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        fecha = request.query_params.get('fecha')
+        
+        if not fecha:
+            return Response({'error': 'Fecha es requerida'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        horarios = EntrevistaService.obtener_horarios_disponibles(fecha)
+        return Response({'fecha': fecha, 'horarios': horarios})
+
+
+class AgendarEntrevistaView(APIView):
+    """POST /api/entrevistas/agendar/"""
+    permission_classes = [permissions.IsAuthenticated, EsAsesorOAdmin]
+    
+    def post(self, request):
+        solicitud_id = request.data.get('solicitud_id')
+        fecha = request.data.get('fecha')
+        hora = request.data.get('hora')
+        ubicacion = request.data.get('ubicacion', '')
+        
+        if not all([solicitud_id, fecha, hora]):
+            return Response({'error': 'solicitud_id, fecha y hora son requeridos'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        solicitud = SolicitudService.obtener_solicitud(solicitud_id)
+        if not solicitud:
+            return Response({'error': 'Solicitud no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        
+        entrevista, error = EntrevistaService.agendar(solicitud, fecha, hora, ubicacion)
+        
+        if error:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            NotificacionService.notificar_entrevista_agendada(solicitud, fecha, hora)
+        except Exception:
+            pass
+        
+        return Response({
+            'mensaje': f'Entrevista agendada para el {fecha} a las {hora}',
+            'entrevista': {
+                'id': entrevista.id,
+                'fecha': entrevista.fecha,
+                'hora': entrevista.hora,
+                'estado': entrevista.estado,
+            }
+        }, status=status.HTTP_201_CREATED)
+
+
+class ConfirmarEntrevistaView(APIView):
+    """POST /api/entrevistas/<id>/confirmar/"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, pk):
+        entrevista = EntrevistaService.obtener_entrevista(pk, request.user)
+        
+        if not entrevista:
+            return Response({'error': 'Entrevista no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        
+        success, error = EntrevistaService.confirmar(entrevista)
+        
+        if not success:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({'mensaje': 'Entrevista confirmada exitosamente'})
+
+
+class ReprogramarEntrevistaView(APIView):
+    """POST /api/entrevistas/<id>/reprogramar/"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, pk):
+        entrevista = EntrevistaService.obtener_entrevista(pk, request.user)
+        
+        if not entrevista:
+            return Response({'error': 'Entrevista no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        
+        nueva_fecha = request.data.get('fecha')
+        nueva_hora = request.data.get('hora')
+        
+        if not nueva_fecha or not nueva_hora:
+            return Response({'error': 'Nueva fecha y hora son requeridos'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        success, error = EntrevistaService.reprogramar(entrevista, nueva_fecha, nueva_hora)
+        
+        if not success:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({'mensaje': 'Entrevista reprogramada exitosamente'})
+
+
+class VerificarReprogramacionView(APIView):
+    """GET /api/entrevistas/<id>/puede-reprogramar/"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        entrevista = EntrevistaService.obtener_entrevista(pk, request.user)
+        
+        if not entrevista:
+            return Response({'error': 'Entrevista no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        
+        _, info = EntrevistaService.puede_reprogramar(entrevista)
+        return Response(info)
+
+
+class CancelarEntrevistaView(APIView):
+    """POST /api/entrevistas/<id>/cancelar/"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, pk):
+        entrevista = EntrevistaService.obtener_entrevista(pk, request.user)
+        
+        if not entrevista:
+            return Response({'error': 'Entrevista no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        
+        motivo = request.data.get('motivo', '')
+        success, error = EntrevistaService.cancelar(entrevista, motivo)
+        
+        if not success:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({'mensaje': 'Cancelación confirmada exitosamente'})
+
+
+class VerificarCancelacionView(APIView):
+    """GET /api/entrevistas/<id>/puede-cancelar/"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        entrevista = EntrevistaService.obtener_entrevista(pk, request.user)
+        
+        if not entrevista:
+            return Response({'error': 'Entrevista no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        
+        _, info = EntrevistaService.puede_cancelar(entrevista)
+        return Response(info)
+
+
+class EntrevistasProximasView(APIView):
+    """GET /api/entrevistas/proximas/"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        dias = int(request.query_params.get('dias', 7))
+        entrevistas = EntrevistaService.obtener_proximas(request.user, dias)
+        
+        data = [{
+            'id': e.id,
+            'fecha': e.fecha,
+            'hora': e.hora,
+            'cliente_nombre': e.solicitud.cliente.nombre_completo(),
+            'tipo_visa': e.solicitud.get_tipo_visa_display(),
+            'estado': e.estado,
+        } for e in entrevistas]
+        
+        return Response(data)
+
+
+class CalendarioEventosView(APIView):
+    """GET /api/entrevistas/calendario/?fecha_inicio=&fecha_fin="""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        fecha_inicio = request.query_params.get('fecha_inicio')
+        fecha_fin = request.query_params.get('fecha_fin')
+        
+        entrevistas = EntrevistaService.obtener_eventos_calendario(
+            request.user, fecha_inicio, fecha_fin
+        )
+        
+        eventos = [{
+            'id': e.id,
+            'title': f"{e.solicitud.cliente.nombre_completo()} - {e.solicitud.get_tipo_visa_display()}",
+            'start': f"{e.fecha}T{e.hora}",
+            'tipo': 'entrevista',
+            'estado': e.estado,
+        } for e in entrevistas]
+        
+        return Response(eventos)

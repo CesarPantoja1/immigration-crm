@@ -33,6 +33,12 @@ export default function SimulationsPage() {
   const [completed, setCompleted] = useState([])
   const [disponibilidad, setDisponibilidad] = useState({ disponibles: 2, usados: 0 })
 
+  // Helper para obtener fecha local en formato ISO (evita problemas de zona horaria)
+  const getTodayISO = () => {
+    const today = new Date()
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  }
+
   useEffect(() => {
     fetchSimulacros()
   }, [])
@@ -637,7 +643,7 @@ export default function SimulationsPage() {
                 type="date"
                 value={proposedDate}
                 onChange={(e) => setProposedDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min={getTodayISO()}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500"
               />
             </div>
@@ -817,7 +823,7 @@ export default function SimulationsPage() {
                 type="date"
                 value={requestData.fechaPreferida}
                 onChange={(e) => setRequestData({ ...requestData, fechaPreferida: e.target.value })}
-                min={new Date().toISOString().split('T')[0]}
+                min={getTodayISO()}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500"
               />
             </div>

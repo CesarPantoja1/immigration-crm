@@ -50,9 +50,10 @@ export default function AdvisorSimulationsPage() {
       const simList = simulacionesData.map(s => ({
         id: s.id,
         client: s.cliente_nombre || s.cliente?.nombre || 'Cliente',
+        rawDate: s.fecha_propuesta || s.fecha,  // Keep ISO date for filtering
         date: formatDateForDisplay(s.fecha_propuesta || s.fecha),
         time: s.hora_propuesta || s.hora || '10:00 AM',
-        visaType: s.tipo_visa || 'Visa',
+        visaType: s.solicitud_tipo || s.tipo_visa || 'Visa',
         status: s.estado || 'upcoming',
         clientAvatar: getInitials(s.cliente_nombre || s.cliente?.nombre || 'C')
       }))
@@ -107,10 +108,23 @@ export default function AdvisorSimulationsPage() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
   }
 
-  const todayStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
-  // Filter out completed simulacros from today's list
-  const todaySimulations = simulations.filter(s => s.date === todayStr && s.status !== 'completado')
-  const upcomingSimulations = simulations.filter(s => s.date !== todayStr && s.status !== 'completado')
+  // Use LOCAL date format for reliable comparison (avoids UTC timezone issues)
+  const today = new Date()
+  const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const todayStr = today.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+  
+  // Estados que se muestran en las listas de Hoy y Próximos
+  const estadosActivos = ['confirmado', 'en_sala_espera', 'en_progreso']
+  
+  // Simulacros de HOY: fecha igual a hoy Y estado activo (confirmado, en_sala_espera, en_progreso)
+  const todaySimulations = simulations.filter(s => 
+    s.rawDate === todayISO && estadosActivos.includes(s.status)
+  )
+  
+  // Simulacros PRÓXIMOS: fecha mayor a hoy Y estado confirmado
+  const upcomingSimulations = simulations.filter(s => 
+    s.rawDate > todayISO && s.status === 'confirmado'
+  )
 
   const handleAcceptProposal = async () => {
     if (!selectedTime || !selectedProposal) return
