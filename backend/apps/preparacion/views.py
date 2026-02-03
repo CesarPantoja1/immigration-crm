@@ -810,7 +810,11 @@ class SimulacroFeedbackView(APIView):
             }]
         
         recomendacion.accion_sugerida = recomendacion.obtener_accion_sugerida()
-        recomendacion.estado_feedback = 'generado'
+        # IMPORTANTE: El feedback manual NO debe marcar como 'generado'
+        # Solo la generación con IA debe poner estado_feedback = 'generado'
+        # El estado se mantiene como está o se pone 'pendiente' si es nuevo
+        if created:
+            recomendacion.estado_feedback = 'pendiente'
         recomendacion.publicada = True
         recomendacion.fecha_publicacion = timezone.now()
         recomendacion.analisis_raw = {
@@ -847,6 +851,13 @@ class DescargarPDFRecomendacionView(APIView):
             return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
         elif user.rol == 'asesor' and simulacro.asesor != user:
             return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Verificar que la recomendación IA haya sido generada exitosamente
+        if recomendacion.estado_feedback != 'generado':
+            return Response(
+                {'error': 'Este simulacro no tiene recomendaciones generadas. La IA aún no ha procesado este simulacro.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         return self._generar_pdf(recomendacion)
     
@@ -898,8 +909,16 @@ class DescargarPDFSimulacroView(DescargarPDFRecomendacionView):
         if not simulacro:
             return Response({'error': 'Simulacro no encontrado'}, status=status.HTTP_404_NOT_FOUND)
         
+        # Verificar que exista la recomendación
         if not hasattr(simulacro, 'recomendacion'):
             return Response({'error': 'Este simulacro no tiene recomendaciones'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Verificar que la recomendación IA haya sido generada exitosamente
+        if simulacro.recomendacion.estado_feedback != 'generado':
+            return Response(
+                {'error': 'Este simulacro no tiene recomendaciones generadas. La IA aún no ha procesado este simulacro.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         return self._generar_pdf(simulacro.recomendacion)
 
