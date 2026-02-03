@@ -1,3 +1,14 @@
+/**
+ * InboxPage - Bandeja de Entrada de Notificaciones
+ * 
+ * ARQUITECTURA DE NAVEGACIÓN CONTEXTUAL:
+ * =====================================
+ * Este componente es "tonto" respecto a la navegación.
+ * El backend calcula la ruta (action_url) y el frontend simplemente navega.
+ * 
+ * NO HAY lógica condicional tipo "si es simulacro, ir a /simulacros".
+ * El frontend confía completamente en action_url del backend.
+ */
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -5,7 +16,8 @@ import { Card, Button, EmptyState, EmptyStateIcons } from '../../../components/c
 import { useAuth } from '../../../contexts/AuthContext'
 import { notificacionesService } from '../../../services'
 
-// Configuración de tipos de notificación
+// Configuración visual de tipos de notificación (solo iconos y colores)
+// La lógica de navegación está en el backend
 const NOTIFICATION_CONFIG = {
   entrevista_agendada: { icon: '📅', color: 'blue', label: 'Entrevista' },
   entrevista_reprogramada: { icon: '🔄', color: 'amber', label: 'Reprogramación' },
@@ -14,15 +26,16 @@ const NOTIFICATION_CONFIG = {
   preparacion_recomendada: { icon: '📚', color: 'purple', label: 'Preparación' },
   simulacion_completada: { icon: '✅', color: 'green', label: 'Simulacro' },
   recomendaciones_listas: { icon: '💡', color: 'blue', label: 'Recomendaciones' },
-  documento_aprobado: { icon: '✔️', color: 'green', label: 'Documento' },
   documento_rechazado: { icon: '📄', color: 'red', label: 'Documento' },
   solicitud_aprobada: { icon: '🎉', color: 'green', label: 'Solicitud' },
   solicitud_rechazada: { icon: '📋', color: 'red', label: 'Solicitud' },
-  solicitud_enviada: { icon: '📤', color: 'blue', label: 'Embajada' },
   embajada_aprobada: { icon: '🎉', color: 'green', label: 'Embajada' },
   embajada_rechazada: { icon: '⚠️', color: 'red', label: 'Embajada' },
   simulacro_propuesto: { icon: '📹', color: 'purple', label: 'Simulacro' },
   simulacro_confirmado: { icon: '✅', color: 'green', label: 'Simulacro' },
+  contrato_generado: { icon: '📋', color: 'blue', label: 'Contrato' },
+  contrato_pendiente: { icon: '⏳', color: 'amber', label: 'Contrato' },
+  contrato_aprobado: { icon: '✅', color: 'green', label: 'Contrato' },
   general: { icon: '📌', color: 'gray', label: 'General' }
 }
 
@@ -136,14 +149,31 @@ export default function InboxPage() {
     }
   }
 
-  const handleNavigate = (notification) => {
+  /**
+   * NAVEGACIÓN CONTEXTUAL (Deep Linking)
+   * =====================================
+   * Este handler es "tonto": simplemente usa action_url del backend.
+   * NO hay lógica condicional basada en el tipo de notificación.
+   * 
+   * El backend es responsable de calcular la ruta correcta.
+   * El frontend confía completamente en esa decisión.
+   */
+  const handleNotificationClick = useCallback((notification) => {
+    // Marcar como leída si no lo está
     if (!notification.leida) {
       handleMarkAsRead(notification.id)
     }
-    if (notification.url_accion) {
-      navigate(notification.url_accion)
+    
+    // Usar action_url calculada por el backend
+    // El backend determina la ruta basándose en tipo y datos
+    const targetUrl = notification.action_url || notification.url_accion
+    
+    if (targetUrl) {
+      // El frontend simplemente navega a donde el backend indica
+      navigate(targetUrl)
     }
-  }
+    // Si no hay URL, no hacer nada (notificación sin acción)
+  }, [navigate, handleMarkAsRead])
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return ''
@@ -388,15 +418,16 @@ export default function InboxPage() {
                                     className="overflow-hidden"
                                   >
                                     <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-gray-100">
-                                      {notification.url_accion && (
+                                      {/* Botón de acción - usa action_url del backend */}
+                                      {notification.is_actionable && (notification.action_url || notification.url_accion) && (
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation()
-                                            handleNavigate(notification)
+                                            handleNotificationClick(notification)
                                           }}
                                           className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors"
                                         >
-                                          Ver detalle
+                                          {notification.action_type || 'Ver detalle'}
                                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                                           </svg>

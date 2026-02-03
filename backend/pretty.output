@@ -1,108 +1,443 @@
-Característica: Simulacion de entrevista para migrantes # features/preparacion/simulacion/simulacion_entrevista.feature:2
-  Como migrante en proceso de preparacion
-  quiero realizar simulacros de entrevistas adaptados a mi visado
-  para familiarizarme con el formato de preguntas antes de la cita con la embajada
-  Antecedentes:   # features/preparacion/simulacion/simulacion_entrevista.feature:7
+Característica: Recepcion de solicitudes # features/solicitudes/recepcion/recepcion_solicitud.feature:3
+  Como migrante de la agencia de migracion
+  quiero registrar mi solicitud de visa
+  para garantizar una entrevista con la embajada
+  Antecedentes:   # features/solicitudes/recepcion/recepcion_solicitud.feature:11
 
-  Escenario: Asesor crea propuesta de simulacro para cliente                         # features/preparacion/simulacion/simulacion_entrevista.feature:18
-    Dado que el sistema tiene configurados los siguientes limites                    # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el asesor "Carlos Ruiz" con ID "ASE-001"                            # None
-    Y tengo asignado al cliente "Oscar Perez" con ID "MIG-12345"                     # None
-    Cuando creo una propuesta de simulacro con los siguientes datos                  # None
-      | fecha      | hora  | modalidad |
-      | 2026-02-10 | 15:00 | Virtual   |
-    Entonces se crea el simulacro con estado "Pendiente de respuesta"                # None
-    Y el cliente "Oscar Perez" recibe la notificacion "Nueva propuesta de simulacro" # None
+  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.1   # features/solicitudes/recepcion/recepcion_solicitud.feature:34
+    Dado que existen los siguientes checklists de documentos por tipo de visa        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                      # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que un migrante solicita visa VIVIENDA para embajada ESTADOUNIDENSE         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:255
+    Cuando carga todos los documentos obligatorios                                   # features/solicitudes/recepcion/steps/recepcion_solicitud.py:269
+      | documentos                                                    |
+      | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad |
+    Entonces todos los documentos tienen estado "EN_REVISION"                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:284
+    Y el estado de la solicitud es "EN_REVISION"                                     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:292
+    Y el sistema registra la solicitud                                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:299
 
-  Escenario: Cliente acepta propuesta de simulacro del asesor     # features/preparacion/simulacion/simulacion_entrevista.feature:27
-    Dado que el sistema tiene configurados los siguientes limites # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"     # None
-    Y mi contador de simulacros realizados es 0                   # None
-    Y tengo una propuesta de simulacro con los siguientes datos   # None
-      | id      | fecha      | hora  | modalidad | estado                 | propuesto_por |
-      | SIM-001 | 2026-02-10 | 15:00 | Virtual   | Pendiente de respuesta | asesor        |
-    Cuando acepto la propuesta de simulacro "SIM-001"             # None
-    Entonces el estado del simulacro debe cambiar a "Confirmado"  # None
-    Y mi contador de simulacros debe ser 1                        # None
+  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.2   # features/solicitudes/recepcion/recepcion_solicitud.feature:35
+    Dado que existen los siguientes checklists de documentos por tipo de visa        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                      # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que un migrante solicita visa TRABAJO para embajada BRASILENA               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:255
+    Cuando carga todos los documentos obligatorios                                   # features/solicitudes/recepcion/steps/recepcion_solicitud.py:269
+      | documentos                                                 |
+      | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo |
+    Entonces todos los documentos tienen estado "EN_REVISION"                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:284
+    Y el estado de la solicitud es "EN_REVISION"                                     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:292
+    Y el sistema registra la solicitud                                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:299
 
-  Escenario: Cliente NO puede aceptar propuesta que el mismo creo                        # features/preparacion/simulacion/simulacion_entrevista.feature:37
-    Dado que el sistema tiene configurados los siguientes limites                        # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                            # None
-    Y tengo una propuesta de simulacro con los siguientes datos                          # None
-      | id      | fecha      | hora  | modalidad | estado     | propuesto_por |
-      | SIM-002 | 2026-02-12 | 10:00 | Virtual   | Solicitado | cliente       |
-    Cuando intento aceptar la propuesta de simulacro "SIM-002"                           # None
-    Entonces el sistema rechaza la accion                                                # None
-    Y muestra el mensaje de error "No puedes aceptar una propuesta que tu mismo creaste" # None
-    Y el estado del simulacro permanece "Solicitado"                                     # None
+  Esquema del escenario: Migrante ingresa solicitud completa correctamente -- @1.3   # features/solicitudes/recepcion/recepcion_solicitud.feature:36
+    Dado que existen los siguientes checklists de documentos por tipo de visa        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                      # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que un migrante solicita visa ESTUDIO para embajada ESTADOUNIDENSE          # features/solicitudes/recepcion/steps/recepcion_solicitud.py:255
+    Cuando carga todos los documentos obligatorios                                   # features/solicitudes/recepcion/steps/recepcion_solicitud.py:269
+      | documentos                                                      |
+      | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Entonces todos los documentos tienen estado "EN_REVISION"                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:284
+    Y el estado de la solicitud es "EN_REVISION"                                     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:292
+    Y el sistema registra la solicitud                                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:299
 
-  Escenario: Asesor acepta solicitud de simulacro del cliente                              # features/preparacion/simulacion/simulacion_entrevista.feature:47
-    Dado que el sistema tiene configurados los siguientes limites                          # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el asesor "Carlos Ruiz" con ID "ASE-001"                                  # None
-    Y existe una solicitud de simulacro del cliente "Oscar Perez" con los siguientes datos # None
-      | id      | fecha      | hora  | modalidad | estado     | propuesto_por |
-      | SIM-002 | 2026-02-12 | 10:00 | Virtual   | Solicitado | cliente       |
-    Cuando acepto la propuesta de simulacro "SIM-002"                                      # None
-    Entonces el estado del simulacro debe cambiar a "Confirmado"                           # None
-    Y el cliente recibe la notificacion "Tu solicitud de simulacro fue confirmada"         # None
+  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.1   # features/solicitudes/recepcion/recepcion_solicitud.feature:63
+    Dado que existen los siguientes checklists de documentos por tipo de visa                          # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud de visa VIVIENDA con embajada ESTADOUNIDENSE con id VVE01            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:310
+    Y todos los documentos estan en estado "EN_REVISION"                                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:340
+    Cuando el asesor revisa todos los documentos de la solicitud                                       # features/solicitudes/recepcion/steps/recepcion_solicitud.py:348
+    Y todos los documentos son "Correcto"                                                              # features/solicitudes/recepcion/steps/recepcion_solicitud.py:354
+    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:387
+    Y el estado de la solicitud debe ser "APROBADO"                                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:412
+    Y los documentos quedan almacenados en el sistema                                                  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:419
+    Y el migrante recibe la notificacion "VISA_VIVIENDA_APROBADA"                                      # features/solicitudes/recepcion/steps/recepcion_solicitud.py:437
 
-  Escenario: Proponer fecha alternativa para simulacro                                  # features/preparacion/simulacion/simulacion_entrevista.feature:60
-    Dado que el sistema tiene configurados los siguientes limites                       # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                           # None
-    Y mi contador de simulacros realizados es 0                                         # None
-    Y tengo una propuesta de simulacro con ID "SIM-001" para "2026-02-10 15:00"         # None
-    Cuando propongo la fecha alternativa "2026-02-12 16:00" para el simulacro "SIM-001" # None
-    Entonces el estado del simulacro debe cambiar a "Contrapropuesta pendiente"         # None
-    Y la fecha propuesta debe ser "2026-02-12 16:00"                                    # None
-    Y mi contador de simulacros debe permanecer en 0                                    # None
+  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.2   # features/solicitudes/recepcion/recepcion_solicitud.feature:64
+    Dado que existen los siguientes checklists de documentos por tipo de visa                          # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud de visa TRABAJO con embajada BRASILENA con id VTB01                  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:310
+    Y todos los documentos estan en estado "EN_REVISION"                                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:340
+    Cuando el asesor revisa todos los documentos de la solicitud                                       # features/solicitudes/recepcion/steps/recepcion_solicitud.py:348
+    Y todos los documentos son "Correcto"                                                              # features/solicitudes/recepcion/steps/recepcion_solicitud.py:354
+    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:387
+    Y el estado de la solicitud debe ser "APROBADO"                                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:412
+    Y los documentos quedan almacenados en el sistema                                                  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:419
+    Y el migrante recibe la notificacion "VISA_TRABAJO_APROBADA"                                       # features/solicitudes/recepcion/steps/recepcion_solicitud.py:437
 
-  Esquema del escenario: Consultar disponibilidad segun simulacros realizados -- @1.1   # features/preparacion/simulacion/simulacion_entrevista.feature:82
-    Dado que el sistema tiene configurados los siguientes limites                       # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                           # None
-    Y mi contador de simulacros realizados es 0                                         # None
-    Cuando consulto la disponibilidad para nuevo simulacro                              # None
-    Entonces la disponibilidad debe ser "disponible"                                    # None
-    Y el mensaje informativo debe ser "Puede solicitar hasta 2 simulacros en total"     # None
+  Esquema del escenario: Asesor aprueba solicitud de visa con todos los documentos correctos -- @1.3   # features/solicitudes/recepcion/recepcion_solicitud.feature:65
+    Dado que existen los siguientes checklists de documentos por tipo de visa                          # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud de visa ESTUDIO con embajada BRASILENA con id VEB01                  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:310
+    Y todos los documentos estan en estado "EN_REVISION"                                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:340
+    Cuando el asesor revisa todos los documentos de la solicitud                                       # features/solicitudes/recepcion/steps/recepcion_solicitud.py:348
+    Y todos los documentos son "Correcto"                                                              # features/solicitudes/recepcion/steps/recepcion_solicitud.py:354
+    Entonces todos los documentos deben cambiar a estado "APROBADO"                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:387
+    Y el estado de la solicitud debe ser "APROBADO"                                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:412
+    Y los documentos quedan almacenados en el sistema                                                  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:419
+    Y el migrante recibe la notificacion "VISA_ESTUDIO_APROBADA"                                       # features/solicitudes/recepcion/steps/recepcion_solicitud.py:437
 
-  Esquema del escenario: Consultar disponibilidad segun simulacros realizados -- @1.2   # features/preparacion/simulacion/simulacion_entrevista.feature:83
-    Dado que el sistema tiene configurados los siguientes limites                       # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
-    Dado que soy el migrante "Oscar Perez" con ID "MIG-12345"                           # None
-    Y mi contador de simulacros realizados es 1                                         # None
-    Cuando consulto la disponibilidad para nuevo simulacro                              # None
-    Entonces la disponibilidad debe ser "disponible"                                    # None
-    Y el mensaje informativo debe ser "Tiene 1 simulacro disponible restante"           # None
+  Esquema del escenario: Asesor rechaza solicitud por documento incorrecto -- @1.1            # features/solicitudes/recepcion/recepcion_solicitud.feature:81
+    Dado que existen los siguientes checklists de documentos por tipo de visa                 # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud de visa VIVIENDA con embajada ESTADOUNIDENSE con id "VVE01" # features/solicitudes/recepcion/steps/recepcion_solicitud.py:310
+    Y todos los documentos estan en estado "EN_REVISION"                                      # features/solicitudes/recepcion/steps/recepcion_solicitud.py:340
+    Cuando el asesor revisa todos los documentos de la solicitud                              # features/solicitudes/recepcion/steps/recepcion_solicitud.py:348
+    Y el documento "Pasaporte" es "Incorrecto"                                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:368
+    Entonces el documento "Pasaporte" debe cambiar a estado "DESAPROBADO"                     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:395
+    Y el estado de la solicitud debe ser "DESAPROBADO"                                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:412
+    Y el migrante recibe la notificacion "DOCUMENTO_RECHAZADO: Pasaporte"                     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:445
 
-  Esquema del escenario: Consultar disponibilidad segun simulacros realizados -- @1.3      # features/preparacion/simulacion/simulacion_entrevista.feature:84
-    Dado que el sistema tiene configurados los siguientes limites                          # None
-      | parametro                     | valor |
-      | maximo_simulacros_por_cliente | 2     |
-      | minutos_anticipacion_entrada  | 15    |
-      | horas_cancelacion_anticipada  | 24    |
+  Esquema del escenario: Asesor rechaza solicitud por documento incorrecto -- @1.2      # features/solicitudes/recepcion/recepcion_solicitud.feature:82
+    Dado que existen los siguientes checklists de documentos por tipo de visa           # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud de visa TRABAJO con embajada BRASILENA con id "VTE01" # features/solicitudes/recepcion/steps/recepcion_solicitud.py:310
+    Y todos los documentos estan en estado "EN_REVISION"                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:340
+    Cuando el asesor revisa todos los documentos de la solicitud                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:348
+    Y el documento "Contrato de trabajo" es "Incorrecto"                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:368
+    Entonces el documento "Contrato de trabajo" debe cambiar a estado "DESAPROBADO"     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:395
+    Y el estado de la solicitud debe ser "DESAPROBADO"                                  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:412
+    Y el migrante recibe la notificacion "DOCUMENTO_RECHAZADO: Contrato de trabajo"     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:445
+
+  Esquema del escenario: Asesor rechaza solicitud por documento incorrecto -- @1.3       # features/solicitudes/recepcion/recepcion_solicitud.feature:83
+    Dado que existen los siguientes checklists de documentos por tipo de visa            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                          # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud de visa ESTUDIO con embajada BRASILENA con id "VEE01"  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:310
+    Y todos los documentos estan en estado "EN_REVISION"                                 # features/solicitudes/recepcion/steps/recepcion_solicitud.py:340
+    Cuando el asesor revisa todos los documentos de la solicitud                         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:348
+    Y el documento "Certificado de matricula" es "Incorrecto"                            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:368
+    Entonces el documento "Certificado de matricula" debe cambiar a estado "DESAPROBADO" # features/solicitudes/recepcion/steps/recepcion_solicitud.py:395
+    Y el estado de la solicitud debe ser "DESAPROBADO"                                   # features/solicitudes/recepcion/steps/recepcion_solicitud.py:412
+    Y el migrante recibe la notificacion "DOCUMENTO_RECHAZADO: Certificado de matricula" # features/solicitudes/recepcion/steps/recepcion_solicitud.py:445
+
+  Esquema del escenario: Asesor puede re-evaluar documentos mientras solicitud esta en revision -- @1.1   # features/solicitudes/recepcion/recepcion_solicitud.feature:98
+    Dado que existen los siguientes checklists de documentos por tipo de visa                             # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                                           # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud de visa TRABAJO con estado "EN_REVISION"                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:634
+    Y el documento "Pasaporte" tiene estado "RECHAZADO"                                                   # features/solicitudes/recepcion/steps/recepcion_solicitud.py:657
+    Cuando el asesor cambia la evaluacion del documento "Pasaporte" a "APROBADO"                          # features/solicitudes/recepcion/steps/recepcion_solicitud.py:665
+    Entonces el documento "Pasaporte" debe cambiar a estado "APROBADO"                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:395
+    Y la solicitud permanece en estado "EN_REVISION"                                                      # features/solicitudes/recepcion/steps/recepcion_solicitud.py:682
+    Y se registra la nueva fecha de revision del documento                                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:688
+
+  Esquema del escenario: Asesor puede re-evaluar documentos mientras solicitud esta en revision -- @1.2   # features/solicitudes/recepcion/recepcion_solicitud.feature:99
+    Dado que existen los siguientes checklists de documentos por tipo de visa                             # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                                           # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud de visa ESTUDIO con estado "EN_REVISION"                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:634
+    Y el documento "Foto" tiene estado "APROBADO"                                                         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:657
+    Cuando el asesor cambia la evaluacion del documento "Foto" a "RECHAZADO"                              # features/solicitudes/recepcion/steps/recepcion_solicitud.py:665
+    Entonces el documento "Foto" debe cambiar a estado "RECHAZADO"                                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:395
+    Y la solicitud permanece en estado "EN_REVISION"                                                      # features/solicitudes/recepcion/steps/recepcion_solicitud.py:682
+    Y se registra la nueva fecha de revision del documento                                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:688
+
+  Esquema del escenario: Asesor puede re-evaluar documentos mientras solicitud esta en revision -- @1.3   # features/solicitudes/recepcion/recepcion_solicitud.feature:100
+    Dado que existen los siguientes checklists de documentos por tipo de visa                             # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                                           # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud de visa VIVIENDA con estado "EN_REVISION"                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:634
+    Y el documento "Pasaporte" tiene estado "PENDIENTE"                                                   # features/solicitudes/recepcion/steps/recepcion_solicitud.py:657
+    Cuando el asesor cambia la evaluacion del documento "Pasaporte" a "APROBADO"                          # features/solicitudes/recepcion/steps/recepcion_solicitud.py:665
+    Entonces el documento "Pasaporte" debe cambiar a estado "APROBADO"                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:395
+    Y la solicitud permanece en estado "EN_REVISION"                                                      # features/solicitudes/recepcion/steps/recepcion_solicitud.py:682
+    Y se registra la nueva fecha de revision del documento                                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:688
+
+  Escenario: No se puede re-evaluar documentos si la solicitud ya fue enviada a embajada            # features/solicitudes/recepcion/recepcion_solicitud.feature:102
+    Dado que existen los siguientes checklists de documentos por tipo de visa                       # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                                     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud con estado "ENVIADA_EMBAJADA"                                     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:694
+    Y el documento "Pasaporte" tiene estado "APROBADO"                                              # features/solicitudes/recepcion/steps/recepcion_solicitud.py:657
+    Cuando el asesor intenta cambiar la evaluacion del documento "Pasaporte"                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:723
+    Entonces el sistema rechaza la modificacion                                                     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:733
+    Y muestra el mensaje "No se pueden modificar documentos de una solicitud enviada a la embajada" # features/solicitudes/recepcion/steps/recepcion_solicitud.py:739
+
+  Esquema del escenario: Envio exitoso de solicitud aprobada -- @1.1                                 # features/solicitudes/recepcion/recepcion_solicitud.feature:126
+    Dado que existen los siguientes checklists de documentos por tipo de visa                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                                      # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud aprobada de tipo VIVIENDA con embajada ESTADOUNIDENSE con id VVE01 # features/solicitudes/recepcion/steps/recepcion_solicitud.py:460
+    Y el estado de envio es "PENDIENTE"                                                              # features/solicitudes/recepcion/steps/recepcion_solicitud.py:493
+    Cuando el asesor confirma el envio de la solicitud                                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:500
+    Entonces el estado de envio debe cambiar a "ENVIADA_EMBAJADA"                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:512
+    Y el estado de la solicitud debe cambiar a "ESPERANDO_DECISION_EMBAJADA"                         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:770
+    Y el migrante recibe la notificacion "SOLICITUD ENVIADA A EMBAJADA"                              # features/solicitudes/recepcion/steps/recepcion_solicitud.py:520
+
+  Esquema del escenario: Envio exitoso de solicitud aprobada -- @1.2                           # features/solicitudes/recepcion/recepcion_solicitud.feature:127
+    Dado que existen los siguientes checklists de documentos por tipo de visa                  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud aprobada de tipo TRABAJO con embajada BRASILENA con id VTB01 # features/solicitudes/recepcion/steps/recepcion_solicitud.py:460
+    Y el estado de envio es "PENDIENTE"                                                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:493
+    Cuando el asesor confirma el envio de la solicitud                                         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:500
+    Entonces el estado de envio debe cambiar a "ENVIADA_EMBAJADA"                              # features/solicitudes/recepcion/steps/recepcion_solicitud.py:512
+    Y el estado de la solicitud debe cambiar a "ESPERANDO_DECISION_EMBAJADA"                   # features/solicitudes/recepcion/steps/recepcion_solicitud.py:770
+    Y el migrante recibe la notificacion "SOLICITUD ENVIADA A EMBAJADA"                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:520
+
+  Esquema del escenario: Envio exitoso de solicitud aprobada -- @1.3                           # features/solicitudes/recepcion/recepcion_solicitud.feature:128
+    Dado que existen los siguientes checklists de documentos por tipo de visa                  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud aprobada de tipo ESTUDIO con embajada BRASILENA con id VEB01 # features/solicitudes/recepcion/steps/recepcion_solicitud.py:460
+    Y el estado de envio es "PENDIENTE"                                                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:493
+    Cuando el asesor confirma el envio de la solicitud                                         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:500
+    Entonces el estado de envio debe cambiar a "ENVIADA_EMBAJADA"                              # features/solicitudes/recepcion/steps/recepcion_solicitud.py:512
+    Y el estado de la solicitud debe cambiar a "ESPERANDO_DECISION_EMBAJADA"                   # features/solicitudes/recepcion/steps/recepcion_solicitud.py:770
+    Y el migrante recibe la notificacion "SOLICITUD ENVIADA A EMBAJADA"                        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:520
+
+  Esquema del escenario: Embajada aprueba solicitud para agendar entrevista -- @1.1   # features/solicitudes/recepcion/recepcion_solicitud.feature:143
+    Dado que existen los siguientes checklists de documentos por tipo de visa         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                       # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud con estado "ESPERANDO_DECISION_EMBAJADA"            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:694
+    Y la solicitud es de tipo VIVIENDA para embajada ESTADOUNIDENSE                   # features/solicitudes/recepcion/steps/recepcion_solicitud.py:749
+    Cuando la embajada comunica decision "APROBADA" para la solicitud                 # features/solicitudes/recepcion/steps/recepcion_solicitud.py:756
+    Entonces el estado de la solicitud debe cambiar a "APROBADA_EMBAJADA"             # features/solicitudes/recepcion/steps/recepcion_solicitud.py:770
+    Y el migrante recibe la notificacion "Tu solicitud fue aprobada por la embajada"  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:777
+    Y se habilita la opcion de agendar entrevista consular                            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:783
+
+  Esquema del escenario: Embajada aprueba solicitud para agendar entrevista -- @1.2   # features/solicitudes/recepcion/recepcion_solicitud.feature:144
+    Dado que existen los siguientes checklists de documentos por tipo de visa         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                       # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud con estado "ESPERANDO_DECISION_EMBAJADA"            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:694
+    Y la solicitud es de tipo TRABAJO para embajada BRASILENA                         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:749
+    Cuando la embajada comunica decision "APROBADA" para la solicitud                 # features/solicitudes/recepcion/steps/recepcion_solicitud.py:756
+    Entonces el estado de la solicitud debe cambiar a "APROBADA_EMBAJADA"             # features/solicitudes/recepcion/steps/recepcion_solicitud.py:770
+    Y el migrante recibe la notificacion "Tu solicitud fue aprobada por la embajada"  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:777
+    Y se habilita la opcion de agendar entrevista consular                            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:783
+
+  Esquema del escenario: Embajada aprueba solicitud para agendar entrevista -- @1.3   # features/solicitudes/recepcion/recepcion_solicitud.feature:145
+    Dado que existen los siguientes checklists de documentos por tipo de visa         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                       # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud con estado "ESPERANDO_DECISION_EMBAJADA"            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:694
+    Y la solicitud es de tipo ESTUDIO para embajada ESTADOUNIDENSE                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:749
+    Cuando la embajada comunica decision "APROBADA" para la solicitud                 # features/solicitudes/recepcion/steps/recepcion_solicitud.py:756
+    Entonces el estado de la solicitud debe cambiar a "APROBADA_EMBAJADA"             # features/solicitudes/recepcion/steps/recepcion_solicitud.py:770
+    Y el migrante recibe la notificacion "Tu solicitud fue aprobada por la embajada"  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:777
+    Y se habilita la opcion de agendar entrevista consular                            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:783
+
+  Esquema del escenario: Embajada rechaza solicitud -- @1.1                           # features/solicitudes/recepcion/recepcion_solicitud.feature:158
+    Dado que existen los siguientes checklists de documentos por tipo de visa         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                       # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud con estado "ESPERANDO_DECISION_EMBAJADA"            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:694
+    Y la solicitud es de tipo TRABAJO para embajada ESTADOUNIDENSE                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:749
+    Cuando la embajada comunica decision "RECHAZADA" para la solicitud                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:756
+    Entonces el estado de la solicitud debe cambiar a "RECHAZADA_EMBAJADA"            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:770
+    Y el migrante recibe la notificacion "Tu solicitud fue rechazada por la embajada" # features/solicitudes/recepcion/steps/recepcion_solicitud.py:777
+    Y se incluye el motivo del rechazo en la notificacion                             # features/solicitudes/recepcion/steps/recepcion_solicitud.py:789
+    Y NO se puede agendar entrevista consular                                         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:795
+
+  Esquema del escenario: Embajada rechaza solicitud -- @1.2                           # features/solicitudes/recepcion/recepcion_solicitud.feature:159
+    Dado que existen los siguientes checklists de documentos por tipo de visa         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                       # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud con estado "ESPERANDO_DECISION_EMBAJADA"            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:694
+    Y la solicitud es de tipo ESTUDIO para embajada BRASILENA                         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:749
+    Cuando la embajada comunica decision "RECHAZADA" para la solicitud                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:756
+    Entonces el estado de la solicitud debe cambiar a "RECHAZADA_EMBAJADA"            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:770
+    Y el migrante recibe la notificacion "Tu solicitud fue rechazada por la embajada" # features/solicitudes/recepcion/steps/recepcion_solicitud.py:777
+    Y se incluye el motivo del rechazo en la notificacion                             # features/solicitudes/recepcion/steps/recepcion_solicitud.py:789
+    Y NO se puede agendar entrevista consular                                         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:795
+
+  Escenario: No se puede agendar entrevista sin aprobacion de embajada        # features/solicitudes/recepcion/recepcion_solicitud.feature:161
+    Dado que existen los siguientes checklists de documentos por tipo de visa # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud con estado "ENVIADA_EMBAJADA"               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:694
+    Cuando se intenta agendar una entrevista para la solicitud                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:805
+    Entonces el sistema rechaza el agendamiento                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:818
+    Y muestra el mensaje "La embajada aun no ha aprobado la solicitud"        # features/solicitudes/recepcion/steps/recepcion_solicitud.py:739
+
+  Escenario: Solo se puede agendar entrevista con solicitud aprobada por embajada  # features/solicitudes/recepcion/recepcion_solicitud.feature:167
+    Dado que existen los siguientes checklists de documentos por tipo de visa      # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existe una solicitud con estado "APROBADA_EMBAJADA"                   # features/solicitudes/recepcion/steps/recepcion_solicitud.py:694
+    Cuando se intenta agendar una entrevista para la solicitud                     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:805
+    Entonces el sistema permite el agendamiento                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:824
+    Y el estado cambia a "ENTREVISTA_AGENDADA"                                     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:830
+
+  Escenario: Asignacion automatica de solicitud a asesor con disponibilidad   # features/solicitudes/recepcion/recepcion_solicitud.feature:177
+    Dado que existen los siguientes checklists de documentos por tipo de visa # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                               # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que existen los siguientes asesores con solicitudes asignadas hoy    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:531
+      | asesor       | solicitudes_hoy |
+      | Juan Perez   | 8               |
+      | Maria Garcia | 3               |
+      | Carlos Lopez | 5               |
+    Y cada asesor tiene un limite de 10 solicitudes diarias                   # features/solicitudes/recepcion/steps/recepcion_solicitud.py:557
+    Cuando se registra una nueva solicitud                                    # features/solicitudes/recepcion/steps/recepcion_solicitud.py:564
+    Entonces el sistema asigna la solicitud al asesor con menos carga         # features/solicitudes/recepcion/steps/recepcion_solicitud.py:588
+    Y el asesor "Maria Garcia" tiene 4 solicitudes asignadas hoy              # features/solicitudes/recepcion/steps/recepcion_solicitud.py:607
+    Y la solicitud queda en estado "pendiente"                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:616
+
+  Escenario: Error cuando no hay asesores disponibles                          # features/solicitudes/recepcion/recepcion_solicitud.feature:189
+    Dado que existen los siguientes checklists de documentos por tipo de visa  # features/solicitudes/recepcion/steps/recepcion_solicitud.py:223
+      | tipo_visa | documentos_obligatorios                                         |
+      | VIVIENDA  | Pasaporte, Antecedentes penales, Foto, Escritura de propiedad   |
+      | TRABAJO   | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+      | ESTUDIO   | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
+    Y que existen las embajadas                                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:239
+      | nombre         |
+      | ESTADOUNIDENSE |
+      | BRASILENA      |
+    Dado que todos los asesores han alcanzado su limite de solicitudes diarias # features/solicitudes/recepcion/steps/recepcion_solicitud.py:840
+    Cuando se registra una nueva solicitud                                     # features/solicitudes/recepcion/steps/recepcion_solicitud.py:564
+    Entonces la solicitud queda sin asesor asignado                            # features/solicitudes/recepcion/steps/recepcion_solicitud.py:862
+    Y el sistema notifica a los administradores                                # features/solicitudes/recepcion/steps/recepcion_solicitud.py:868
+    Y la solicitud queda en estado "pendiente_asignacion"                      # features/solicitudes/recepcion/steps/recepcion_solicitud.py:616
+

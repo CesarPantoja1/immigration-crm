@@ -137,3 +137,80 @@ Característica: Alertas de entrevistas
     Entonces en el centro de notificaciones del migrante aparece una notificación nueva con
       | tipo                   | id_simulacro |
       | Recomendaciones listas | SIM-001      |
+
+  # =========================================================
+  # NAVEGACIÓN CONTEXTUAL DESDE NOTIFICACIONES (Deep Linking)
+  # =========================================================
+
+  Escenario: Acceso directo a detalles de entrevista desde notificación de agendamiento
+    Dado que la solicitud "SOL-2026-00001" tiene una entrevista programada para "2026-02-15 09:00"
+    Y el migrante recibe la notificación de "Entrevista Agendada"
+    Cuando accedo a la notificación de cita consular asignada
+    Entonces soy redirigido a la vista de entrevista de "SOL-2026-00001"
+    Y visualizo la fecha "15 de febrero de 2026" y hora "09:00" de la cita
+    Y se muestra la dirección del consulado y documentos requeridos para el día
+    Y la notificación queda marcada como leída
+
+  Escenario: Acceso directo desde notificación de reprogramación
+    Dado que la entrevista de "SOL-2026-00001" fue reprogramada de "2026-02-15" a "2026-02-20 10:00"
+    Y el migrante recibe la notificación de "Entrevista Reprogramada"
+    Cuando accedo a la notificación de cambio de fecha
+    Entonces soy redirigido a la vista de entrevista de "SOL-2026-00001"
+    Y visualizo la nueva fecha "20 de febrero de 2026" claramente destacada
+    Y se muestra un comparativo con la fecha anterior tachada
+
+  Escenario: Acceso a preparación desde recordatorio de 24 horas
+    Dado que faltan 24 horas para la entrevista de "SOL-2026-00001"
+    Y el migrante recibe el recordatorio de proximidad de cita
+    Cuando accedo al recordatorio de entrevista próxima
+    Entonces soy redirigido a la vista de entrevista de "SOL-2026-00001"
+    Y visualizo el checklist de preparación con los elementos pendientes
+    Y se destaca la cuenta regresiva "Faltan 24 horas para su cita"
+
+  Escenario: Acceso directo a simulacro confirmado desde notificación
+    Dado que existe un simulacro "SIM-015" confirmado para "SOL-2026-00001"
+    Y el migrante recibe la notificación de "Simulacro Confirmado"
+    Cuando accedo a la notificación de práctica programada
+    Entonces soy redirigido a la vista de detalle del simulacro "SIM-015"
+    Y visualizo la fecha, hora y enlace de videoconferencia del simulacro
+    Y se muestra el botón para unirse a la sesión cuando esté activa
+
+  Escenario: Acceso a propuesta de simulacro pendiente de confirmación
+    Dado que el asesor propuso el simulacro "SIM-016" para "SOL-2026-00001"
+    Y el simulacro está en estado "Propuesto" pendiente de aceptación
+    Cuando accedo a la notificación de "Nueva Propuesta de Simulacro"
+    Entonces soy redirigido a la vista del simulacro "SIM-016"
+    Y visualizo las opciones para "Confirmar" o "Solicitar otro horario"
+    Y se muestran los horarios alternativos disponibles
+
+  Escenario: Acceso directo a feedback de simulacro desde notificación
+    Dado que el simulacro "SIM-001" fue completado y evaluado
+    Y las recomendaciones están publicadas para el migrante
+    Cuando accedo a la notificación de "Recomendaciones Disponibles"
+    Entonces soy redirigido a la vista de recomendaciones del simulacro "SIM-001"
+    Y visualizo el análisis de fortalezas y áreas de mejora
+    Y se muestran las preguntas frecuentes sugeridas para practicar
+
+  # =========================================================
+  # SUPRESIÓN DE NOTIFICACIONES EN FLUJO DE ENTREVISTA
+  # =========================================================
+
+  Escenario: No notificar asignación interna de solicitud al asesor
+    Dado que la solicitud "SOL-2026-00005" está sin asesor asignado
+    Y el buzón del sistema contiene 10 notificaciones totales
+    Cuando el coordinador asigna "SOL-2026-00005" al asesor "Carlos Ruiz"
+    Entonces la asignación se registra en el expediente
+    Y NO se genera notificación al migrante por esta acción administrativa
+    Y el asesor visualiza la solicitud en su bandeja de trabajo
+
+  # =========================================================
+  # MANEJO DE ENLACES INVÁLIDOS EN NOTIFICACIONES
+  # =========================================================
+
+  Escenario: Acceso a notificación de entrevista que ya no existe
+    Dado que la entrevista de "SOL-2026-00010" fue cancelada definitivamente
+    Y existe una notificación antigua de recordatorio para esa entrevista
+    Cuando accedo a la notificación del recordatorio obsoleto
+    Entonces visualizo el mensaje de entrevista cancelada "Esta entrevista fue cancelada"
+    Y se muestra la opción de contactar al asesor para reagendar
+    Y permanezco en el buzón con la notificación marcada como leída

@@ -164,6 +164,12 @@ export default function AdvisorSimulationsPage() {
   const handleUploadTranscription = async () => {
     if (!transcriptionFile || !selectedSimulacro) return
     
+    // Validar que el archivo sea .txt
+    if (!transcriptionFile.name.endsWith('.txt')) {
+      alert('El archivo debe ser de texto (.txt)')
+      return
+    }
+    
     try {
       setUploadingFile(true)
       await simulacrosService.subirTranscripcion(selectedSimulacro.id, transcriptionFile)

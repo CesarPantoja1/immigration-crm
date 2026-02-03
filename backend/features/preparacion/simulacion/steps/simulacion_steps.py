@@ -100,7 +100,7 @@ class ResultadoPractica:
     def obtener_mensaje_motivacional(self) -> str:
         calificacion = self.obtener_calificacion()
         mensajes = {
-            "Excelente": "¡Muy bien! Estás muy preparado",
+            "Excelente": "Muy bien! Estas muy preparado",
             "Bueno": "Buen trabajo, repasa las preguntas incorrectas",
             "Regular": "Necesitas practicar más antes del simulacro real",
             "Insuficiente": "Te recomendamos practicar más antes de la entrevista"
@@ -251,8 +251,14 @@ class GestorSimulacros:
     practicas_individuales: List[SesionPracticaIndividual] = field(default_factory=list)
     max_simulacros: int = 2
     
+    def contar_simulacros_realizados(self) -> int:
+        """Cuenta solo los simulacros COMPLETADOS."""
+        return len([s for s in self.simulacros_con_asesor if s.estado == EstadoSimulacro.COMPLETADO])
+    
     def contar_simulacros_con_asesor(self) -> int:
-        return len(self.simulacros_con_asesor)
+        """Cuenta todos los simulacros activos (confirmados, en progreso o completados)."""
+        estados_activos = [EstadoSimulacro.AGENDADO, EstadoSimulacro.EN_PROGRESO, EstadoSimulacro.COMPLETADO]
+        return len([s for s in self.simulacros_con_asesor if s.estado in estados_activos])
     
     def puede_agendar_simulacro(self) -> tuple:
         contador = self.contar_simulacros_con_asesor()
@@ -276,17 +282,17 @@ class GestorSimulacros:
 # CONFIGURACIÓN DEL SISTEMA
 # ============================================================================
 
-@step(u'que el sistema tiene configurados los siguientes límites:')
+@step(u'que el sistema tiene configurados los siguientes limites')
 def step_configurar_sistema(context):
     context.config_params = {}
     for row in context.table:
-        parametro = row['parámetro']
+        parametro = row['parametro']
         valor = int(row['valor'])
         context.config_params[parametro] = valor
 
-    assert context.config_params['máximo_simulacros_por_cliente'] == 2
-    assert context.config_params['minutos_anticipación_entrada'] == 15
-    assert context.config_params['horas_cancelación_anticipada'] == 24
+    assert context.config_params['maximo_simulacros_por_cliente'] == 2
+    assert context.config_params['minutos_anticipacion_entrada'] == 15
+    assert context.config_params['horas_cancelacion_anticipada'] == 24
 
 
 
@@ -428,7 +434,7 @@ def step_establecer_contador(context, contador):
 
     # Guardar el contador inicial para verificaciones posteriores
     context.contador_inicial = contador
-    assert context.gestor.contar_simulacros_con_asesor() == contador
+    assert context.gestor.contar_simulacros_realizados() == contador
 
 
 @step('mi tipo de visa asignado es "{tipo_visa}"')
@@ -447,7 +453,8 @@ def step_crear_propuesta_tabla(context):
         'Confirmado': EstadoSimulacro.AGENDADO,
         'En sala de espera': EstadoSimulacro.EN_PROGRESO,
         'En progreso': EstadoSimulacro.EN_PROGRESO,
-        'Completado': EstadoSimulacro.COMPLETADO
+        'Completado': EstadoSimulacro.COMPLETADO,
+        'Solicitado': EstadoSimulacro.SOLICITADO if hasattr(EstadoSimulacro, 'SOLICITADO') else EstadoSimulacro.AGENDADO
     }
 
     modalidad = ModalidadSimulacro[row['modalidad'].upper()]
@@ -473,6 +480,8 @@ def step_crear_propuesta_tabla(context):
     context.gestor.simulacros_con_asesor.append(simulacro)
     context.simulacro_actual = simulacro
     context.estado_original = row['estado']
+    # Guardar quién propuso el simulacro (strip para quitar espacios)
+    context.propuesto_por = row.get('propuesto_por', 'asesor').strip()
 
     assert context.simulacro_actual.id == row['id']
 
@@ -747,7 +756,7 @@ def step_consultar_disponibilidad(context):
     elif contador == 1:
         context.mensaje_disponibilidad = "Tiene 1 simulacro disponible restante"
     else:
-        context.mensaje_disponibilidad = "Ha alcanzado el límite de 2 simulacros por proceso"
+        context.mensaje_disponibilidad = "Ha alcanzado el limite de 2 simulacros por proceso"
 
 
 @step('ingreso al simulacro "{id_sim}"')
@@ -757,7 +766,7 @@ def step_ingresar_simulacro(context, id_sim):
     if simulacro and simulacro.horario:
         # Verificar si puede ingresar (15 minutos antes)
         hora_simulacro = datetime.combine(simulacro.horario.fecha, simulacro.horario.hora)
-        minutos_anticipacion = context.config_params.get('minutos_anticipación_entrada', 15)
+        minutos_anticipacion = context.config_params.get('minutos_anticipacion_entrada', 15)
 
         if context.hora_actual >= hora_simulacro - timedelta(minutes=minutos_anticipacion):
             simulacro.estado = EstadoSimulacro.EN_PROGRESO
@@ -855,23 +864,18 @@ def step_cancelar_simulacro(context, id_sim):
 
         # Calcular horas de anticipación
         hora_simulacro = datetime.combine(simulacro.horario.fecha, simulacro.horario.hora)
-        horas_anticipacion = context.config_params.get('horas_cancelación_anticipada', 24)
+        horas_anticipacion = context.config_params.get('horas_cancelacion_anticipada', 24)
         diferencia_horas = (hora_simulacro - context.fecha_actual).total_seconds() / 3600
 
         if diferencia_horas >= horas_anticipacion:
-            # Cancelación sin penalización
+            # Cancelación permitida (más de 24 horas de anticipación)
             simulacro.estado = EstadoSimulacro.CANCELADO
             context.resultado_cancelacion = True
             context.con_penalizacion = False
-        elif diferencia_horas > 0:
-            # Cancelación con penalización
-            simulacro.estado = EstadoSimulacro.CANCELADO
-            context.resultado_cancelacion = True
-            context.con_penalizacion = True
         else:
-            # No permitido
+            # Menos de 24 horas de anticipación - NO permitido
             context.resultado_cancelacion = False
-            context.mensaje_error = "No puedes cancelar con menos de 24 horas de anticipación"
+            context.mensaje_error = "No puedes cancelar con menos de 24 horas de anticipacion"
 
         context.simulacro_actual = simulacro
 
@@ -889,7 +893,8 @@ def step_verificar_cambio_estado(context, estado):
         'Confirmado': EstadoSimulacro.AGENDADO,
         'En progreso': EstadoSimulacro.EN_PROGRESO,
         'Completado': EstadoSimulacro.COMPLETADO,
-        'Pendiente de respuesta': EstadoSimulacro.AGENDADO
+        'Pendiente de respuesta': EstadoSimulacro.AGENDADO,
+        'Cancelado': EstadoSimulacro.CANCELADO
     }
     estado_esperado = estado_map.get(estado, EstadoSimulacro.AGENDADO)
     assert context.simulacro_actual.estado == estado_esperado
@@ -901,7 +906,8 @@ def step_verificar_estado(context, estado):
         'En sala de espera': EstadoSimulacro.EN_PROGRESO,
         'En progreso': EstadoSimulacro.EN_PROGRESO,
         'Completado': EstadoSimulacro.COMPLETADO,
-        'Confirmado': EstadoSimulacro.AGENDADO
+        'Confirmado': EstadoSimulacro.AGENDADO,
+        'Cancelado': EstadoSimulacro.CANCELADO
     }
     estado_esperado = estado_map.get(estado, EstadoSimulacro.AGENDADO)
     assert context.simulacro_actual.estado == estado_esperado
@@ -920,9 +926,9 @@ def step_verificar_incremento_contador(context, contador):
 
 @step('mi contador de simulacros debe permanecer en {contador:d}')
 def step_verificar_contador_permanece(context, contador):
-    # Verificar que el contador no ha cambiado desde el valor inicial
-    # En el caso de contrapropuesta, el contador no debería aumentar
-    assert context.gestor.contar_simulacros_con_asesor() == contador
+    # Verificar que el contador de simulacros REALIZADOS no ha cambiado
+    # En el caso de cancelación o contrapropuesta, el contador no debería aumentar
+    assert context.gestor.contar_simulacros_realizados() == contador
 
 
 @step('la fecha propuesta debe ser "{fecha}"')
@@ -1204,3 +1210,186 @@ def step_simulacro_creado_correctamente(context, estado):
 def step_sistema_rechaza_solicitud(context):
     """Verifica que la solicitud fue rechazada."""
     assert context.solicitud_exitosa == False
+
+
+# ==============================================================================
+# STEPS ADICIONALES SIN ACENTOS
+# ==============================================================================
+
+@step('muestra el mensaje "No puedes aceptar una propuesta que tu mismo creaste"')
+def step_muestra_mensaje_propuesta_propia(context):
+    """Verifica el mensaje de error para propuesta propia."""
+    assert context.mensaje_error == "No puedes aceptar una propuesta que tu mismo creaste"
+
+
+@step('muestra el mensaje "Solo puede solicitar un simulacro cuando su solicitud haya sido aprobada por la embajada o cuando la entrevista este agendada"')
+def step_muestra_mensaje_solicitud_no_aprobada(context):
+    """Verifica el mensaje de error para solicitud no aprobada."""
+    assert context.mensaje_error == "Solo puede solicitar un simulacro cuando su solicitud haya sido aprobada por la embajada o cuando la entrevista este agendada"
+
+
+@step('el simulacro esta programado para "{hora}"')
+def step_simulacro_programado_para(context, hora):
+    """Verifica la hora programada del simulacro (sin acentos)."""
+    hora_parts = hora.split(':')
+    hora_programada = time(int(hora_parts[0]), int(hora_parts[1]))
+    assert context.simulacro_actual.horario.hora == hora_programada
+
+
+@step('el asesor "{asesor}" inicia la sesion del simulacro "{id_sim}"')
+def step_asesor_inicia_sesion_sin_acentos(context, asesor, id_sim):
+    """El asesor inicia la sesión del simulacro (sin acentos)."""
+    simulacro = next((s for s in context.gestor.simulacros_con_asesor if s.id == id_sim), None)
+    if simulacro:
+        exito, mensaje = simulacro.iniciar_sesion()
+        context.simulacro_actual = simulacro
+        context.grabacion_activa = True
+        context.temporizador = 0
+
+
+@step('la grabacion debe estar activa')
+def step_verificar_grabacion_activa_sin_acento(context):
+    """Verifica que la grabación está activa (sin acento)."""
+    assert context.grabacion_activa == True
+
+
+@step('estoy en sesion activa del simulacro "{id_sim}"')
+def step_establecer_sesion_activa_sin_acento(context, id_sim):
+    """Establece una sesión activa del simulacro (sin acento)."""
+    simulacro = next((s for s in context.gestor.simulacros_con_asesor if s.id == id_sim), None)
+
+    if simulacro is None:
+        simulacro = SimulacroConAsesor(
+            id=id_sim,
+            migrante_id=context.migrante_id,
+            migrante_nombre=context.migrante_nombre,
+            asesor_id="ASESOR-001",
+            fecha_cita_real=context.gestor.fecha_cita_real,
+            modalidad=ModalidadSimulacro.VIRTUAL,
+            horario=HorarioSimulacro(
+                fecha=date(2026, 2, 10),
+                hora=time(15, 0)
+            )
+        )
+        context.gestor.simulacros_con_asesor.append(simulacro)
+
+    simulacro.estado = EstadoSimulacro.EN_PROGRESO
+    context.simulacro_actual = simulacro
+    context.grabacion_activa = True
+
+
+@step('la grabacion esta activa')
+def step_verificar_grabacion_esta_activa(context):
+    """Verifica que la grabación está activa (given sin acento)."""
+    context.grabacion_activa = True
+    assert context.grabacion_activa == True
+
+
+@step('la duracion registrada debe ser {minutos:d} minutos')
+def step_verificar_duracion_registrada_sin_acento(context, minutos):
+    """Verifica la duración registrada (sin acento)."""
+    assert context.duracion_minutos == minutos
+
+
+@step('la grabacion debe estar detenida')
+def step_verificar_grabacion_detenida_sin_acento(context):
+    """Verifica que la grabación está detenida (sin acento)."""
+    assert context.grabacion_activa == False
+
+
+@step('nunca he accedido a "Practica Individual"')
+def step_establecer_primer_acceso_sin_acento(context):
+    """Establece que nunca ha accedido a práctica individual (sin acento)."""
+    context.ha_accedido_practica = False
+
+
+@step('accedo a la seccion de practica individual')
+def step_acceder_practica_individual_sin_acento(context):
+    """Accede a la sección de práctica individual (sin acentos)."""
+    context.tipos_visa_disponibles = [
+        {"tipo": TipoVisado.ESTUDIANTE, "estado": "Sugerido"},
+        {"tipo": TipoVisado.TRABAJO, "estado": "Disponible"},
+        {"tipo": TipoVisado.TURISMO, "estado": "Disponible"},
+        {"tipo": TipoVisado.VIVIENDA, "estado": "Disponible"}
+    ]
+    context.ha_accedido_practica = True
+
+
+@step('inicie un cuestionario de practica para visa "{tipo_visa}"')
+def step_iniciar_cuestionario_sin_acento(context, tipo_visa):
+    """Inicia un cuestionario de práctica (sin acento)."""
+    tipo_visado = TipoVisado[tipo_visa.upper()]
+    context.sesion_practica = context.gestor.iniciar_practica_individual(tipo_visado)
+    assert context.sesion_practica is not None
+
+
+@step('mi puntuacion debe ser {porcentaje:d}')
+def step_verificar_puntuacion_sin_acento(context, porcentaje):
+    """Verifica la puntuación (sin acento)."""
+    puntuacion_obtenida = context.resultado_practica.calcular_porcentaje()
+    assert abs(puntuacion_obtenida - porcentaje) <= 1, f"Esperado: {porcentaje}, Obtenido: {puntuacion_obtenida}"
+
+
+@step('la calificacion debe ser "{calificacion}"')
+def step_verificar_calificacion_sin_acento(context, calificacion):
+    """Verifica la calificación (sin acento)."""
+    calificacion_obtenida = context.resultado_practica.obtener_calificacion()
+    assert calificacion_obtenida == calificacion
+
+
+@step('complete un cuestionario con {incorrectas:d} respuestas incorrectas')
+def step_completar_cuestionario_incorrectas_sin_acento(context, incorrectas):
+    """Completa un cuestionario con respuestas incorrectas (sin acento)."""
+    tipo_visado = TipoVisado.ESTUDIANTE
+    context.sesion_practica = context.gestor.iniciar_practica_individual(tipo_visado)
+
+    total_preguntas = len(context.sesion_practica.preguntas)
+    correctas = total_preguntas - incorrectas
+
+    indices_incorrectas = list(range(correctas, total_preguntas))
+
+    for i in range(total_preguntas):
+        pregunta = context.sesion_practica.preguntas[i]
+
+        if i in indices_incorrectas:
+            indice_correcto = pregunta.respuesta_correcta
+            num_respuestas = len(pregunta.respuestas)
+            indice_respuesta = (indice_correcto + 1) % num_respuestas
+        else:
+            indice_respuesta = pregunta.respuesta_correcta
+
+        context.sesion_practica.responder_pregunta(indice_respuesta, tiempo_segundos=30)
+
+    context.resultado_practica = context.sesion_practica.finalizar_practica()
+
+    context.preguntas_incorrectas = []
+    for i, respuesta in enumerate(context.sesion_practica.respuestas):
+        if not respuesta.es_correcta:
+            pregunta_obj = context.sesion_practica.preguntas[i]
+            pregunta_incorrecta = PreguntaIncorrecta(
+                pregunta=pregunta_obj,
+                indice_respuesta_usuario=respuesta.respuesta_seleccionada,
+                explicacion=pregunta_obj.explicacion
+            )
+            context.preguntas_incorrectas.append(pregunta_incorrecta)
+
+    assert len(context.preguntas_incorrectas) == incorrectas
+
+
+@step('cada pregunta debe incluir una explicacion')
+def step_verificar_explicaciones_sin_acento(context):
+    """Verifica que cada pregunta incluye una explicación (sin acento)."""
+    for pregunta_inc in context.preguntas_incorrectas:
+        assert pregunta_inc.explicacion is not None and pregunta_inc.explicacion != ""
+
+
+@step('la cancelacion debe ser rechazada')
+def step_verificar_cancelacion_rechazada_sin_acento(context):
+    """Verifica que la cancelación fue rechazada (sin acento)."""
+    assert context.resultado_cancelacion == False, f"Se esperaba False pero se obtuvo {context.resultado_cancelacion}"
+
+
+@step('la cancelacion debe ser aceptada')
+def step_verificar_cancelacion_aceptada_sin_acento(context):
+    """Verifica que la cancelación fue aceptada (sin acento)."""
+    assert context.resultado_cancelacion == True
