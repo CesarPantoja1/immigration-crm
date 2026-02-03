@@ -79,8 +79,10 @@ export default function AdvisorSimulationsPage() {
         time: c.hora,
         visaType: c.solicitud_tipo || 'Visa',
         solicitudId: c.solicitud_id,
+        codigo: c.codigo || `SIM-${c.id}`,
         hasTranscription: c.tiene_transcripcion,
         hasRecommendation: c.tiene_recomendacion,
+        puedeGenerarIA: c.puede_generar_ia,  // NUEVO: usar campo del backend
         feedbackStatus: c.estado_feedback || 'pendiente',
         analysisComplete: c.analisis_ia_completado,
         clientAvatar: getInitials(c.cliente_nombre || 'C'),
@@ -174,20 +176,13 @@ export default function AdvisorSimulationsPage() {
       setUploadingFile(true)
       await simulacrosService.subirTranscripcion(selectedSimulacro.id, transcriptionFile)
       
-      // Actualizar el estado local inmediatamente para mostrar el botón de IA
-      const simId = selectedSimulacro.id
-      setCompletedSimulations(prev => prev.map(sim => 
-        sim.id === simId 
-          ? { ...sim, hasTranscription: true, feedbackStatus: 'pendiente' } 
-          : sim
-      ))
-      
       setShowTranscriptionModal(false)
       setSelectedSimulacro(null)
       setTranscriptionFile(null)
       
-      // Nota: NO llamamos fetchSimulationsData() inmediatamente para evitar sobrescribir
-      // el estado local antes de que el usuario pueda ver el botón de IA
+      // IMPORTANTE: Siempre refrescar datos del backend para obtener el estado real
+      // El backend determina si puede_generar_ia basándose en la lógica de negocio
+      await fetchSimulationsData()
     } catch (error) {
       console.error('Error uploading transcription:', error)
       alert('Error al subir la transcripción. Asegúrese de que el archivo sea .txt')
@@ -435,12 +430,12 @@ export default function AdvisorSimulationsPage() {
                   <p className="font-semibold text-gray-900">{sim.client}</p>
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <span>{sim.visaType}</span>
-                    {sim.solicitudId && (
+                    {sim.codigo && (
                       <span className="flex items-center gap-1 text-xs bg-gray-100 px-2 py-0.5 rounded">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        SOL-{sim.solicitudId}
+                        {sim.codigo}
                       </span>
                     )}
                   </div>
@@ -484,12 +479,12 @@ export default function AdvisorSimulationsPage() {
                   <p className="font-semibold text-gray-900">{sim.client}</p>
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <span>{sim.visaType}</span>
-                    {sim.solicitudId && (
+                    {sim.codigo && (
                       <span className="flex items-center gap-1 text-xs bg-gray-100 px-2 py-0.5 rounded">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        SOL-{sim.solicitudId}
+                        {sim.codigo}
                       </span>
                     )}
                   </div>
@@ -529,7 +524,8 @@ export default function AdvisorSimulationsPage() {
                       Subir Transcripción
                     </Button>
                   )}
-                  {sim.hasTranscription && sim.feedbackStatus === 'pendiente' && (
+                  {/* CORREGIDO: Usar puede_generar_ia del backend en lugar de lógica local */}
+                  {sim.puedeGenerarIA && (
                     <Button 
                       size="sm"
                       onClick={() => handleGenerateIA(sim.id)}

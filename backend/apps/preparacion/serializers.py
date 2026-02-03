@@ -23,6 +23,10 @@ class SimulacroListSerializer(serializers.ModelSerializer):
     # Campo para saber quién propuso el simulacro (reglas de roles)
     propuesto_por = serializers.CharField(read_only=True)
     puede_aceptar = serializers.SerializerMethodField()
+    # Campo para saber si tiene recomendaciones IA generadas
+    tiene_recomendaciones = serializers.SerializerMethodField()
+    # Código del simulacro (SIM-xxx)
+    codigo = serializers.SerializerMethodField()
 
     class Meta:
         model = Simulacro
@@ -31,7 +35,7 @@ class SimulacroListSerializer(serializers.ModelSerializer):
             'estado', 'estado_display', 'cliente_nombre', 'asesor_nombre',
             'ubicacion', 'puede_cancelar', 'puede_ingresar', 'created_at',
             'fecha_propuesta', 'hora_propuesta', 'solicitud_tipo', 'solicitud_id',
-            'propuesto_por', 'puede_aceptar'
+            'propuesto_por', 'puede_aceptar', 'tiene_recomendaciones', 'codigo'
         ]
     
     def get_cliente_nombre(self, obj):
@@ -61,6 +65,14 @@ class SimulacroListSerializer(serializers.ModelSerializer):
     
     def get_solicitud_id(self, obj):
         return obj.solicitud_id if obj.solicitud_id else None
+    
+    def get_tiene_recomendaciones(self, obj):
+        """Solo True si la recomendación IA fue generada exitosamente."""
+        return hasattr(obj, 'recomendacion') and obj.recomendacion.estado_feedback == 'generado'
+    
+    def get_codigo(self, obj):
+        """Genera el código del simulacro en formato SIM-xxx."""
+        return f"SIM-{obj.id:03d}"
 
     def get_puede_aceptar(self, obj):
         """
@@ -124,10 +136,12 @@ class SimulacroDetailSerializer(serializers.ModelSerializer):
         return obj.asesor.nombre_completo() if obj.asesor else None
     
     def get_tiene_recomendacion(self, obj):
-        return hasattr(obj, 'recomendacion')
+        """Solo True si la recomendación IA fue generada exitosamente."""
+        return hasattr(obj, 'recomendacion') and obj.recomendacion.estado_feedback == 'generado'
     
     def get_tiene_recomendaciones(self, obj):
-        return hasattr(obj, 'recomendacion')
+        """Alias de tiene_recomendacion - Solo True si la IA generó las recomendaciones."""
+        return hasattr(obj, 'recomendacion') and obj.recomendacion.estado_feedback == 'generado'
     
     def get_solicitud_tipo(self, obj):
         if obj.solicitud:
@@ -251,16 +265,18 @@ class SimulacroCompletadoSerializer(serializers.ModelSerializer):
     cliente_nombre = serializers.SerializerMethodField()
     tiene_transcripcion = serializers.SerializerMethodField()
     tiene_recomendacion = serializers.SerializerMethodField()
+    puede_generar_ia = serializers.SerializerMethodField()
     estado_feedback = serializers.SerializerMethodField()
     solicitud_tipo = serializers.SerializerMethodField()
     solicitud_id = serializers.SerializerMethodField()
     recomendacion_id = serializers.SerializerMethodField()
+    codigo = serializers.SerializerMethodField()
     
     class Meta:
         model = Simulacro
         fields = [
-            'id', 'fecha', 'hora', 'cliente_nombre', 'solicitud_tipo', 'solicitud_id',
-            'tiene_transcripcion', 'tiene_recomendacion', 'estado_feedback',
+            'id', 'codigo', 'fecha', 'hora', 'cliente_nombre', 'solicitud_tipo', 'solicitud_id',
+            'tiene_transcripcion', 'tiene_recomendacion', 'puede_generar_ia', 'estado_feedback',
             'analisis_ia_completado', 'fecha_fin', 'created_at', 'recomendacion_id'
         ]
     
@@ -268,10 +284,30 @@ class SimulacroCompletadoSerializer(serializers.ModelSerializer):
         return obj.cliente.nombre_completo() if obj.cliente else None
     
     def get_tiene_transcripcion(self, obj):
-        return bool(obj.transcripcion_texto or obj.transcripcion_archivo)
+        """Usa el método del modelo para validar transcripción."""
+        return obj.tiene_transcripcion()
     
     def get_tiene_recomendacion(self, obj):
-        return hasattr(obj, 'recomendacion')
+        """Solo True si la recomendación IA fue generada exitosamente."""
+        return hasattr(obj, 'recomendacion') and obj.recomendacion.estado_feedback == 'generado'
+    
+    def get_puede_generar_ia(self, obj):
+        """
+        Determina si se puede generar recomendaciones con IA.
+        Requiere: transcripción válida + NO tener recomendación ya generada.
+        """
+        # Verificar transcripción usando método del modelo
+        if not obj.tiene_transcripcion():
+            return False
+        
+        # Verificar que no tenga recomendación ya generada
+        if hasattr(obj, 'recomendacion'):
+            rec = obj.recomendacion
+            # Si ya está generado o generando, no se puede volver a generar
+            if rec.estado_feedback in ['generado', 'generando']:
+                return False
+        
+        return True
     
     def get_estado_feedback(self, obj):
         if hasattr(obj, 'recomendacion'):
@@ -290,6 +326,10 @@ class SimulacroCompletadoSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'recomendacion'):
             return obj.recomendacion.id
         return None
+    
+    def get_codigo(self, obj):
+        """Genera el código del simulacro en formato SIM-xxx."""
+        return f"SIM-{obj.id:03d}"
 
 
 class RecomendacionIASerializer(serializers.ModelSerializer):

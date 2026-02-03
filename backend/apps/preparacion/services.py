@@ -357,10 +357,14 @@ class RecomendacionService:
     @staticmethod
     def crear_o_actualizar(simulacro: Simulacro, datos: dict) -> Recomendacion:
         """Crea o actualiza una recomendación para un simulacro."""
+        # IMPORTANTE: estado_feedback solo debe ser 'generado' si viene explícitamente
+        # Por defecto usamos 'pendiente' para no interferir con el flujo de IA
+        estado = datos.get('estado_feedback', 'pendiente')
+        
         recomendacion, created = Recomendacion.objects.update_or_create(
             simulacro=simulacro,
             defaults={
-                'estado_feedback': 'generado',
+                'estado_feedback': estado,
                 'claridad': datos.get('claridad', 'medio'),
                 'coherencia': datos.get('coherencia', 'medio'),
                 'seguridad': datos.get('seguridad', 'medio'),

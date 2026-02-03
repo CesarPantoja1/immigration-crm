@@ -75,6 +75,7 @@ export default function SimulationsPage() {
         modality: s.modalidad || 'virtual',
         visaType: s.solicitud_tipo || 'Entrevista',
         solicitudId: s.solicitud_id,
+        codigo: s.codigo || `SIM-${s.id}`,
         status: 'pending',
         location: s.ubicacion,
         // Campos para reglas de roles (simulacion_entrevista.feature)
@@ -93,6 +94,7 @@ export default function SimulationsPage() {
           modality: s.modalidad || 'virtual',
           visaType: s.solicitud_tipo || 'Entrevista',
           solicitudId: s.solicitud_id,
+          codigo: s.codigo || `SIM-${s.id}`,
           status: 'confirmed',
           hoursUntil: Math.max(0, Math.round(horasRestantes)),
           location: s.ubicacion
@@ -107,6 +109,7 @@ export default function SimulationsPage() {
         modality: s.modalidad || 'virtual',
         visaType: s.solicitud_tipo || 'Entrevista',
         solicitudId: s.solicitud_id,
+        codigo: s.codigo || `SIM-${s.id}`,
         duration: s.duracion_minutos ? `${s.duracion_minutos} min` : '-',
         feedbackStatus: s.tiene_recomendaciones ? 'received' : 'pending'
       })))
@@ -382,12 +385,12 @@ export default function SimulationsPage() {
                       <div className="flex gap-2 mt-3">
                         <Badge variant="primary">{proposal.modality}</Badge>
                         <Badge variant="info">{proposal.visaType}</Badge>
-                        {proposal.solicitudId && (
+                        {proposal.codigo && (
                           <Badge variant="secondary" className="flex items-center gap-1">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
-                            SOL-{proposal.solicitudId}
+                            {proposal.codigo}
                           </Badge>
                         )}
                       </div>
@@ -499,12 +502,12 @@ export default function SimulationsPage() {
                         <div className="flex flex-wrap gap-2 mt-3">
                           <ModalityBadge modality={simulation.modality} />
                           <Badge variant="info">{simulation.visaType}</Badge>
-                          {simulation.solicitudId && (
+                          {simulation.codigo && (
                             <Badge variant="secondary" className="flex items-center gap-1">
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
-                              SOL-{simulation.solicitudId}
+                              {simulation.codigo}
                             </Badge>
                           )}
                         </div>
@@ -584,12 +587,12 @@ export default function SimulationsPage() {
                       <div className="flex flex-wrap gap-2 mt-2">
                         <ModalityBadge modality={simulation.modality} />
                         <Badge variant="info">{simulation.visaType}</Badge>
-                        {simulation.solicitudId && (
+                        {simulation.codigo && (
                           <Badge variant="secondary" className="flex items-center gap-1">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
-                            SOL-{simulation.solicitudId}
+                            {simulation.codigo}
                           </Badge>
                         )}
                       </div>

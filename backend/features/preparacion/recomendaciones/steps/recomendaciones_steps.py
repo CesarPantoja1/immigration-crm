@@ -3,180 +3,53 @@
 Steps para los escenarios de Generacion de Recomendaciones.
 Implementacion de los pasos BDD definidos en generacion_recomendaciones.feature
 
-Los objetos de dominio se definen como dataclasses locales para testing.
-Valida la logica de negocio sin conexion a base de datos.
+Usa los modelos Django REALES instanciados sin persistencia en base de datos.
+Valida la logica de negocio pura (POO) sin conexion a base de datos.
 """
+import os
+import sys
+
+# Configurar Django ANTES de importar modelos
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.testing')
+
+import django
+django.setup()
+
 from behave import given, when, then, step, use_step_matcher
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional
 from datetime import date, time
+from typing import Dict, Optional
+
+# Importar modelos REALES de Django
+from apps.usuarios.models import Usuario
+from apps.preparacion.models import Simulacro, Recomendacion, ConfiguracionIA
+from apps.notificaciones.models import Notificacion
 
 use_step_matcher("parse")
 
 
 # ==============================================================================
-# OBJETOS DE DOMINIO PARA TESTING (dataclasses locales)
-# Mapean a los modelos Django existentes
+# SERVICIOS DE LÓGICA DE NEGOCIO PARA TESTING
+# Estos servicios simulan la lógica que normalmente iría al backend
+# pero sin tocar la base de datos
 # ==============================================================================
 
-@dataclass
-class Usuario:
-    """Representa un usuario - mapea a apps.usuarios.models.Usuario"""
-    id: int = 0
-    email: str = ""
-    first_name: str = ""
-    last_name: str = ""
-    rol: str = "cliente"
-    is_active: bool = True
-    
-    def nombre_completo(self) -> str:
-        return f"{self.first_name} {self.last_name}"
-
-
-@dataclass
-class Simulacro:
-    """Representa un simulacro - mapea a apps.preparacion.models.Simulacro"""
-    id: int = 0
-    codigo: str = ""
-    cliente: Usuario = None
-    asesor: Usuario = None
-    fecha: date = None
-    hora: time = None
-    estado: str = "completado"
-    modalidad: str = "virtual"
-    transcripcion_texto: str = ""
-    transcripcion_archivo: str = ""
-    tiene_recomendaciones: bool = False
-    
-    def tiene_transcripcion(self) -> bool:
-        return bool(self.transcripcion_texto and len(self.transcripcion_texto.strip()) >= 50)
-
-
-@dataclass
-class ConfiguracionIA:
-    """Representa configuracion de IA - mapea a apps.preparacion.models.ConfiguracionIA"""
-    id: int = 0
-    asesor: Usuario = None
-    api_key: str = ""
-    modelo: str = "gemini-2.0-flash"
-    activo: bool = True
-    
-    def esta_configurada(self) -> bool:
-        return bool(self.api_key and self.activo)
-
-
-@dataclass
-class Recomendacion:
-    """Representa una recomendacion - mapea a apps.preparacion.models.Recomendacion"""
-    id: int = 0
-    simulacro: Simulacro = None
-    estado_feedback: str = "pendiente"
-    
-    # Indicadores de desempeno
-    claridad: str = "medio"
-    coherencia: str = "medio"
-    seguridad: str = "medio"
-    pertinencia: str = "medio"
-    
-    # Nivel global
-    nivel_preparacion: str = "medio"
-    
-    # Contenido estructurado
-    fortalezas: List[Dict] = field(default_factory=list)
-    puntos_mejora: List[Dict] = field(default_factory=list)
-    recomendaciones: List[Dict] = field(default_factory=list)
-    
-    # Accion sugerida
-    accion_sugerida: str = ""
-    resumen_ejecutivo: str = ""
-    publicada: bool = False
-    
-    def calcular_nivel_preparacion(self) -> str:
-        """Calcula el nivel de preparacion basado en los indicadores."""
-        niveles = {'bajo': 1, 'medio': 2, 'alto': 3}
-        indicadores = [self.claridad, self.coherencia, self.seguridad, self.pertinencia]
-        promedio = sum(niveles.get(i.lower(), 2) for i in indicadores) / len(indicadores)
-        
-        if promedio >= 2.5:
-            return 'alto'
-        elif promedio >= 1.5:
-            return 'medio'
-        return 'bajo'
-    
-    def obtener_accion_sugerida(self) -> str:
-        """Obtiene la accion sugerida segun el nivel de preparacion."""
-        acciones = {
-            'bajo': 'Realizar un nuevo simulacro con asesor',
-            'medio': 'Reforzar los puntos de mejora identificados',
-            'alto': 'Mantener el plan actual de preparacion'
-        }
-        return acciones.get(self.nivel_preparacion, acciones['medio'])
-
-
-@dataclass
-class Notificacion:
-    """Representa una notificacion"""
-    id: int = 0
-    usuario: Usuario = None
-    mensaje: str = ""
-    leida: bool = False
-
-
-# ==============================================================================
-# SERVICIOS DE LOGICA DE NEGOCIO
-# ==============================================================================
-
-class TranscripcionService:
-    """Servicio para validar y procesar transcripciones."""
-    
-    EXTENSION_VALIDA = '.txt'
-    MIN_CARACTERES = 50
+class GeneradorRecomendacionesService:
+    """
+    Servicio para generar recomendaciones con IA (simulado para testing).
+    En producción esto usaría el servicio real de IA.
+    """
     
     @staticmethod
-    def validar_archivo(nombre_archivo: str) -> tuple:
-        """Valida que el archivo sea .txt"""
-        if not nombre_archivo.endswith(TranscripcionService.EXTENSION_VALIDA):
-            return False, "El archivo debe ser de texto (.txt)"
-        return True, None
-    
-    @staticmethod
-    def validar_contenido(contenido: str) -> tuple:
-        """Valida que el contenido tenga minimo 50 caracteres."""
-        if len(contenido.strip()) < TranscripcionService.MIN_CARACTERES:
-            return False, f"La transcripcion es muy corta (minimo {TranscripcionService.MIN_CARACTERES} caracteres)"
-        return True, None
-    
-    @staticmethod
-    def procesar_transcripcion(contenido: str) -> dict:
-        """Procesa la transcripcion y retorna estadisticas."""
-        return {
-            'caracteres': len(contenido),
-            'lineas': len(contenido.split('\n'))
-        }
-
-
-class RecomendacionIAService:
-    """Servicio para generar recomendaciones con IA."""
-    
-    @staticmethod
-    def validar_configuracion(config: ConfiguracionIA) -> tuple:
-        """Valida que el asesor tenga API key configurada."""
-        if not config or not config.esta_configurada():
-            return False, "No se ha configurado una API key de IA valida. Por favor, configura tu API key de Gemini."
-        return True, None
-    
-    @staticmethod
-    def validar_transcripcion(simulacro: Simulacro) -> tuple:
-        """Valida que el simulacro tenga transcripcion."""
-        if not simulacro.tiene_transcripcion():
-            return False, f"No es posible generar recomendaciones: la transcripcion del simulacro {simulacro.codigo} no esta disponible"
-        return True, None
-    
-    @staticmethod
-    def generar_recomendacion(simulacro: Simulacro) -> Recomendacion:
-        """Genera una recomendacion con IA (simulado para testing)."""
+    def generar_recomendacion_simulada(simulacro: Simulacro) -> Recomendacion:
+        """
+        Genera una recomendación simulada para testing.
+        Simula lo que haría la IA real.
+        """
         recomendacion = Recomendacion(
-            id=1,
             simulacro=simulacro,
             estado_feedback='generado',
             claridad='alto',
@@ -211,48 +84,74 @@ class RecomendacionIAService:
             accion_sugerida='Reforzar los puntos de mejora identificados',
             publicada=True
         )
+        # Calcular nivel basado en indicadores
         recomendacion.nivel_preparacion = recomendacion.calcular_nivel_preparacion()
         return recomendacion
 
 
-class PDFService:
-    """Servicio para descargar PDF de recomendaciones."""
-    
-    @staticmethod
-    def validar_descarga(simulacro: Simulacro, tiene_recomendaciones: bool) -> tuple:
-        """Valida que el simulacro tenga recomendaciones para descargar."""
-        if not tiene_recomendaciones:
-            return False, "Este simulacro no tiene recomendaciones"
-        return True, None
-
-
 # ==============================================================================
-# HELPERS
+# HELPERS PARA CREAR INSTANCIAS DE MODELOS (SIN PERSISTIR EN BD)
 # ==============================================================================
 
 def crear_usuario(id: int, nombre: str, apellido: str, rol: str) -> Usuario:
-    """Helper para crear usuarios de prueba."""
-    return Usuario(
+    """
+    Crea una instancia de Usuario sin guardar en BD.
+    Usa el modelo REAL de Django.
+    """
+    usuario = Usuario(
         id=id,
         email=f"{nombre.lower().replace(' ', '.')}@test.com",
         first_name=nombre,
         last_name=apellido,
-        rol=rol
+        rol=rol,
+        is_active=True
     )
+    return usuario
 
 
-def crear_simulacro(id: int, codigo: str, asesor: Usuario, cliente: Usuario, estado: str = 'completado') -> Simulacro:
-    """Helper para crear simulacros de prueba."""
-    return Simulacro(
+def crear_simulacro(
+    id: int, 
+    codigo: str, 
+    asesor: Usuario, 
+    cliente: Usuario, 
+    estado: str = 'completado'
+) -> Simulacro:
+    """
+    Crea una instancia de Simulacro sin guardar en BD.
+    Usa el modelo REAL de Django.
+    """
+    # Nota: Para testing sin BD, asignamos el ID manualmente
+    # y usamos los objetos relacionados directamente
+    simulacro = Simulacro(
         id=id,
-        codigo=codigo,
-        asesor=asesor,
-        cliente=cliente,
         fecha=date.today(),
         hora=time(10, 0),
-        estado=estado,
-        modalidad='virtual'
+        modalidad='virtual',
+        estado=estado
     )
+    # Asignamos las relaciones directamente (sin FK real)
+    simulacro._cliente = cliente
+    simulacro._asesor = asesor
+    simulacro._codigo = codigo
+    
+    return simulacro
+
+
+def crear_configuracion_ia(asesor: Usuario, con_api_key: bool = True) -> Optional[ConfiguracionIA]:
+    """
+    Crea una instancia de ConfiguracionIA sin guardar en BD.
+    """
+    if not con_api_key:
+        return None
+    
+    config = ConfiguracionIA(
+        id=1,
+        api_key='test-api-key-12345' if con_api_key else '',
+        modelo='gemini-2.0-flash',
+        activo=True
+    )
+    config._asesor = asesor
+    return config
 
 
 # ==============================================================================
@@ -262,11 +161,11 @@ def crear_simulacro(id: int, codigo: str, asesor: Usuario, cliente: Usuario, est
 @step("que el asesor tiene simulacros completados")
 def step_asesor_tiene_simulacros(context):
     """Configura los simulacros completados segun la tabla."""
-    context.asesores = {}
-    context.clientes = {}
-    context.simulacros = {}
-    context.configuraciones_ia = {}
-    context.recomendaciones = {}
+    context.asesores: Dict[str, Usuario] = {}
+    context.clientes: Dict[str, Usuario] = {}
+    context.simulacros: Dict[str, Simulacro] = {}
+    context.configuraciones_ia: Dict[str, ConfiguracionIA] = {}
+    context.recomendaciones: Dict[str, Recomendacion] = {}
     
     user_id = 1
     sim_id = 1
@@ -293,7 +192,7 @@ def step_asesor_tiene_simulacros(context):
             )
             user_id += 1
         
-        # Crear simulacro
+        # Crear simulacro usando el modelo REAL
         simulacro = crear_simulacro(
             sim_id, codigo,
             context.asesores[nombre_asesor],
@@ -305,7 +204,7 @@ def step_asesor_tiene_simulacros(context):
 
 
 # ==============================================================================
-# SUBIR TRANSCRIPCION
+# FLUJO DEL ASESOR: SUBIR TRANSCRIPCION
 # ==============================================================================
 
 @step('que el asesor "{nombre_asesor}" tiene un simulacro completado con "{nombre_cliente}"')
@@ -316,19 +215,20 @@ def step_asesor_tiene_simulacro_con_cliente(context, nombre_asesor, nombre_clien
     
     # Buscar el simulacro correspondiente
     for codigo, sim in context.simulacros.items():
-        if sim.asesor == context.asesor_actual and sim.cliente == context.cliente_actual:
+        if sim._asesor == context.asesor_actual and sim._cliente == context.cliente_actual:
             context.simulacro_actual = sim
             break
     
     assert context.simulacro_actual is not None, "No se encontro simulacro"
-    assert context.simulacro_actual.estado == 'completado', "El simulacro no esta completado"
+    # Usar el método REAL del modelo
+    assert context.simulacro_actual.esta_completado(), "El simulacro no esta completado"
 
 
 @step('sube el archivo "{nombre_archivo}" con la conversacion del simulacro')
 def step_sube_archivo_txt(context, nombre_archivo):
     """El asesor sube un archivo .txt de transcripcion."""
-    # Validar extension
-    valido, error = TranscripcionService.validar_archivo(nombre_archivo)
+    # Usar el método REAL del modelo Simulacro para validar extensión
+    valido, error = Simulacro.validar_extension_archivo(nombre_archivo)
     
     if not valido:
         context.upload_exitoso = False
@@ -345,16 +245,18 @@ def step_sube_archivo_txt(context, nombre_archivo):
     Cliente: Si, mi familia vive aqui y tengo propiedades a mi nombre.
     """ * 3
     
-    # Validar contenido
-    valido, error = TranscripcionService.validar_contenido(contenido)
+    # Usar el método REAL del modelo para validar contenido
+    valido, error = Simulacro.validar_contenido_transcripcion(contenido)
     if not valido:
         context.upload_exitoso = False
         context.mensaje_sistema = error
         return
     
-    # Procesar
+    # Asignar transcripción al simulacro
     context.simulacro_actual.transcripcion_texto = contenido
-    stats = TranscripcionService.procesar_transcripcion(contenido)
+    
+    # Obtener estadísticas usando el método REAL del modelo
+    stats = context.simulacro_actual.obtener_estadisticas_transcripcion()
     
     context.upload_exitoso = True
     context.mensaje_sistema = "Transcripcion subida exitosamente"
@@ -365,7 +267,8 @@ def step_sube_archivo_txt(context, nombre_archivo):
 @step('intenta subir el archivo "{nombre_archivo}"')
 def step_intenta_subir_archivo(context, nombre_archivo):
     """El asesor intenta subir un archivo (puede no ser .txt)."""
-    valido, error = TranscripcionService.validar_archivo(nombre_archivo)
+    # Usar el método REAL del modelo
+    valido, error = Simulacro.validar_extension_archivo(nombre_archivo)
     
     if not valido:
         context.upload_exitoso = False
@@ -397,12 +300,13 @@ def step_muestra_caracteres_lineas(context):
 
 @step("el simulacro no cuenta con transcripcion subida")
 def step_simulacro_sin_transcripcion(context):
-    """Verifica que el simulacro no tiene transcripcion."""
-    assert not context.simulacro_actual.tiene_transcripcion(), "El simulacro no deberia tener transcripcion"
+    """Verifica que el simulacro no tiene transcripcion usando el método REAL."""
+    assert not context.simulacro_actual.tiene_transcripcion(), \
+        "El simulacro no deberia tener transcripcion"
 
 
 # ==============================================================================
-# GENERAR RECOMENDACIONES CON IA
+# FLUJO DEL ASESOR: GENERAR RECOMENDACIONES CON IA
 # ==============================================================================
 
 @step('que el asesor "{nombre_asesor}" tiene un simulacro con transcripcion subida exitosamente')
@@ -411,9 +315,9 @@ def step_asesor_tiene_simulacro_con_transcripcion(context, nombre_asesor):
     context.asesor_actual = context.asesores[nombre_asesor]
     
     for codigo, sim in context.simulacros.items():
-        if sim.asesor == context.asesor_actual:
+        if sim._asesor == context.asesor_actual:
             context.simulacro_actual = sim
-            context.cliente_actual = sim.cliente
+            context.cliente_actual = sim._cliente
             break
     
     # Agregar transcripcion de prueba
@@ -423,27 +327,29 @@ def step_asesor_tiene_simulacro_con_transcripcion(context, nombre_asesor):
     Entrevistador: Como financiara sus estudios?
     Cliente: Tengo una beca y apoyo de mi familia.
     """ * 5
+    
+    # Verificar usando el método REAL
+    assert context.simulacro_actual.tiene_transcripcion(), \
+        "El simulacro debe tener transcripcion valida"
 
 
 @step("tiene configurada su API key de Gemini")
 def step_tiene_api_key(context):
     """El asesor tiene configurada su API key."""
-    config = ConfiguracionIA(
-        id=1,
-        asesor=context.asesor_actual,
-        api_key='test-api-key-12345',
-        modelo='gemini-2.0-flash',
-        activo=True
-    )
+    config = crear_configuracion_ia(context.asesor_actual, con_api_key=True)
     context.configuraciones_ia[context.asesor_actual.email] = config
     context.config_ia = config
+    
+    # Verificar usando el método REAL del modelo
+    assert context.config_ia.esta_configurada(), \
+        "La configuracion de IA debe estar activa"
 
 
 @step('que el asesor "{nombre_asesor}" no ha configurado su API key de Gemini')
 def step_asesor_sin_api_key(context, nombre_asesor):
     """El asesor no tiene API key configurada."""
     context.asesor_actual = context.asesores[nombre_asesor]
-    # No crear configuracion = sin API key
+    # Sin configuración = None
     context.config_ia = None
 
 
@@ -451,46 +357,54 @@ def step_asesor_sin_api_key(context, nombre_asesor):
 def step_tiene_simulacro_con_transcripcion(context):
     """El asesor tiene un simulacro con transcripcion."""
     for codigo, sim in context.simulacros.items():
-        if sim.asesor == context.asesor_actual:
+        if sim._asesor == context.asesor_actual:
             context.simulacro_actual = sim
-            context.cliente_actual = sim.cliente
+            context.cliente_actual = sim._cliente
             break
     
     context.simulacro_actual.transcripcion_texto = "Transcripcion de prueba con contenido suficiente " * 5
+    
+    # Verificar usando método REAL
+    assert context.simulacro_actual.tiene_transcripcion()
 
 
 @step('hace clic en "Generar con IA"')
 def step_generar_con_ia(context):
     """El asesor hace clic en generar con IA."""
-    # Validar configuracion de IA
-    valido, error = RecomendacionIAService.validar_configuracion(context.config_ia)
+    # Validar configuracion de IA usando el método REAL
+    if context.config_ia is None:
+        context.mensaje_sistema = ConfiguracionIA.MENSAJE_API_KEY_NO_CONFIGURADA
+        context.generacion_exitosa = False
+        return
+    
+    valido, error = context.config_ia.validar_configuracion()
     if not valido:
         context.mensaje_sistema = error
         context.generacion_exitosa = False
         return
     
-    # Validar transcripcion
-    valido, error = RecomendacionIAService.validar_transcripcion(context.simulacro_actual)
-    if not valido:
-        context.mensaje_sistema = error
+    # Validar que el simulacro puede generar recomendaciones (método REAL)
+    if not context.simulacro_actual.puede_generar_recomendaciones():
+        context.mensaje_sistema = f"No es posible generar recomendaciones: la transcripcion del simulacro no esta disponible"
         context.generacion_exitosa = False
         return
     
-    # Generar recomendacion
-    recomendacion = RecomendacionIAService.generar_recomendacion(context.simulacro_actual)
+    # Generar recomendación usando el servicio
+    recomendacion = GeneradorRecomendacionesService.generar_recomendacion_simulada(
+        context.simulacro_actual
+    )
     context.recomendacion_actual = recomendacion
-    context.recomendaciones[context.simulacro_actual.codigo] = recomendacion
-    context.simulacro_actual.tiene_recomendaciones = True
+    context.recomendaciones[context.simulacro_actual._codigo] = recomendacion
     
     context.generacion_exitosa = True
     context.mensaje_sistema = "Recomendaciones generadas exitosamente"
     
-    # Crear notificacion
+    # Crear notificación (modelo REAL, sin persistir)
     context.notificacion = Notificacion(
         id=1,
-        usuario=context.cliente_actual,
         mensaje="Recomendaciones disponibles"
     )
+    context.notificacion._usuario = context.cliente_actual
 
 
 @step("el sistema analiza la transcripcion con Gemini")
@@ -503,7 +417,8 @@ def step_analiza_con_gemini(context):
 def step_genera_documento(context):
     """Verifica que se genere el documento."""
     assert context.recomendacion_actual is not None, "Debe existir recomendacion"
-    assert context.recomendacion_actual.estado_feedback == 'generado', "Estado debe ser 'generado'"
+    # Usar método REAL del modelo
+    assert context.recomendacion_actual.esta_generada(), "Estado debe ser 'generado'"
 
 
 @step('el cliente "{nombre_cliente}" recibe la notificacion "{mensaje}"')
@@ -516,11 +431,13 @@ def step_cliente_recibe_notificacion(context, nombre_cliente, mensaje):
 @step("el simulacro tiene la opcion de ver feedback disponible")
 def step_simulacro_tiene_feedback(context):
     """Verifica que el simulacro tenga feedback disponible."""
-    assert context.simulacro_actual.tiene_recomendaciones, "Simulacro debe tener recomendaciones"
+    # Verificar que existe una recomendación para este simulacro
+    codigo = context.simulacro_actual._codigo
+    assert codigo in context.recomendaciones, "Simulacro debe tener recomendaciones"
 
 
 # ==============================================================================
-# CLIENTE CONSULTA RECOMENDACIONES
+# FLUJO DEL CLIENTE: CONSULTAR RECOMENDACIONES
 # ==============================================================================
 
 @step('que el cliente "{nombre_cliente}" completo un simulacro')
@@ -529,7 +446,7 @@ def step_cliente_completo_simulacro(context, nombre_cliente):
     context.cliente_actual = context.clientes[nombre_cliente]
     
     for codigo, sim in context.simulacros.items():
-        if sim.cliente == context.cliente_actual:
+        if sim._cliente == context.cliente_actual:
             context.simulacro_actual = sim
             break
 
@@ -537,17 +454,17 @@ def step_cliente_completo_simulacro(context, nombre_cliente):
 @step("el asesor ya genero las recomendaciones con IA")
 def step_asesor_genero_recomendaciones(context):
     """El asesor genero las recomendaciones."""
-    recomendacion = RecomendacionIAService.generar_recomendacion(context.simulacro_actual)
+    recomendacion = GeneradorRecomendacionesService.generar_recomendacion_simulada(
+        context.simulacro_actual
+    )
     context.recomendacion_actual = recomendacion
-    context.recomendaciones[context.simulacro_actual.codigo] = recomendacion
-    context.simulacro_actual.tiene_recomendaciones = True
+    context.recomendaciones[context.simulacro_actual._codigo] = recomendacion
 
 
 @step('el cliente accede a "Ver Resumen" en la seccion de simulacros completados y "Ver Recomendaciones"')
 def step_cliente_accede_ver_resumen_recomendaciones(context):
     """El cliente navega a Ver Resumen y luego Ver Recomendaciones."""
-    # Simula la navegacion del cliente
-    codigo = context.simulacro_actual.codigo
+    codigo = context.simulacro_actual._codigo
     if codigo in context.recomendaciones:
         context.recomendacion_actual = context.recomendaciones[codigo]
         context.recomendaciones_lista = [context.recomendacion_actual]
@@ -561,10 +478,11 @@ def step_ve_lista_recomendaciones(context):
     assert context.recomendaciones_lista is not None, "Debe haber lista de recomendaciones"
     assert len(context.recomendaciones_lista) > 0, "La lista no debe estar vacia"
     
-    # Verificar campos segun la tabla
+    # Verificar campos segun la tabla usando modelo REAL
     rec = context.recomendacion_actual
     assert rec.simulacro.fecha is not None, "Debe tener fecha del simulacro"
-    assert rec.nivel_preparacion in ['alto', 'medio', 'bajo'], "Debe tener nivel de preparacion"
+    assert rec.nivel_preparacion in Recomendacion.VALORES_INDICADOR_VALIDOS, \
+        "Debe tener nivel de preparacion valido"
 
 
 @then("puede expandir las secciones colapsables:")
@@ -572,18 +490,9 @@ def step_expandir_secciones(context):
     """Verifica las secciones colapsables disponibles."""
     secciones_esperadas = [row['seccion'] for row in context.table]
     
-    # Verificar que las secciones existen en la recomendacion
+    # Usar método REAL del modelo para obtener secciones
     rec = context.recomendacion_actual
-    
-    secciones_disponibles = []
-    if hasattr(rec, 'claridad'):
-        secciones_disponibles.append('Indicadores de Desempeno')
-    if rec.fortalezas:
-        secciones_disponibles.append('Fortalezas Identificadas')
-    if rec.puntos_mejora:
-        secciones_disponibles.append('Puntos de Mejora')
-    if rec.recomendaciones:
-        secciones_disponibles.append('Recomendaciones')
+    secciones_disponibles = rec.obtener_secciones_disponibles()
     
     for seccion in secciones_esperadas:
         assert seccion in secciones_disponibles, f"Seccion '{seccion}' no disponible"
@@ -599,7 +508,7 @@ def step_cliente_tiene_simulacro_completado(context, nombre_cliente):
     context.cliente_actual = context.clientes[nombre_cliente]
     
     for codigo, sim in context.simulacros.items():
-        if sim.cliente == context.cliente_actual:
+        if sim._cliente == context.cliente_actual:
             context.simulacro_actual = sim
             break
 
@@ -607,28 +516,26 @@ def step_cliente_tiene_simulacro_completado(context, nombre_cliente):
 @step("el simulacro no tiene recomendaciones generadas")
 def step_simulacro_sin_recomendaciones(context):
     """El simulacro no tiene recomendaciones."""
-    context.simulacro_actual.tiene_recomendaciones = False
-    codigo = context.simulacro_actual.codigo
+    codigo = context.simulacro_actual._codigo
     if codigo in context.recomendaciones:
         del context.recomendaciones[codigo]
+    context.tiene_recomendaciones = False
 
 
 @step("intenta descargar el PDF de recomendaciones")
 def step_intenta_descargar_pdf(context):
     """El cliente intenta descargar el PDF."""
-    valido, error = PDFService.validar_descarga(
-        context.simulacro_actual, 
-        context.simulacro_actual.tiene_recomendaciones
-    )
+    codigo = context.simulacro_actual._codigo
+    tiene_recomendaciones = codigo in context.recomendaciones
     
-    if not valido:
-        context.mensaje_sistema = error
+    if not tiene_recomendaciones:
+        context.mensaje_sistema = "Este simulacro no tiene recomendaciones"
     else:
         context.mensaje_sistema = "PDF descargado exitosamente"
 
 
 # ==============================================================================
-# ANALISIS DE IA: INDICADORES
+# ANALISIS DE IA: INDICADORES DE DESEMPEÑO
 # ==============================================================================
 
 @step('que el asesor "{nombre_asesor}" genero recomendaciones con IA para "{nombre_cliente}"')
@@ -638,24 +545,25 @@ def step_asesor_genero_recomendaciones_para_cliente(context, nombre_asesor, nomb
     context.cliente_actual = context.clientes[nombre_cliente]
     
     for codigo, sim in context.simulacros.items():
-        if sim.asesor == context.asesor_actual and sim.cliente == context.cliente_actual:
+        if sim._asesor == context.asesor_actual and sim._cliente == context.cliente_actual:
             context.simulacro_actual = sim
             break
     
-    # Agregar transcripcion
+    # Agregar transcripción
     context.simulacro_actual.transcripcion_texto = "Transcripcion de prueba " * 20
     
-    # Generar recomendacion
-    recomendacion = RecomendacionIAService.generar_recomendacion(context.simulacro_actual)
+    # Generar recomendación
+    recomendacion = GeneradorRecomendacionesService.generar_recomendacion_simulada(
+        context.simulacro_actual
+    )
     context.recomendacion_actual = recomendacion
-    context.recomendaciones[context.simulacro_actual.codigo] = recomendacion
-    context.simulacro_actual.tiene_recomendaciones = True
+    context.recomendaciones[context.simulacro_actual._codigo] = recomendacion
 
 
 @step("el cliente consulta sus recomendaciones")
 def step_cliente_consulta_recomendaciones(context):
     """El cliente consulta sus recomendaciones."""
-    codigo = context.simulacro_actual.codigo
+    codigo = context.simulacro_actual._codigo
     if codigo in context.recomendaciones:
         context.recomendaciones_lista = [context.recomendaciones[codigo]]
     else:
@@ -667,12 +575,12 @@ def step_recomendacion_incluye_indicadores(context):
     """Verifica que la recomendacion tenga los indicadores."""
     rec = context.recomendacion_actual
     
-    indicadores = ['claridad', 'coherencia', 'seguridad', 'pertinencia']
-    valores_validos = ['alto', 'medio', 'bajo']
+    # Usar método REAL del modelo para obtener indicadores
+    indicadores = rec.obtener_indicadores()
     
     for indicador in indicadores:
         valor = getattr(rec, indicador)
-        assert valor in valores_validos, \
+        assert valor in Recomendacion.VALORES_INDICADOR_VALIDOS, \
             f"Indicador {indicador} tiene valor invalido: {valor}"
 
 
@@ -685,7 +593,7 @@ def step_fortaleza_contiene_campos(context):
     """Verifica estructura de fortalezas."""
     rec = context.recomendacion_actual
     
-    # Mapear campos de la tabla a campos reales
+    # Mapear campos de la tabla a campos reales del modelo
     campos_mapping = {
         'Categoria': 'categoria',
         'Descripcion': 'descripcion',
@@ -695,11 +603,15 @@ def step_fortaleza_contiene_campos(context):
     
     campos_requeridos = [campos_mapping[row['campo']] for row in context.table]
     
+    # Usar constante del modelo REAL
     assert len(rec.fortalezas) > 0, "No hay fortalezas"
     
     for fortaleza in rec.fortalezas:
         for campo in campos_requeridos:
             assert campo in fortaleza, f"Falta campo {campo} en fortaleza"
+    
+    # Validar estructura completa usando método REAL
+    assert rec.validar_estructura_fortalezas(), "Estructura de fortalezas invalida"
 
 
 @then("cada punto de mejora contiene:")
@@ -721,6 +633,9 @@ def step_punto_mejora_contiene_campos(context):
     for punto in rec.puntos_mejora:
         for campo in campos_requeridos:
             assert campo in punto, f"Falta campo {campo} en punto de mejora"
+    
+    # Validar estructura completa usando método REAL
+    assert rec.validar_estructura_puntos_mejora(), "Estructura de puntos de mejora invalida"
 
 
 @then("cada recomendacion contiene:")
@@ -742,3 +657,6 @@ def step_recomendacion_contiene_campos(context):
     for recomendacion in rec.recomendaciones:
         for campo in campos_requeridos:
             assert campo in recomendacion, f"Falta campo {campo} en recomendacion"
+    
+    # Validar estructura completa usando método REAL
+    assert rec.validar_estructura_recomendaciones(), "Estructura de recomendaciones invalida"
