@@ -1,15 +1,36 @@
 """
 Configuración para el entorno de testing (pruebas con Behave y pytest).
+
+TIPOS DE TESTS:
+1. Tests de lógica pura (ej: seguimiento_solicitud.feature)
+   - Usan entidades en memoria (business_logic/)
+   - NO requieren base de datos
+   - Son muy rápidos (~0.04s)
+
+2. Tests de integración (ej: alertas_entrevista.feature)
+   - Usan Django ORM y BD real
+   - Requieren SQLite con archivo (no :memory:) para persistir migraciones
+   - Son más lentos pero validan integración completa
 """
 from .base import *
+import os
 
 DEBUG = True
 
-# Base de datos en memoria para tests rápidos
+# Permitir testserver para Django Test Client
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
+
+# Base de datos para tests BDD - archivo temporal compartido
+# NOTA: Usamos archivo SQLite (no :memory:) porque Behave ejecuta múltiples
+# escenarios en el mismo proceso y las migraciones deben persistir.
+# Para tests de lógica pura, esta BD no se usa (ver environment.py)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
+        'NAME': BASE_DIR / 'db_testing.sqlite3',
+        'TEST': {
+            'NAME': BASE_DIR / 'db_testing.sqlite3',
+        }
     }
 }
 

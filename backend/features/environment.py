@@ -54,10 +54,35 @@ def before_all(context):
 def before_scenario(context, scenario):
     """
     Se ejecuta antes de cada escenario.
+    
+    NOTA: Los tests de seguimiento_solicitud.feature usan lógica pura en memoria,
+    no requieren limpieza de BD. Esta limpieza es para otros features que sí
+    interactúan con la BD real (alertas_entrevista, agendamiento, etc.)
     """
-    # Limpiar la base de datos antes de cada escenario
-    from django.core.management import call_command
-    call_command('flush', '--no-input', verbosity=0)
+    # Detectar si el feature requiere limpieza de BD
+    # Los features con lógica pura no necesitan limpieza
+    features_sin_bd = [
+        'seguimiento_solicitud.feature',  # Usa business_logic puro
+    ]
+    
+    feature_name = scenario.feature.filename.split('/')[-1].split('\\')[-1]
+    
+    if feature_name in features_sin_bd:
+        # Este feature usa lógica pura, no necesita limpieza de BD
+        return
+    
+    # Limpieza de BD para features que sí la necesitan
+    from apps.notificaciones.models import Notificacion, ConfiguracionRecordatorio
+    from apps.solicitudes.models import Solicitud, Documento, Cita
+    from apps.usuarios.models import Usuario
+    
+    # Limpiar en orden para evitar conflictos de FK
+    Notificacion.objects.all().delete()
+    ConfiguracionRecordatorio.objects.all().delete()
+    Documento.objects.all().delete()
+    Cita.objects.all().delete()
+    Solicitud.objects.all().delete()
+    Usuario.objects.all().delete()
 
 
 def after_scenario(context, scenario):
