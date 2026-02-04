@@ -5,119 +5,119 @@ Característica: Agendamiento de entrevista # features/solicitudes/agendamiento/a
   Antecedentes:   # features/solicitudes/agendamiento/agendamiento_entrevista.feature:8
 
   Esquema del escenario: Agendamiento con selección de horario específico -- @1.1                # features/solicitudes/agendamiento/agendamiento_entrevista.feature:31
-    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
-    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
-    Dado que existe una fecha de entrevista "2026-02-15" con los siguientes horarios disponibles # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:86
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:37
+    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:45
+    Dado que existe una fecha de entrevista "2026-02-15" con los siguientes horarios disponibles # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:52
       | horario | estado     |
       | 08:00   | Disponible |
       | 09:00   | Disponible |
       | 10:00   | Disponible |
       | 11:00   | Disponible |
-    Cuando el solicitante selecciona la fecha "2026-02-15" y el horario "09:00"                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:124
-    Entonces el sistema registra la entrevista asociada a la solicitud                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:147
-    Y el horario "09:00" queda registrado como no disponible                                     # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:154
-    Y muestra el mensaje "Entrevista agendada para el 15 de febrero de 2026 a las 09:00"         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:161
+    Cuando el solicitante selecciona la fecha "2026-02-15" y el horario "09:00"                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:76
+    Entonces el sistema registra la entrevista asociada a la solicitud                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:91
+    Y el horario "09:00" queda registrado como no disponible                                     # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:97
+    Y muestra el mensaje "Entrevista agendada para el 15 de febrero de 2026 a las 09:00"         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:103
 
   Escenario: Rechazo de modificación directa de entrevista programada                                                            # features/solicitudes/agendamiento/agendamiento_entrevista.feature:43
-    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
-    Y el sistema presenta opciones de fecha y horario para entrevistas                                                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
-    Dado que el solicitante tiene una entrevista en estado "Programada"                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:176
-    Cuando el solicitante solicita la modificación de la fecha o el horario de la entrevista fuera del proceso de reprogramación # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:193
-    Entonces el sistema rechaza la solicitud de modificación                                                                     # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:203
-    Y mantiene la entrevista en su estado original                                                                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:209
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:37
+    Y el sistema presenta opciones de fecha y horario para entrevistas                                                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:45
+    Dado que el solicitante tiene una entrevista en estado "Programada"                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:111
+    Cuando el solicitante solicita la modificación de la fecha o el horario de la entrevista fuera del proceso de reprogramación # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:122
+    Entonces el sistema rechaza la solicitud de modificación                                                                     # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:129
+    Y mantiene la entrevista en su estado original                                                                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:134
 
   Escenario: Reprogramación exitosa de entrevista                                       # features/solicitudes/agendamiento/agendamiento_entrevista.feature:54
-    Dado que el solicitante cuenta con una solicitud migratoria aprobada                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
-    Y el sistema presenta opciones de fecha y horario para entrevistas                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
-    Dado que el solicitante tiene una entrevista en estado "Programada"                 # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:176
-    Cuando el solicitante solicita la reprogramación de la entrevista a una nueva fecha # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:219
-    Entonces el sistema actualiza la fecha de la entrevista                             # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:234
-    Y la entrevista queda en estado "Reprogramada"                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:240
-    Y el solicitante recibe una confirmación de la reprogramación                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:246
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:37
+    Y el sistema presenta opciones de fecha y horario para entrevistas                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:45
+    Dado que el solicitante tiene una entrevista en estado "Programada"                 # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:111
+    Cuando el solicitante solicita la reprogramación de la entrevista a una nueva fecha # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:140
+    Entonces el sistema actualiza la fecha de la entrevista                             # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:150
+    Y la entrevista queda en estado "Reprogramada"                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:155
+    Y el solicitante recibe una confirmación de la reprogramación                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:160
 
   Esquema del escenario: Restricción de reprogramaciones sucesivas -- @1.1   # features/solicitudes/agendamiento/agendamiento_entrevista.feature:72
-    Dado que el solicitante cuenta con una solicitud migratoria aprobada     # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
-    Y el sistema presenta opciones de fecha y horario para entrevistas       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
-    Dado que el solicitante tiene una entrevista en estado "Programada"      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:176
-    Y la entrevista ha sido reprogramada 1 veces                             # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:253
-    Y la embajada permite un máximo de 2 reprogramaciones por solicitud      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:268
-    Cuando el solicitante solicita una nueva reprogramación de la entrevista # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:275
-    Entonces el sistema permite la reprogramación                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:293
-    Y muestra el mensaje "Esta es su última reprogramación permitida"        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada     # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:37
+    Y el sistema presenta opciones de fecha y horario para entrevistas       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:45
+    Dado que el solicitante tiene una entrevista en estado "Programada"      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:111
+    Y la entrevista ha sido reprogramada 1 veces                             # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:166
+    Y la embajada permite un máximo de 2 reprogramaciones por solicitud      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:176
+    Cuando el solicitante solicita una nueva reprogramación de la entrevista # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:181
+    Entonces el sistema permite la reprogramación                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:195
+    Y muestra el mensaje "Esta es su última reprogramación permitida"        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:257
 
   Esquema del escenario: Restricción de reprogramaciones sucesivas -- @1.2                     # features/solicitudes/agendamiento/agendamiento_entrevista.feature:73
-    Dado que el solicitante cuenta con una solicitud migratoria aprobada                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
-    Y el sistema presenta opciones de fecha y horario para entrevistas                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
-    Dado que el solicitante tiene una entrevista en estado "Programada"                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:176
-    Y la entrevista ha sido reprogramada 2 veces                                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:253
-    Y la embajada permite un máximo de 2 reprogramaciones por solicitud                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:268
-    Cuando el solicitante solicita una nueva reprogramación de la entrevista                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:275
-    Entonces el sistema rechaza la reprogramación                                              # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:293
-    Y muestra el mensaje "Error: ha alcanzado el límite máximo de reprogramaciones permitidas" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:37
+    Y el sistema presenta opciones de fecha y horario para entrevistas                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:45
+    Dado que el solicitante tiene una entrevista en estado "Programada"                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:111
+    Y la entrevista ha sido reprogramada 2 veces                                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:166
+    Y la embajada permite un máximo de 2 reprogramaciones por solicitud                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:176
+    Cuando el solicitante solicita una nueva reprogramación de la entrevista                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:181
+    Entonces el sistema rechaza la reprogramación                                              # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:195
+    Y muestra el mensaje "Error: ha alcanzado el límite máximo de reprogramaciones permitidas" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:257
 
   Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.1   # features/solicitudes/agendamiento/agendamiento_entrevista.feature:89
-    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
-    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
-    Dado que el solicitante tiene una entrevista agendada en la embajada "USA"                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
-    Y la embajada "USA" define un mínimo de 24 horas de anticipación para cancelaciones          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
-    Y el tiempo restante hasta la entrevista es de 48 horas                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
-    Cuando el solicitante solicita la cancelación de la entrevista                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
-    Entonces el sistema permite la cancelación                                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
-    Y la entrevista queda en estado "Cancelada"                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
-    Y muestra el mensaje "Cancelación confirmada exitosamente"                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:37
+    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:45
+    Dado que el solicitante tiene una entrevista agendada en la embajada "USA"                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:201
+    Y la embajada "USA" define un mínimo de 24 horas de anticipación para cancelaciones          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:212
+    Y el tiempo restante hasta la entrevista es de 48 horas                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:222
+    Cuando el solicitante solicita la cancelación de la entrevista                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:232
+    Entonces el sistema permite la cancelación                                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:245
+    Y la entrevista queda en estado "Cancelada"                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:250
+    Y muestra el mensaje "Cancelación confirmada exitosamente"                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:257
 
   Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.2                                    # features/solicitudes/agendamiento/agendamiento_entrevista.feature:90
-    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
-    Y el sistema presenta opciones de fecha y horario para entrevistas                                                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
-    Dado que el solicitante tiene una entrevista agendada en la embajada "USA"                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
-    Y la embajada "USA" define un mínimo de 24 horas de anticipación para cancelaciones                                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
-    Y el tiempo restante hasta la entrevista es de 12 horas                                                                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
-    Cuando el solicitante solicita la cancelación de la entrevista                                                                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
-    Entonces el sistema rechaza la cancelación                                                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
-    Y la entrevista queda en estado "Programada"                                                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
-    Y muestra el mensaje "Error: no es posible cancelar la entrevista debido a que no se cumple el tiempo mínimo de anticipación" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:37
+    Y el sistema presenta opciones de fecha y horario para entrevistas                                                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:45
+    Dado que el solicitante tiene una entrevista agendada en la embajada "USA"                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:201
+    Y la embajada "USA" define un mínimo de 24 horas de anticipación para cancelaciones                                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:212
+    Y el tiempo restante hasta la entrevista es de 12 horas                                                                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:222
+    Cuando el solicitante solicita la cancelación de la entrevista                                                                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:232
+    Entonces el sistema rechaza la cancelación                                                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:245
+    Y la entrevista queda en estado "Programada"                                                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:250
+    Y muestra el mensaje "Error: no es posible cancelar la entrevista debido a que no se cumple el tiempo mínimo de anticipación" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:257
 
   Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.3   # features/solicitudes/agendamiento/agendamiento_entrevista.feature:91
-    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
-    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
-    Dado que el solicitante tiene una entrevista agendada en la embajada "España"                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
-    Y la embajada "España" define un mínimo de 48 horas de anticipación para cancelaciones       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
-    Y el tiempo restante hasta la entrevista es de 72 horas                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
-    Cuando el solicitante solicita la cancelación de la entrevista                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
-    Entonces el sistema permite la cancelación                                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
-    Y la entrevista queda en estado "Cancelada"                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
-    Y muestra el mensaje "Cancelación confirmada exitosamente"                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:37
+    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:45
+    Dado que el solicitante tiene una entrevista agendada en la embajada "España"                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:201
+    Y la embajada "España" define un mínimo de 48 horas de anticipación para cancelaciones       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:212
+    Y el tiempo restante hasta la entrevista es de 72 horas                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:222
+    Cuando el solicitante solicita la cancelación de la entrevista                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:232
+    Entonces el sistema permite la cancelación                                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:245
+    Y la entrevista queda en estado "Cancelada"                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:250
+    Y muestra el mensaje "Cancelación confirmada exitosamente"                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:257
 
   Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.4                                    # features/solicitudes/agendamiento/agendamiento_entrevista.feature:92
-    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
-    Y el sistema presenta opciones de fecha y horario para entrevistas                                                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
-    Dado que el solicitante tiene una entrevista agendada en la embajada "España"                                                 # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
-    Y la embajada "España" define un mínimo de 48 horas de anticipación para cancelaciones                                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
-    Y el tiempo restante hasta la entrevista es de 36 horas                                                                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
-    Cuando el solicitante solicita la cancelación de la entrevista                                                                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
-    Entonces el sistema rechaza la cancelación                                                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
-    Y la entrevista queda en estado "Programada"                                                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
-    Y muestra el mensaje "Error: no es posible cancelar la entrevista debido a que no se cumple el tiempo mínimo de anticipación" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:37
+    Y el sistema presenta opciones de fecha y horario para entrevistas                                                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:45
+    Dado que el solicitante tiene una entrevista agendada en la embajada "España"                                                 # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:201
+    Y la embajada "España" define un mínimo de 48 horas de anticipación para cancelaciones                                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:212
+    Y el tiempo restante hasta la entrevista es de 36 horas                                                                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:222
+    Cuando el solicitante solicita la cancelación de la entrevista                                                                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:232
+    Entonces el sistema rechaza la cancelación                                                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:245
+    Y la entrevista queda en estado "Programada"                                                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:250
+    Y muestra el mensaje "Error: no es posible cancelar la entrevista debido a que no se cumple el tiempo mínimo de anticipación" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:257
 
   Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.5   # features/solicitudes/agendamiento/agendamiento_entrevista.feature:93
-    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
-    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
-    Dado que el solicitante tiene una entrevista agendada en la embajada "Canadá"                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
-    Y la embajada "Canadá" define un mínimo de 72 horas de anticipación para cancelaciones       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
-    Y el tiempo restante hasta la entrevista es de 96 horas                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
-    Cuando el solicitante solicita la cancelación de la entrevista                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
-    Entonces el sistema permite la cancelación                                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
-    Y la entrevista queda en estado "Cancelada"                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
-    Y muestra el mensaje "Cancelación confirmada exitosamente"                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:37
+    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:45
+    Dado que el solicitante tiene una entrevista agendada en la embajada "Canadá"                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:201
+    Y la embajada "Canadá" define un mínimo de 72 horas de anticipación para cancelaciones       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:212
+    Y el tiempo restante hasta la entrevista es de 96 horas                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:222
+    Cuando el solicitante solicita la cancelación de la entrevista                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:232
+    Entonces el sistema permite la cancelación                                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:245
+    Y la entrevista queda en estado "Cancelada"                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:250
+    Y muestra el mensaje "Cancelación confirmada exitosamente"                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:257
 
   Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.6                                    # features/solicitudes/agendamiento/agendamiento_entrevista.feature:94
-    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
-    Y el sistema presenta opciones de fecha y horario para entrevistas                                                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
-    Dado que el solicitante tiene una entrevista agendada en la embajada "Canadá"                                                 # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
-    Y la embajada "Canadá" define un mínimo de 72 horas de anticipación para cancelaciones                                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
-    Y el tiempo restante hasta la entrevista es de 48 horas                                                                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
-    Cuando el solicitante solicita la cancelación de la entrevista                                                                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
-    Entonces el sistema rechaza la cancelación                                                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
-    Y la entrevista queda en estado "Programada"                                                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
-    Y muestra el mensaje "Error: no es posible cancelar la entrevista debido a que no se cumple el tiempo mínimo de anticipación" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:37
+    Y el sistema presenta opciones de fecha y horario para entrevistas                                                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:45
+    Dado que el solicitante tiene una entrevista agendada en la embajada "Canadá"                                                 # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:201
+    Y la embajada "Canadá" define un mínimo de 72 horas de anticipación para cancelaciones                                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:212
+    Y el tiempo restante hasta la entrevista es de 48 horas                                                                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:222
+    Cuando el solicitante solicita la cancelación de la entrevista                                                                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:232
+    Entonces el sistema rechaza la cancelación                                                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:245
+    Y la entrevista queda en estado "Programada"                                                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:250
+    Y muestra el mensaje "Error: no es posible cancelar la entrevista debido a que no se cumple el tiempo mínimo de anticipación" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:257
 
