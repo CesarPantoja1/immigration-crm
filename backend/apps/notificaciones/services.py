@@ -1,12 +1,4 @@
-"""
-Servicios de Notificaciones.
-Centraliza la lógica de creación de notificaciones automáticas.
-
-POLÍTICA DE NOTIFICACIONES (Sprint Refactorización):
-=====================================================
-Solo se generan notificaciones para eventos CRÍTICOS o ACCIONABLES:
-
-✅ MANTENER (requieren acción o son críticos):
+"""POLÍTICA DE NOTIFICACIONES
    - simulacro_propuesto, simulacro_confirmado, simulacion_completada
    - recomendaciones_listas
    - solicitud_aprobada, solicitud_rechazada
@@ -16,38 +8,20 @@ Solo se generan notificaciones para eventos CRÍTICOS o ACCIONABLES:
    - entrevista_agendada, entrevista_reprogramada, entrevista_cancelada
    - recordatorio_entrevista
    - preparacion_recomendada
-
-❌ ELIMINADOS (ruido, no requieren acción):
-   - documento_subido (informativo, no accionable)
-   - solicitud_asignada (informativo, no crítico)
-   - solicitud_en_revision (informativo, no accionable)
-   - solicitud_creada (confirmación, no accionable)
-   - contrato_firmado (confirmación, no accionable)
-   - documento_aprobado (confirmación positiva, no accionable)
 """
+
 from django.utils import timezone
 from datetime import datetime, timedelta
 from .models import Notificacion
 
 
 class NotificacionService:
-    """
-    Servicio para crear notificaciones de forma centralizada.
-    
-    Solo genera notificaciones para eventos críticos o que requieren acción.
-    """
-    
-    # =====================================================
-    # NOTIFICACIONES DE ENTREVISTA (CRÍTICAS)
-    # =====================================================
-    
+
+    #Servicio para crear notificaciones de forma centralizada.
+
+    # NOTIFICACIONES DE ENTREVISTA
     @staticmethod
     def notificar_entrevista_agendada(solicitud, fecha, hora):
-        """
-        Crea notificación cuando una entrevista es agendada.
-        Destinatario: Cliente
-        CRÍTICO: El cliente debe prepararse para la entrevista.
-        """
         cliente = solicitud.cliente
         asesor = solicitud.asesor
         
@@ -83,11 +57,6 @@ class NotificacionService:
     
     @staticmethod
     def notificar_entrevista_reprogramada(solicitud, fecha_anterior, hora_anterior, nueva_fecha, nueva_hora, motivo=''):
-        """
-        Crea notificación cuando una entrevista es reprogramada.
-        Destinatario: Cliente
-        CRÍTICO: El cliente debe actualizar su agenda.
-        """
         cliente = solicitud.cliente
         
         fecha_ant_fmt = fecha_anterior.strftime('%d/%m/%Y') if fecha_anterior else 'N/A'
@@ -115,11 +84,6 @@ class NotificacionService:
     
     @staticmethod
     def notificar_entrevista_cancelada(solicitud, motivo=''):
-        """
-        Crea notificación cuando una entrevista es cancelada.
-        Destinatario: Cliente
-        CRÍTICO: El cliente debe saber que se canceló.
-        """
         cliente = solicitud.cliente
         
         return Notificacion.objects.create(
@@ -136,18 +100,10 @@ class NotificacionService:
                 'solicitud_id': solicitud.id
             }
         )
-    
-    # =====================================================
-    # RECORDATORIOS (CRÍTICOS)
-    # =====================================================
-    
+
+    # RECORDATORIOS
     @staticmethod
     def notificar_recordatorio_entrevista(solicitud, horas_restantes, fecha_entrevista, hora_entrevista):
-        """
-        Crea recordatorio de entrevista.
-        Destinatario: Cliente
-        CRÍTICO: El cliente debe estar preparado.
-        """
         cliente = solicitud.cliente
         
         if horas_restantes == 24:
@@ -178,18 +134,10 @@ class NotificacionService:
                 'solicitud_id': solicitud.id
             }
         )
-    
-    # =====================================================
-    # PREPARACIÓN Y SIMULACROS (ACCIONABLES)
-    # =====================================================
-    
+
+    # PREPARACIÓN Y SIMULACROS
     @staticmethod
     def notificar_preparacion_recomendada(solicitud, dias_para_entrevista):
-        """
-        Crea notificación recomendando preparación.
-        Destinatario: Cliente
-        ACCIONABLE: El cliente debería agendar un simulacro.
-        """
         cliente = solicitud.cliente
         
         return Notificacion.objects.create(
@@ -209,11 +157,6 @@ class NotificacionService:
     
     @staticmethod
     def notificar_simulacion_completada(simulacro):
-        """
-        Crea notificación cuando un simulacro es completado.
-        Destinatario: Asesor
-        ACCIONABLE: El asesor debe agregar recomendaciones.
-        """
         asesor = simulacro.asesor
         cliente = simulacro.cliente
         
@@ -235,11 +178,6 @@ class NotificacionService:
     
     @staticmethod
     def notificar_recomendaciones_listas(simulacro):
-        """
-        Crea notificación cuando las recomendaciones del simulacro están listas.
-        Destinatario: Cliente
-        ACCIONABLE: El cliente debe revisar las recomendaciones.
-        """
         cliente = simulacro.cliente
         asesor = simulacro.asesor
         
@@ -256,18 +194,10 @@ class NotificacionService:
                 'fecha_simulacro': str(simulacro.fecha) if simulacro.fecha else None
             }
         )
-    
-    # =====================================================
-    # SIMULACROS - PROPUESTAS Y CONFIRMACIONES (CRÍTICOS)
-    # =====================================================
-    
+
+    # SIMULACROS
     @staticmethod
     def notificar_simulacro_propuesto(simulacro, propuesto_por='asesor'):
-        """
-        Crea notificación cuando se propone un simulacro.
-        Destinatario: El otro participante
-        ACCIONABLE: El destinatario debe aceptar o rechazar.
-        """
         if propuesto_por == 'asesor':
             destinatario = simulacro.cliente
             proponente = simulacro.asesor.get_full_name()
@@ -295,11 +225,6 @@ class NotificacionService:
     
     @staticmethod
     def notificar_simulacro_confirmado(simulacro):
-        """
-        Crea notificación cuando un simulacro es confirmado.
-        Destinatarios: Cliente y Asesor
-        CRÍTICO: Ambos deben prepararse para la sesión.
-        """
         fecha_fmt = simulacro.fecha.strftime('%d/%m/%Y') if simulacro.fecha else 'Por definir'
         hora_fmt = simulacro.hora.strftime('%H:%M') if simulacro.hora else 'Por definir'
         
@@ -338,19 +263,10 @@ class NotificacionService:
         
         return notificaciones
     
-    # =====================================================
-    # DOCUMENTOS - SOLO RECHAZOS (ACCIONABLE)
-    # =====================================================
-    # NOTA: documento_subido y documento_aprobado fueron ELIMINADOS
-    # porque son informativos y generan ruido innecesario.
-    
+
+    # DOCUMENTOS
     @staticmethod
     def notificar_documento_rechazado(documento, solicitud, observaciones=''):
-        """
-        Crea notificación cuando un documento es rechazado.
-        Destinatario: Cliente
-        ACCIONABLE: El cliente DEBE corregir y volver a subir.
-        """
         cliente = solicitud.cliente
         
         return Notificacion.objects.create(
@@ -369,19 +285,10 @@ class NotificacionService:
             }
         )
     
-    # =====================================================
-    # SOLICITUDES - SOLO DECISIONES CRÍTICAS
-    # =====================================================
-    # NOTA: solicitud_creada, solicitud_asignada, solicitud_en_revision
-    # fueron ELIMINADOS porque son informativos y generan ruido.
-    
+
+    # SOLICITUDES
     @staticmethod
     def notificar_solicitud_aprobada(solicitud):
-        """
-        Crea notificación cuando una solicitud es aprobada.
-        Destinatario: Cliente
-        CRÍTICO: El cliente debe conocer la decisión positiva.
-        """
         cliente = solicitud.cliente
         
         return Notificacion.objects.create(
@@ -400,11 +307,6 @@ class NotificacionService:
     
     @staticmethod
     def notificar_solicitud_rechazada(solicitud, motivo=''):
-        """
-        Crea notificación cuando una solicitud es rechazada.
-        Destinatario: Cliente
-        CRÍTICO: El cliente debe conocer la decisión y las opciones.
-        """
         cliente = solicitud.cliente
         
         return Notificacion.objects.create(
@@ -421,20 +323,11 @@ class NotificacionService:
                 'solicitud_id': solicitud.id
             }
         )
-    
-    # =====================================================
-    # CONTRATOS - SOLO ACCIONABLES
-    # =====================================================
-    # NOTA: contrato_firmado fue ELIMINADO porque es confirmación,
-    # no requiere acción adicional.
-    
+
+    # CONTRATOS
     @staticmethod
     def notificar_contrato_generado(solicitud, contrato_url=''):
-        """
-        Crea notificación cuando se genera un contrato para el cliente.
-        Destinatario: Cliente
-        ACCIONABLE: El cliente debe revisar y firmar.
-        """
+
         cliente = solicitud.cliente
         
         return Notificacion.objects.create(
@@ -454,11 +347,7 @@ class NotificacionService:
     
     @staticmethod
     def notificar_contrato_pendiente(solicitud):
-        """
-        Crea notificación recordando al cliente que firme el contrato.
-        Destinatario: Cliente
-        ACCIONABLE: El cliente DEBE firmar para continuar.
-        """
+
         cliente = solicitud.cliente
         
         return Notificacion.objects.create(
@@ -477,11 +366,7 @@ class NotificacionService:
     
     @staticmethod
     def notificar_contrato_aprobado(solicitud):
-        """
-        Crea notificación cuando el asesor/admin aprueba el contrato.
-        Destinatario: Cliente
-        ACCIONABLE: El cliente puede comenzar a subir documentación.
-        """
+
         cliente = solicitud.cliente
         
         return Notificacion.objects.create(
@@ -497,18 +382,10 @@ class NotificacionService:
                 'solicitud_id': solicitud.id
             }
         )
-    
-    # =====================================================
-    # EMBAJADA - DECISIONES (CRÍTICAS)
-    # =====================================================
+
     
     @staticmethod
     def notificar_embajada_aprobada(solicitud):
-        """
-        Crea notificación cuando la embajada aprueba una solicitud.
-        Destinatario: Cliente
-        CRÍTICO: Decisión final positiva.
-        """
         cliente = solicitud.cliente
         
         return Notificacion.objects.create(
@@ -552,17 +429,10 @@ class NotificacionService:
                 'solicitud_id': solicitud.id
             }
         )
-    
-    # =====================================================
-    # UTILIDADES
-    # =====================================================
+
     
     @staticmethod
     def crear_notificacion_general(usuario, titulo, mensaje, detalle='', url_accion='', datos=None):
-        """
-        Crea una notificación general.
-        Usar con moderación - preferir tipos específicos.
-        """
         return Notificacion.objects.create(
             usuario=usuario,
             tipo='general',
