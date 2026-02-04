@@ -47,3 +47,39 @@ TIPOS_NOTIFICACION = [
     'simulacro_confirmado', 'simulacion_completada', 'recomendaciones_listas',
     'general', 'mensaje',
 ]
+
+# ============================================================
+# CONSTANTES PARA ALERTAS DE ENTREVISTA (BDD)
+# ============================================================
+
+# ESTADOS DE ENTREVISTA
+ESTADOS_ENTREVISTA = ['programada', 'reprogramada', 'cancelada', 'completada']
+
+# ESTADOS DE SIMULACRO
+ESTADOS_SIMULACRO = ['pendiente', 'propuesto', 'confirmado', 'en_progreso', 'completado']
+
+# ESTADOS DE RECOMENDACIONES
+ESTADOS_RECOMENDACIONES = ['borrador', 'publicado']
+
+# VENTANAS DE RECORDATORIO (en horas)
+VENTANAS_RECORDATORIO = {
+    '24h': 24,
+    '2h': 2,
+}
+
+# VENTANAS DE PREPARACIÓN (en días)
+VENTANAS_PREPARACION = {
+    '7d': 7,
+}
+
+# Mapeo de tipos de alerta a nombres legibles (para feature de Alertas)
+TIPOS_ALERTA_ENTREVISTA = {
+    'entrevista_agendada': 'Entrevista agendada',
+    'entrevista_reprogramada': 'Entrevista reprogramada',
+    'entrevista_cancelada': 'Entrevista cancelada',
+    'recordatorio_entrevista': 'Recordatorio entrevista',
+    'preparacion_recomendada': 'Preparación recomendada',
+    'simulacion_completada': 'Simulación completada',
+    'recomendaciones_listas': 'Recomendaciones listas',
+}
+

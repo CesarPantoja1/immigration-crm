@@ -30,6 +30,7 @@ htmlcov/
 *.iml
 *.iws
 .idea_modules/
+.github/
 
 # ===========================
 # VS Code

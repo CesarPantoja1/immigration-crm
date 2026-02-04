@@ -204,3 +204,253 @@ class BuzonNotificacionesService:
         if not solicitud_existe:
             return False, "El expediente referenciado ya no está disponible"
         return True, None
+
+
+# ============================================================
+# SERVICIOS PARA ALERTAS DE ENTREVISTA (BDD)
+# ============================================================
+
+from datetime import datetime, timedelta
+
+
+class EntrevistaAlertasService:
+    """
+    Servicio de lógica de negocio para operaciones de Entrevista.
+    Específico para BDD de Alertas de Entrevista.
+    """
+
+    @staticmethod
+    def registrar_entrevista(solicitud_id: str, fecha_hora: str):
+        """
+        Registra una nueva entrevista para una solicitud.
+        Retorna dict con datos para crear notificación.
+        """
+        return {
+            'solicitud_id': solicitud_id,
+            'fecha_hora': fecha_hora,
+            'estado': 'Programada',
+            'tipo_notificacion': 'Entrevista agendada'
+        }
+
+    @staticmethod
+    def reprogramar_entrevista(fecha_hora_actual: str, nueva_fecha_hora: str):
+        """
+        Reprograma una entrevista.
+        Retorna dict con datos para crear notificación.
+        """
+        return {
+            'fecha_hora_anterior': fecha_hora_actual,
+            'nueva_fecha_hora': nueva_fecha_hora,
+            'estado': 'Reprogramada',
+            'tipo_notificacion': 'Entrevista reprogramada'
+        }
+
+    @staticmethod
+    def cancelar_entrevista(fecha_hora: str):
+        """
+        Cancela una entrevista.
+        Retorna dict con datos para crear notificación.
+        """
+        return {
+            'fecha_hora': fecha_hora,
+            'estado': 'Cancelada',
+            'tipo_notificacion': 'Entrevista cancelada'
+        }
+
+    @staticmethod
+    def puede_recibir_recordatorio(estado_entrevista: str) -> bool:
+        """Determina si una entrevista puede recibir recordatorios."""
+        return estado_entrevista in ['Programada', 'Reprogramada']
+
+
+class RecordatorioAlertasService:
+    """
+    Servicio de lógica de negocio para recordatorios de entrevista.
+    Encapsula las reglas de ventanas temporales.
+    """
+
+    # Ventanas de recordatorio configuradas (en horas)
+    VENTANAS_HORAS = {
+        '24h': 24,
+        '2h': 2,
+    }
+
+    # Tolerancia para cada ventana (en horas)
+    TOLERANCIA = {
+        '24h': 1,  # 23-25 horas
+        '2h': 1,   # 1-3 horas
+    }
+
+    @staticmethod
+    def calcular_horas_restantes(fecha_hora_entrevista: str, fecha_hora_actual: str) -> float:
+        """
+        Calcula las horas restantes hasta la entrevista.
+        Formatos esperados: 'YYYY-MM-DD HH:MM'
+        """
+        formato = "%Y-%m-%d %H:%M"
+        entrevista = datetime.strptime(fecha_hora_entrevista, formato)
+        actual = datetime.strptime(fecha_hora_actual, formato)
+        diferencia = entrevista - actual
+        return diferencia.total_seconds() / 3600
+
+    @staticmethod
+    def determinar_ventana_aplicable(horas_restantes: float, ventanas_configuradas: List[str]) -> Optional[str]:
+        """
+        Determina qué ventana de recordatorio aplica según las horas restantes.
+        Retorna la ventana ('24h', '2h') o None si ninguna aplica.
+        """
+        for ventana in ventanas_configuradas:
+            horas_ventana = RecordatorioAlertasService.VENTANAS_HORAS.get(ventana, 0)
+            tolerancia = RecordatorioAlertasService.TOLERANCIA.get(ventana, 1)
+
+            min_horas = horas_ventana - tolerancia
+            max_horas = horas_ventana + tolerancia
+
+            if min_horas <= horas_restantes <= max_horas:
+                return ventana
+
+        return None
+
+    @staticmethod
+    def debe_emitir_recordatorio(estado_entrevista: str, fecha_hora_entrevista: str,
+                                  fecha_hora_actual: str, ventanas_configuradas: List[str]) -> Tuple[bool, Optional[str]]:
+        """
+        Determina si se debe emitir un recordatorio.
+        Retorna (debe_emitir, ventana_aplicable).
+        """
+        # No emitir para entrevistas canceladas
+        if not EntrevistaAlertasService.puede_recibir_recordatorio(estado_entrevista):
+            return False, None
+
+        horas_restantes = RecordatorioAlertasService.calcular_horas_restantes(
+            fecha_hora_entrevista, fecha_hora_actual
+        )
+
+        # No emitir si la entrevista ya pasó
+        if horas_restantes < 0:
+            return False, None
+
+        ventana = RecordatorioAlertasService.determinar_ventana_aplicable(
+            horas_restantes, ventanas_configuradas
+        )
+
+        return ventana is not None, ventana
+
+    @staticmethod
+    def generar_detalle_recordatorio(ventana: str) -> str:
+        """Genera el detalle del recordatorio según la ventana."""
+        return f"Faltan {ventana}"
+
+
+class PreparacionAlertasService:
+    """
+    Servicio de lógica de negocio para alertas de preparación.
+    Evalúa si el migrante debería prepararse para su entrevista.
+    """
+
+    # Ventana de preparación (en días)
+    VENTANA_DIAS = 7
+
+    @staticmethod
+    def calcular_dias_restantes(fecha_hora_entrevista: str, fecha_hora_actual: str) -> int:
+        """Calcula los días restantes hasta la entrevista."""
+        formato = "%Y-%m-%d %H:%M"
+        entrevista = datetime.strptime(fecha_hora_entrevista, formato)
+        actual = datetime.strptime(fecha_hora_actual, formato)
+        diferencia = entrevista - actual
+        return diferencia.days
+
+    @staticmethod
+    def tiene_simulacro_confirmado(solicitud_id: str, simulacros: dict) -> bool:
+        """Verifica si la solicitud tiene un simulacro confirmado."""
+        for sim in simulacros.values():
+            if sim.solicitud_id == solicitud_id and sim.estado == 'Confirmado':
+                return True
+        return False
+
+    @staticmethod
+    def debe_alertar_preparacion(fecha_hora_entrevista: str, fecha_hora_actual: str,
+                                  solicitud_id: str, simulacros: dict,
+                                  ventana_dias: int = 7) -> bool:
+        """
+        Determina si se debe alertar sobre preparación.
+        Alerta cuando falta `ventana_dias` o menos y no hay simulacro confirmado.
+        """
+        dias_restantes = PreparacionAlertasService.calcular_dias_restantes(
+            fecha_hora_entrevista, fecha_hora_actual
+        )
+
+        if dias_restantes > ventana_dias:
+            return False
+
+        if PreparacionAlertasService.tiene_simulacro_confirmado(solicitud_id, simulacros):
+            return False
+
+        return True
+
+
+class SimulacroAlertasService:
+    """
+    Servicio de lógica de negocio para alertas de simulacro.
+    """
+
+    @staticmethod
+    def puede_notificar_completado(estado_anterior: str, estado_nuevo: str) -> bool:
+        """Determina si se debe notificar que un simulacro fue completado."""
+        return estado_anterior != 'Completado' and estado_nuevo == 'Completado'
+
+    @staticmethod
+    def puede_notificar_recomendaciones(estado_recomendaciones: str) -> bool:
+        """Determina si se debe notificar que las recomendaciones están listas."""
+        return estado_recomendaciones == 'Publicado'
+
+
+class AlertasEntrevistaService:
+    """
+    Servicio orquestador para generación de alertas de entrevista.
+    Centraliza la creación de notificaciones para el dominio de Alertas.
+    """
+
+    @staticmethod
+    def crear_notificacion_entrevista(tipo: str, solicitud_id: str,
+                                       fecha_hora: str = None,
+                                       fecha_hora_anterior: str = None,
+                                       nueva_fecha_hora: str = None,
+                                       detalle: str = None) -> dict:
+        """
+        Crea datos de notificación para entrevista.
+        Retorna un dict con los campos de la notificación.
+        """
+        notif_data = {
+            'tipo': tipo,
+            'id_solicitud': solicitud_id,
+        }
+
+        if fecha_hora:
+            notif_data['fecha_hora_entrevista'] = fecha_hora
+        if fecha_hora_anterior:
+            notif_data['fecha_hora_anterior'] = fecha_hora_anterior
+        if nueva_fecha_hora:
+            notif_data['nueva_fecha_hora'] = nueva_fecha_hora
+        if detalle:
+            notif_data['detalle'] = detalle
+
+        return notif_data
+
+    @staticmethod
+    def crear_notificacion_simulacro(tipo: str, simulacro_id: str,
+                                      detalle: str = None) -> dict:
+        """
+        Crea datos de notificación para simulacro.
+        Retorna un dict con los campos de la notificación.
+        """
+        notif_data = {
+            'tipo': tipo,
+            'id_simulacro': simulacro_id,
+        }
+
+        if detalle:
+            notif_data['detalle'] = detalle
+
+        return notif_data
+

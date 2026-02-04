@@ -201,3 +201,178 @@ def crear_notificacion(tipo: str, titulo: str, mensaje: str, usuario_id: int,
         _id_counter['notificacion'], tipo, titulo, mensaje,
         usuario_id, solicitud_id, leida, '', detalle, datos
     )
+
+
+# ============================================================
+# ENTIDADES PARA ALERTAS DE ENTREVISTA (BDD)
+# ============================================================
+
+class EntrevistaEntity:
+    """
+    Representa una entrevista consular en el dominio de testing.
+    Estados: Programada, Reprogramada, Cancelada, Completada
+    """
+
+    ESTADOS_VALIDOS = ['Programada', 'Reprogramada', 'Cancelada', 'Completada']
+
+    def __init__(self, id: int, solicitud_id: str, fecha_hora: str,
+                 estado: str = 'Programada', fecha_hora_anterior: str = None):
+        self.id = id
+        self.solicitud_id = solicitud_id
+        self.fecha_hora = fecha_hora
+        self.estado = estado if estado in self.ESTADOS_VALIDOS else 'Programada'
+        self.fecha_hora_anterior = fecha_hora_anterior
+
+    def esta_activa(self) -> bool:
+        """Una entrevista está activa si no está cancelada ni completada."""
+        return self.estado in ['Programada', 'Reprogramada']
+
+    def puede_recibir_recordatorio(self) -> bool:
+        """Solo entrevistas activas pueden recibir recordatorios."""
+        return self.esta_activa()
+
+    def reprogramar(self, nueva_fecha_hora: str) -> None:
+        """Reprograma la entrevista a una nueva fecha/hora."""
+        self.fecha_hora_anterior = self.fecha_hora
+        self.fecha_hora = nueva_fecha_hora
+        self.estado = 'Reprogramada'
+
+    def cancelar(self) -> None:
+        """Cancela la entrevista."""
+        self.estado = 'Cancelada'
+
+
+class SimulacroEntity:
+    """
+    Representa un simulacro de entrevista en el dominio de testing.
+    Estados: Pendiente, Propuesto, Confirmado, En progreso, Completado
+    """
+
+    ESTADOS_VALIDOS = ['Pendiente', 'Propuesto', 'Confirmado', 'En progreso', 'Completado']
+
+    def __init__(self, id: str, solicitud_id: str, estado: str = 'Pendiente'):
+        self.id = id
+        self.solicitud_id = solicitud_id
+        self.estado = estado if estado in self.ESTADOS_VALIDOS else 'Pendiente'
+
+    def confirmar(self) -> None:
+        """Confirma el simulacro."""
+        self.estado = 'Confirmado'
+
+    def completar(self) -> None:
+        """Marca el simulacro como completado."""
+        self.estado = 'Completado'
+
+    def esta_confirmado(self) -> bool:
+        """Verifica si el simulacro está confirmado."""
+        return self.estado == 'Confirmado'
+
+
+class RecomendacionesEntity:
+    """
+    Representa un documento de recomendaciones de simulacro.
+    Estados: Borrador, Publicado
+    """
+
+    ESTADOS_VALIDOS = ['Borrador', 'Publicado']
+
+    def __init__(self, id: int, simulacro_id: str, estado: str = 'Borrador'):
+        self.id = id
+        self.simulacro_id = simulacro_id
+        self.estado = estado if estado in self.ESTADOS_VALIDOS else 'Borrador'
+
+    def publicar(self) -> None:
+        """Publica las recomendaciones."""
+        self.estado = 'Publicado'
+
+    def esta_publicado(self) -> bool:
+        """Verifica si las recomendaciones están publicadas."""
+        return self.estado == 'Publicado'
+
+
+class CentroNotificacionesEntity:
+    """
+    Representa el centro/buzón de notificaciones de un usuario.
+    Gestiona la colección de notificaciones en memoria para testing.
+    """
+
+    def __init__(self):
+        self.notificaciones: List[NotificacionEntity] = []
+
+    def agregar(self, notificacion: NotificacionEntity) -> None:
+        """Agrega una notificación al centro."""
+        self.notificaciones.append(notificacion)
+
+    def total(self) -> int:
+        """Retorna el total de notificaciones."""
+        return len(self.notificaciones)
+
+    def ultima(self) -> Optional[NotificacionEntity]:
+        """Retorna la última notificación agregada."""
+        return self.notificaciones[-1] if self.notificaciones else None
+
+    def nuevas_desde(self, indice: int) -> List[NotificacionEntity]:
+        """Retorna las notificaciones agregadas desde un índice."""
+        return self.notificaciones[indice:]
+
+    def buscar_por_criterios(self, criterios: dict) -> Optional[NotificacionEntity]:
+        """Busca una notificación que coincida con los criterios dados."""
+        for notif in reversed(self.notificaciones):
+            coincide = True
+            for key, value in criterios.items():
+                # Normalizar key (quitar espacios, usar underscore)
+                attr_name = key.replace(' ', '_').replace('-', '_')
+                attr_value = getattr(notif, attr_name, None)
+                # También verificar en datos
+                if attr_value is None and notif.datos:
+                    attr_value = notif.datos.get(key) or notif.datos.get(attr_name)
+                if str(attr_value) != str(value):
+                    coincide = False
+                    break
+            if coincide:
+                return notif
+        return None
+
+    def contar_por_tipo(self, tipo: str, solicitud_id: str = None) -> int:
+        """Cuenta notificaciones de un tipo específico."""
+        count = 0
+        for notif in self.notificaciones:
+            if notif.tipo == tipo:
+                if solicitud_id is None or notif.solicitud_id == solicitud_id:
+                    count += 1
+        return count
+
+    def contar_no_leidas(self) -> int:
+        """Cuenta notificaciones no leídas."""
+        return sum(1 for n in self.notificaciones if not n.leida)
+
+
+# Factory functions para entidades de Alertas
+
+def crear_entrevista(solicitud_id: str, fecha_hora: str,
+                     estado: str = 'Programada') -> EntrevistaEntity:
+    """Crea una instancia de Entrevista."""
+    _id_counter['entrevista'] = _id_counter.get('entrevista', 0) + 1
+    return EntrevistaEntity(
+        _id_counter['entrevista'], solicitud_id, fecha_hora, estado
+    )
+
+
+def crear_simulacro(id_simulacro: str, solicitud_id: str,
+                    estado: str = 'Pendiente') -> SimulacroEntity:
+    """Crea una instancia de Simulacro."""
+    return SimulacroEntity(id_simulacro, solicitud_id, estado)
+
+
+def crear_recomendaciones(simulacro_id: str, estado: str = 'Borrador') -> RecomendacionesEntity:
+    """Crea una instancia de Recomendaciones."""
+    _id_counter['recomendaciones'] = _id_counter.get('recomendaciones', 0) + 1
+    return RecomendacionesEntity(
+        _id_counter['recomendaciones'], simulacro_id, estado
+    )
+
+
+def crear_centro_notificaciones() -> CentroNotificacionesEntity:
+    """Crea un centro de notificaciones vacío."""
+    return CentroNotificacionesEntity()
+
