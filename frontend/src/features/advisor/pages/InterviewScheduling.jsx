@@ -15,6 +15,9 @@ export default function InterviewScheduling() {
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [selectedSolicitud, setSelectedSolicitud] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [dateError, setDateError] = useState('')
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [successData, setSuccessData] = useState(null)
   const [scheduleForm, setScheduleForm] = useState({
     fecha: '',
     hora: '',
@@ -148,6 +151,7 @@ export default function InterviewScheduling() {
 
   const handleScheduleInterview = (solicitud) => {
     setSelectedSolicitud(solicitud)
+    setDateError('') // Resetear error de fecha
     // Resetear el formulario con valores por defecto
     setScheduleForm({
       fecha: '',
@@ -190,9 +194,18 @@ export default function InterviewScheduling() {
       )
 
       if (response && (response.entrevista?.id || response.id || response.success)) {
-        // Mostrar mensaje de éxito
-        alert(`¡Entrevista agendada exitosamente!\n\nCliente: ${selectedSolicitud.cliente}\nFecha: ${scheduleForm.fecha}\nHora: ${scheduleForm.hora}\nUbicación: ${ubicacionFinal}\n\nSe ha enviado una notificación al cliente.`)
-        
+        // Mostrar modal de éxito con los datos de la entrevista
+        setSuccessData({
+          cliente: selectedSolicitud.cliente,
+          fecha: scheduleForm.fecha,
+          hora: scheduleForm.hora,
+          ubicacion: ubicacionFinal,
+          clienteEmail: selectedSolicitud.clienteEmail,
+          clienteTelefono: selectedSolicitud.clienteTelefono,
+          tipoVisa: selectedSolicitud.tipoVisa,
+          embajada: selectedSolicitud.embajada
+        })
+        setShowSuccessModal(true)
         setShowScheduleModal(false)
         // Resetear formulario
         setScheduleForm({
@@ -536,19 +549,115 @@ export default function InterviewScheduling() {
                   Fecha y Hora de la Entrevista
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
+                  <div className="col-span-1 md:col-span-3">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fecha *
+                      Fecha * <span className="text-xs text-gray-500">(Solo días laborables: Lunes a Viernes)</span>
                     </label>
-                    <input
-                      type="date"
-                      required
-                      min={new Date().toISOString().split('T')[0]}
-                      value={scheduleForm.fecha}
-                      onChange={(e) => setScheduleForm({ ...scheduleForm, fecha: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        required
+                        min={new Date().toISOString().split('T')[0]}
+                        value={scheduleForm.fecha}
+                        onChange={(e) => {
+                          const selectedDate = new Date(e.target.value + 'T00:00:00');
+                          const dayOfWeek = selectedDate.getDay();
+                          // Validar que no sea sábado (6) ni domingo (0)
+                          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                            setScheduleForm({ ...scheduleForm, fecha: e.target.value });
+                            setDateError('');
+                          } else {
+                            const dayName = dayOfWeek === 0 ? 'Domingo' : 'Sábado';
+                            setDateError(`❌ ${dayName} no disponible. Solo puedes agendar entrevistas de Lunes a Viernes.`);
+                            setScheduleForm({ ...scheduleForm, fecha: '' });
+                          }
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors ${
+                          dateError ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
+                        style={{
+                          colorScheme: 'light'
+                        }}
+                      />
+                      <style jsx>{`
+                        /* Deshabilitar visualmente sábados y domingos en el calendario */
+                        input[type="date"]::-webkit-calendar-picker-indicator {
+                          cursor: pointer;
+                        }
+                      `}</style>
+                    </div>
+                    
+                    {/* Mensaje de error elegante con animación */}
+                    {dateError && (
+                      <div className="mt-3 relative overflow-hidden animate-slideIn">
+                        <div className="absolute inset-0 bg-gradient-to-r from-red-400 to-pink-500 animate-pulse opacity-20 rounded-xl"></div>
+                        <div className="relative bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-300 rounded-xl p-4 shadow-lg transform transition-all duration-300 hover:scale-[1.02] animate-shake">
+                          <div className="flex items-start gap-3">
+                            {/* Icono animado */}
+                            <div className="flex-shrink-0 w-10 h-10 bg-red-500 rounded-full flex items-center justify-center animate-bounce">
+                              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                            </div>
+
+                            {/* Contenido del mensaje */}
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-red-800 font-bold text-base flex items-center gap-2">
+                                  Fecha No Disponible
+                                </h4>
+                                <button
+                                  onClick={() => setDateError('')}
+                                  className="text-red-400 hover:text-red-600 transition-colors duration-200 hover:scale-110 transform"
+                                  aria-label="Cerrar alerta"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                              <p className="mt-1 text-sm text-red-700 font-medium">{dateError}</p>
+                              <div className="mt-2 text-xs text-red-600 bg-white/50 rounded-lg px-3 py-2 border border-red-200 flex items-start gap-2">
+                                <span className="text-base">💼</span>
+                                <span><strong>Nota:</strong> Las entrevistas consulares solo están disponibles en días hábiles (Lunes a Viernes).</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Indicador visual de días disponibles mejorado */}
+                    <div className="mt-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-3 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-green-800 mb-1">📅 Días Laborables Disponibles</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {['Lun', 'Mar', 'Mié', 'Jue', 'Vie'].map((day, idx) => (
+                              <span key={idx} className="inline-flex items-center px-2.5 py-1 bg-white border border-green-300 rounded-lg text-xs font-bold text-green-700 shadow-sm">
+                                ✓ {day}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-xs text-green-700 bg-white/50 rounded-lg px-2 py-1.5">
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <strong>Horario:</strong> 8:00 AM - 4:30 PM
+                        </span>
+                      </div>
+                    </div>
                   </div>
+                  
+                  <div className="col-span-1 md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Hora *
@@ -592,6 +701,7 @@ export default function InterviewScheduling() {
                       <option value="60">1 hora</option>
                       <option value="90">1 hora 30 min</option>
                     </select>
+                  </div>
                   </div>
                 </div>
               </div>
@@ -739,6 +849,160 @@ export default function InterviewScheduling() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Éxito - Entrevista Agendada */}
+      {showSuccessModal && successData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl transform animate-slideIn">
+            {/* Header con animación */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-green-400 via-emerald-500 to-teal-600 p-8 rounded-t-2xl">
+              {/* Círculos decorativos animados */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-10 rounded-full -ml-12 -mb-12"></div>
+
+              {/* Icono de éxito con animación */}
+              <div className="relative flex justify-center mb-4">
+                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                  <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Título */}
+              <h2 className="text-2xl font-bold text-white text-center mb-2">
+                ¡Entrevista Agendada Exitosamente!
+              </h2>
+              <p className="text-green-50 text-center text-sm">
+                Se ha enviado una notificación al cliente
+              </p>
+            </div>
+
+            {/* Contenido */}
+            <div className="p-6 space-y-4">
+              {/* Información del Cliente */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Cliente</p>
+                    <p className="text-lg font-bold text-blue-900">{successData.cliente}</p>
+                  </div>
+                </div>
+
+                {successData.clienteEmail && (
+                  <div className="flex items-center gap-2 text-sm text-blue-700 mb-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span>{successData.clienteEmail}</span>
+                  </div>
+                )}
+
+                {successData.clienteTelefono && (
+                  <div className="flex items-center gap-2 text-sm text-blue-700">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    <span>{successData.clienteTelefono}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Detalles de la Entrevista */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-purple-600 uppercase">Fecha</p>
+                    <p className="text-base font-bold text-purple-900">
+                      {new Date(successData.fecha + 'T12:00:00').toLocaleDateString('es-ES', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                  <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-orange-600 uppercase">Hora</p>
+                    <p className="text-base font-bold text-orange-900">{successData.hora}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-teal-50 rounded-lg border border-teal-200">
+                  <div className="w-10 h-10 bg-teal-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-teal-600 uppercase">Ubicación</p>
+                    <p className="text-sm font-bold text-teal-900">{successData.ubicacion}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Información adicional */}
+              <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-xs text-amber-800">
+                    <p className="font-semibold mb-1">Tipo de Visa: {successData.tipoVisa}</p>
+                    <p className="font-semibold">Embajada: {successData.embajada}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mensaje de notificación */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+                </svg>
+                <p className="text-xs text-green-700">
+                  <strong>✓ Notificación enviada</strong> al correo y teléfono del cliente
+                </p>
+              </div>
+            </div>
+
+            {/* Botón de Aceptar */}
+            <div className="p-6 pt-0">
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false)
+                  setSuccessData(null)
+                  fetchData() // Recargar datos
+                }}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Aceptar
+              </button>
+            </div>
           </div>
         </div>
       )}
