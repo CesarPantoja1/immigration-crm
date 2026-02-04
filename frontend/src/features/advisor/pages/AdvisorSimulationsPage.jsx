@@ -8,6 +8,7 @@ export default function AdvisorSimulationsPage() {
   const [showProposalModal, setShowProposalModal] = useState(false)
   const [showTranscriptionModal, setShowTranscriptionModal] = useState(false)
   const [showIAProgressModal, setShowIAProgressModal] = useState(false)
+  const [showContrapropuestaModal, setShowContrapropuestaModal] = useState(false)
   const [iaProgress, setIAProgress] = useState({ step: 0, message: '', error: null })
   const [selectedProposal, setSelectedProposal] = useState(null)
   const [selectedSimulacro, setSelectedSimulacro] = useState(null)
@@ -19,6 +20,7 @@ export default function AdvisorSimulationsPage() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [generatingIA, setGeneratingIA] = useState(false)
   const [transcriptionFile, setTranscriptionFile] = useState(null)
+  const [contrapropuestaData, setContrapropuestaData] = useState({ fecha: '', hora: '', motivo: '' })
 
   useEffect(() => {
     fetchSimulationsData()
@@ -68,7 +70,13 @@ export default function AdvisorSimulationsPage() {
         note: p.notas || p.nota || '',
         estado: p.estado,
         propuesto_por: p.propuesto_por || 'cliente',
-        solicitudId: p.solicitud_id
+        solicitudId: p.solicitud_id,
+        modalidad: p.modalidad || 'virtual',
+        modalidad_display: p.modalidad_display || (p.modalidad === 'presencial' ? 'Presencial' : 'Virtual'),
+        // Fecha de cita con embajada para validación
+        fechaCitaEmbajada: p.fecha_cita_embajada || null,
+        // De quién es el turno de responder
+        turno_de: p.turno_de || null
       }))
 
       // Transform completados
@@ -152,6 +160,33 @@ export default function AdvisorSimulationsPage() {
     } catch (error) {
       console.error('Error confirming client request:', error)
       alert('Error al confirmar la solicitud')
+    }
+  }
+
+  // Abrir modal para proponer fecha alternativa (contrapropuesta del asesor)
+  const handleOpenContrapropuestaModal = (proposal) => {
+    setSelectedProposal(proposal)
+    setContrapropuestaData({ fecha: '', hora: '', motivo: '' })
+    setShowContrapropuestaModal(true)
+  }
+
+  // Enviar contrapropuesta (asesor propone otra fecha)
+  const handleSubmitContrapropuesta = async () => {
+    if (!selectedProposal || !contrapropuestaData.fecha || !contrapropuestaData.hora) return
+    
+    try {
+      await simulacrosService.proponerFechaAlternativa(selectedProposal.id, {
+        fecha: contrapropuestaData.fecha,
+        hora: contrapropuestaData.hora,
+        motivo: contrapropuestaData.motivo
+      })
+      setShowContrapropuestaModal(false)
+      setSelectedProposal(null)
+      setContrapropuestaData({ fecha: '', hora: '', motivo: '' })
+      fetchSimulationsData()
+    } catch (error) {
+      console.error('Error al enviar contrapropuesta:', error)
+      alert('Error al enviar la propuesta de fecha alternativa')
     }
   }
 
@@ -308,11 +343,19 @@ export default function AdvisorSimulationsPage() {
             {proposals.map((proposal) => (
               <div 
                 key={proposal.id}
-                className="bg-white rounded-xl p-4 border border-primary-200 shadow-sm hover:shadow-md transition-shadow"
+                className={`bg-white rounded-xl p-4 border shadow-sm hover:shadow-md transition-shadow ${
+                  proposal.turno_de === 'asesor' 
+                    ? 'border-amber-300 bg-amber-50/30' 
+                    : 'border-blue-200'
+                }`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-semibold">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+                      proposal.turno_de === 'asesor'
+                        ? 'bg-amber-100 text-amber-600'
+                        : 'bg-blue-100 text-blue-600'
+                    }`}>
                       {proposal.client.charAt(0)}
                     </div>
                     <div>
@@ -320,9 +363,44 @@ export default function AdvisorSimulationsPage() {
                       <p className="text-sm text-gray-500">{proposal.visaType}</p>
                     </div>
                   </div>
-                  <Badge variant="info" className="text-xs">
-                    {proposal.estado === 'solicitado' ? 'Nueva solicitud' : 'Contrapropuesta'}
-                  </Badge>
+                  <div className="flex flex-col gap-1 items-end">
+                    {/* Badge según estado y turno */}
+                    <Badge 
+                      variant={proposal.turno_de === 'asesor' ? 'warning' : 'info'} 
+                      className="text-xs"
+                    >
+                      {proposal.turno_de === 'asesor' ? '⏳ Tu turno' : '⏳ Esperando cliente'}
+                    </Badge>
+                    <Badge 
+                      variant={proposal.modalidad === 'presencial' ? 'warning' : 'success'} 
+                      className="text-xs"
+                    >
+                      {proposal.modalidad === 'presencial' ? '🏢 Presencial' : '💻 Virtual'}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Info del estado actual */}
+                <div className={`rounded-lg p-2 mb-3 text-sm ${
+                  proposal.turno_de === 'asesor' 
+                    ? 'bg-amber-50 border border-amber-200' 
+                    : 'bg-blue-50 border border-blue-200'
+                }`}>
+                  {proposal.estado === 'solicitado' && (
+                    <p className="text-amber-700">📩 Nueva solicitud del cliente</p>
+                  )}
+                  {proposal.estado === 'pendiente_respuesta' && (
+                    <p className="text-blue-700">📤 Esperando respuesta del cliente a tu propuesta</p>
+                  )}
+                  {proposal.estado === 'contrapropuesta' && proposal.turno_de === 'asesor' && (
+                    <p className="text-amber-700">🔄 El cliente propuso otra fecha</p>
+                  )}
+                  {proposal.estado === 'contrapropuesta' && proposal.turno_de === 'cliente' && (
+                    <p className="text-blue-700">📤 Esperando respuesta del cliente a tu contrapropuesta</p>
+                  )}
+                  {proposal.estado === 'contrapropuesta_final' && (
+                    <p className="text-amber-700">⚡ Propuesta final del cliente - Debes decidir</p>
+                  )}
                 </div>
 
                 <div className="space-y-2 mb-4">
@@ -345,23 +423,33 @@ export default function AdvisorSimulationsPage() {
                   )}
                 </div>
 
-                <div className="flex gap-2">
-                  <Button 
-                    variant="secondary" 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => {/* TODO: Proponer otra fecha */}}
-                  >
-                    Proponer Fecha
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    className="flex-1 bg-primary-600 hover:bg-primary-700"
-                    onClick={() => handleConfirmClientRequest(proposal.id)}
-                  >
-                    ✓ Confirmar
-                  </Button>
-                </div>
+                {/* Botones según turno */}
+                {proposal.turno_de === 'asesor' ? (
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => handleOpenContrapropuestaModal(proposal)}
+                    >
+                      Proponer Fecha
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      className="flex-1 bg-primary-600 hover:bg-primary-700"
+                      onClick={() => handleConfirmClientRequest(proposal.id)}
+                    >
+                      ✓ Confirmar
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2 py-2 px-4 bg-blue-50 rounded-lg text-blue-700 text-sm">
+                    <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Esperando respuesta del cliente...
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -877,6 +965,129 @@ export default function AdvisorSimulationsPage() {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* Contrapropuesta Modal - Asesor propone fecha alternativa */}
+      <Modal
+        isOpen={showContrapropuestaModal}
+        onClose={() => {
+          setShowContrapropuestaModal(false)
+          setSelectedProposal(null)
+          setContrapropuestaData({ fecha: '', hora: '', motivo: '' })
+        }}
+        title="Proponer fecha alternativa"
+        size="md"
+      >
+        {selectedProposal && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-700">
+                <strong>Solicitud de:</strong> {selectedProposal.client}
+              </p>
+              <p className="text-sm text-blue-600">
+                Fecha solicitada: {selectedProposal.proposedDate} - {selectedProposal.proposedTime}
+              </p>
+              <p className="text-sm text-blue-600">
+                Modalidad: {selectedProposal.modalidad === 'presencial' ? '🏢 Presencial' : '💻 Virtual'}
+              </p>
+            </div>
+            
+            {/* Mostrar fecha límite si existe */}
+            {selectedProposal?.fechaCitaEmbajada && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-700">
+                  <span className="font-medium">📅 Cita del cliente con la embajada:</span>{' '}
+                  {new Date(selectedProposal.fechaCitaEmbajada + 'T00:00:00').toLocaleDateString('es-ES', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </p>
+                <p className="text-xs text-amber-600 mt-1">
+                  El simulacro debe ser antes de esta fecha.
+                </p>
+              </div>
+            )}
+            
+            <p className="text-gray-600 text-sm">
+              Propón una nueva fecha y hora. El cliente recibirá una notificación con tu propuesta.
+            </p>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nueva Fecha</label>
+                <input
+                  type="date"
+                  value={contrapropuestaData.fecha}
+                  onChange={(e) => setContrapropuestaData(prev => ({ ...prev, fecha: e.target.value }))}
+                  min={new Date().toISOString().split('T')[0]}
+                  max={selectedProposal?.fechaCitaEmbajada || undefined}
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500 ${
+                    contrapropuestaData.fecha && selectedProposal?.fechaCitaEmbajada && contrapropuestaData.fecha >= selectedProposal.fechaCitaEmbajada
+                      ? 'border-red-500 bg-red-50'
+                      : 'border-gray-200'
+                  }`}
+                />
+                {/* Mensaje de error si fecha es posterior a cita */}
+                {contrapropuestaData.fecha && selectedProposal?.fechaCitaEmbajada && contrapropuestaData.fecha >= selectedProposal.fechaCitaEmbajada && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    La fecha debe ser anterior a la cita del cliente con la embajada
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nueva Hora</label>
+                <input
+                  type="time"
+                  value={contrapropuestaData.hora}
+                  onChange={(e) => setContrapropuestaData(prev => ({ ...prev, hora: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Motivo (opcional)
+              </label>
+              <textarea
+                value={contrapropuestaData.motivo}
+                onChange={(e) => setContrapropuestaData(prev => ({ ...prev, motivo: e.target.value }))}
+                placeholder="Explica brevemente por qué propones otra fecha..."
+                rows={3}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button 
+                variant="secondary" 
+                className="flex-1" 
+                onClick={() => {
+                  setShowContrapropuestaModal(false)
+                  setSelectedProposal(null)
+                  setContrapropuestaData({ fecha: '', hora: '', motivo: '' })
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                className="flex-1" 
+                onClick={handleSubmitContrapropuesta}
+                disabled={
+                  !contrapropuestaData.fecha || 
+                  !contrapropuestaData.hora ||
+                  (selectedProposal?.fechaCitaEmbajada && contrapropuestaData.fecha >= selectedProposal.fechaCitaEmbajada)
+                }
+              >
+                Enviar Propuesta
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

@@ -57,9 +57,9 @@ export default function SimulationsPage() {
         : (simulacrosResponse?.results || [])
 
       // Separate by status
-      // 'solicitado' y 'propuesto' van a proposals (pendientes de confirmación)
+      // Estados de negociación van a proposals (pendientes de confirmación)
       const propuestos = simulacrosData.filter(s => 
-        ['propuesto', 'solicitado', 'pendiente_respuesta'].includes(s.estado)
+        ['propuesto', 'solicitado', 'pendiente_respuesta', 'contrapropuesta', 'contrapropuesta_final'].includes(s.estado)
       )
       const confirmados = simulacrosData.filter(s => 
         ['confirmado', 'en_progreso'].includes(s.estado)
@@ -80,7 +80,14 @@ export default function SimulationsPage() {
         location: s.ubicacion,
         // Campos para reglas de roles (simulacion_entrevista.feature)
         propuesto_por: s.propuesto_por || 'asesor',
-        puede_aceptar: s.puede_aceptar !== false // Por defecto true si no viene
+        puede_aceptar: s.puede_aceptar !== false, // Por defecto true si no viene
+        // Fecha de cita con embajada para validación
+        fechaCitaEmbajada: s.fecha_cita_embajada || null,
+        // Estado actual del simulacro
+        estado: s.estado,
+        estado_display: s.estado_display,
+        // De quién es el turno de responder
+        turno_de: s.turno_de || null
       })))
 
       setUpcoming(confirmados.map(s => {
@@ -355,13 +362,40 @@ export default function SimulationsPage() {
               <Card key={proposal.id}>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 bg-primary-100 rounded-xl flex items-center justify-center">
-                      <svg className="w-7 h-7 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
+                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
+                      proposal.turno_de === 'cliente' 
+                        ? 'bg-amber-100' 
+                        : 'bg-blue-100'
+                    }`}>
+                      {proposal.turno_de === 'cliente' ? (
+                        <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      )}
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Propuesta de Simulacro</h3>
+                      {/* Título dinámico según estado */}
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-gray-900">
+                          {proposal.estado === 'solicitado' && 'Solicitud Enviada'}
+                          {proposal.estado === 'pendiente_respuesta' && 'Nueva Propuesta del Asesor'}
+                          {proposal.estado === 'contrapropuesta' && proposal.turno_de === 'cliente' && 'Contrapropuesta del Asesor'}
+                          {proposal.estado === 'contrapropuesta' && proposal.turno_de === 'asesor' && 'Tu Contrapropuesta'}
+                          {proposal.estado === 'contrapropuesta_final' && 'Tu Propuesta Final'}
+                          {!['solicitado', 'pendiente_respuesta', 'contrapropuesta', 'contrapropuesta_final'].includes(proposal.estado) && 'Propuesta de Simulacro'}
+                        </h3>
+                        {/* Badge de estado */}
+                        <Badge 
+                          variant={proposal.turno_de === 'cliente' ? 'warning' : 'info'}
+                          className="text-xs"
+                        >
+                          {proposal.turno_de === 'cliente' ? '⏳ Tu turno' : '⏳ Esperando asesor'}
+                        </Badge>
+                      </div>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -382,7 +416,7 @@ export default function SimulationsPage() {
                           {proposal.advisor}
                         </span>
                       </div>
-                      <div className="flex gap-2 mt-3">
+                      <div className="flex flex-wrap gap-2 mt-3">
                         <Badge variant="primary">{proposal.modality}</Badge>
                         <Badge variant="info">{proposal.visaType}</Badge>
                         {proposal.codigo && (
@@ -396,29 +430,34 @@ export default function SimulationsPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-3">
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        setSelectedSimulation(proposal)
-                        setShowProposeModal(true)
-                      }}
-                    >
-                      Proponer otra fecha
-                    </Button>
-                    {/* REGLA DE NEGOCIO: Cliente NO puede aceptar propuesta que él mismo creó */}
-                    {proposal.puede_aceptar && (
-                      <Button onClick={() => handleAcceptSimulation(proposal)}>
-                        Aceptar simulacro
-                      </Button>
+                  
+                  {/* Botones según turno */}
+                  <div className="flex flex-col gap-2">
+                    {/* Turno del cliente: puede aceptar o proponer otra fecha */}
+                    {proposal.turno_de === 'cliente' && (
+                      <div className="flex gap-3">
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setSelectedSimulation(proposal)
+                            setShowProposeModal(true)
+                          }}
+                        >
+                          Proponer otra fecha
+                        </Button>
+                        <Button onClick={() => handleAcceptSimulation(proposal)}>
+                          ✓ Aceptar fecha
+                        </Button>
+                      </div>
                     )}
-                    {/* Mostrar indicador si el usuario creó la propuesta */}
-                    {!proposal.puede_aceptar && proposal.propuesto_por === 'cliente' && user?.role === 'client' && (
-                      <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-sm">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    
+                    {/* Turno del asesor: mostrar mensaje de espera */}
+                    {proposal.turno_de === 'asesor' && (
+                      <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 text-blue-700 rounded-xl text-sm">
+                        <svg className="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Esperando confirmación del asesor
+                        <span>Esperando respuesta del asesor...</span>
                       </div>
                     )}
                   </div>
@@ -656,6 +695,23 @@ export default function SimulationsPage() {
             Propón una nueva fecha y hora para tu simulacro. Tu asesor recibirá la propuesta.
           </p>
           
+          {/* Mostrar fecha límite si existe */}
+          {selectedSimulation?.fechaCitaEmbajada && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+              <p className="text-sm text-blue-700">
+                <span className="font-medium">📅 Tu cita con la embajada:</span>{' '}
+                {new Date(selectedSimulation.fechaCitaEmbajada + 'T00:00:00').toLocaleDateString('es-ES', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                El simulacro debe ser antes de esta fecha.
+              </p>
+            </div>
+          )}
+          
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
@@ -664,8 +720,22 @@ export default function SimulationsPage() {
                 value={proposedDate}
                 onChange={(e) => setProposedDate(e.target.value)}
                 min={getTodayISO()}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500"
+                max={selectedSimulation?.fechaCitaEmbajada || undefined}
+                className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500 ${
+                  proposedDate && selectedSimulation?.fechaCitaEmbajada && proposedDate >= selectedSimulation.fechaCitaEmbajada
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-gray-200'
+                }`}
               />
+              {/* Mensaje de error si fecha es posterior a cita */}
+              {proposedDate && selectedSimulation?.fechaCitaEmbajada && proposedDate >= selectedSimulation.fechaCitaEmbajada && (
+                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  La fecha debe ser anterior a tu cita con la embajada
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Hora</label>
@@ -698,7 +768,11 @@ export default function SimulationsPage() {
             <Button 
               className="flex-1" 
               onClick={handleProposeDate}
-              disabled={!proposedDate || !proposedTime}
+              disabled={
+                !proposedDate || 
+                !proposedTime || 
+                (selectedSimulation?.fechaCitaEmbajada && proposedDate >= selectedSimulation.fechaCitaEmbajada)
+              }
             >
               Enviar Propuesta
             </Button>

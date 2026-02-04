@@ -159,21 +159,43 @@ class AceptarPropuestaView(APIView):
 
 
 class ContrapropuestaView(APIView):
-    """POST /api/simulacros/<id>/contrapropuesta/ - Cliente sugiere otra fecha."""
-    permission_classes = [permissions.IsAuthenticated, EsCliente]
+    """
+    POST /api/simulacros/<id>/contrapropuesta/ - Propone fecha alternativa.
+    
+    Permite que tanto el cliente como el asesor propongan fechas alternativas:
+    - Cliente: cuando el asesor propuso una fecha (estado='pendiente_respuesta')
+    - Asesor: cuando el cliente solicitó un simulacro (estado='solicitado')
+    """
+    permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request, pk):
         simulacro = SimulacroService.obtener_simulacro(pk, request.user)
         if not simulacro:
             return Response({'error': 'Simulacro no encontrado'}, status=status.HTTP_404_NOT_FOUND)
         
+        # Determinar quién está haciendo la contrapropuesta
+        quien_propone = 'asesor' if request.user.rol == 'asesor' else 'cliente'
+        
         success, error = SimulacroService.contrapropuesta(
             simulacro,
             fecha=request.data.get('fecha'),
-            hora=request.data.get('hora')
+            hora=request.data.get('hora'),
+            quien_propone=quien_propone
         )
         if not success:
             return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Enviar notificación según quién hace la contrapropuesta
+        try:
+            from apps.notificaciones.services import NotificacionService
+            if request.user.rol == 'asesor':
+                # Asesor propone fecha → notificar al cliente
+                NotificacionService.notificar_contrapropuesta(simulacro, propuesto_por='asesor')
+            else:
+                # Cliente propone fecha → notificar al asesor
+                NotificacionService.notificar_contrapropuesta(simulacro, propuesto_por='cliente')
+        except Exception:
+            pass  # No fallar si la notificación falla
         
         return Response({
             'mensaje': 'Contrapropuesta enviada',
@@ -383,9 +405,13 @@ class EstadoSalaView(APIView):
 class PropuestasPendientesView(generics.ListAPIView):
     """GET /api/simulacros/propuestas/ - Lista propuestas pendientes.
     
-    Para ASESOR: Muestra solicitudes de clientes (estado='solicitado', propuesto_por='cliente')
-                 y contrapropuestas pendientes (estado='contrapropuesta')
-    Para CLIENTE: Muestra propuestas del asesor (estado='pendiente_respuesta', propuesto_por='asesor')
+    Para ASESOR: Muestra simulacros donde es su turno de responder:
+                 - Solicitudes de clientes (estado='solicitado')
+                 - Contrapropuesta final del cliente (estado='contrapropuesta_final')
+                 También muestra los que están esperando respuesta del cliente para ver el estado
+    Para CLIENTE: Muestra simulacros donde es su turno de responder:
+                  - Propuestas del asesor (estado='pendiente_respuesta')
+                  - Contrapropuestas del asesor (estado='contrapropuesta' donde asesor hizo última propuesta)
     """
     serializer_class = SimulacroListSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -395,23 +421,25 @@ class PropuestasPendientesView(generics.ListAPIView):
         user = self.request.user
         
         if user.rol == 'asesor':
-            # El asesor ve:
-            # 1. Solicitudes de clientes (estado='solicitado', propuesto_por='cliente')
-            # 2. Contrapropuestas de clientes (estado='contrapropuesta')
+            # El asesor ve todos los simulacros en negociación:
+            # - Solicitudes de clientes (estado='solicitado') - turno del asesor
+            # - Contrapropuesta final del cliente (estado='contrapropuesta_final') - turno del asesor
+            # - Contrapropuestas (estado='contrapropuesta') - puede ser turno de cualquiera
+            # - Pendiente respuesta (estado='pendiente_respuesta') - esperando al cliente
             return Simulacro.objects.filter(
-                Q(asesor=user, is_deleted=False) &
-                (
-                    Q(estado='solicitado', propuesto_por='cliente') |
-                    Q(estado='contrapropuesta')
-                )
+                asesor=user,
+                is_deleted=False,
+                estado__in=['solicitado', 'pendiente_respuesta', 'contrapropuesta', 'contrapropuesta_final']
             ).order_by('-created_at')
         elif user.rol == 'cliente':
-            # El cliente ve propuestas del asesor pendientes de su respuesta
+            # El cliente ve todos los simulacros en negociación:
+            # - Propuestas del asesor (estado='pendiente_respuesta') - turno del cliente
+            # - Contrapropuestas (estado='contrapropuesta') - puede ser turno de cualquiera
+            # - Sus propias solicitudes (estado='solicitado') - esperando al asesor
             return Simulacro.objects.filter(
                 cliente=user,
-                estado='pendiente_respuesta',
-                propuesto_por='asesor',
-                is_deleted=False
+                is_deleted=False,
+                estado__in=['solicitado', 'pendiente_respuesta', 'contrapropuesta', 'contrapropuesta_final']
             ).order_by('-created_at')
         else:
             return Simulacro.objects.none()

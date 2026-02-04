@@ -27,6 +27,10 @@ class SimulacroListSerializer(serializers.ModelSerializer):
     tiene_recomendaciones = serializers.SerializerMethodField()
     # Código del simulacro (SIM-xxx)
     codigo = serializers.SerializerMethodField()
+    # Fecha de cita con embajada (para validación en frontend)
+    fecha_cita_embajada = serializers.SerializerMethodField()
+    # Indica de quién es el turno de responder
+    turno_de = serializers.SerializerMethodField()
 
     class Meta:
         model = Simulacro
@@ -35,7 +39,8 @@ class SimulacroListSerializer(serializers.ModelSerializer):
             'estado', 'estado_display', 'cliente_nombre', 'asesor_nombre',
             'ubicacion', 'puede_cancelar', 'puede_ingresar', 'created_at',
             'fecha_propuesta', 'hora_propuesta', 'solicitud_tipo', 'solicitud_id',
-            'propuesto_por', 'puede_aceptar', 'tiene_recomendaciones', 'codigo'
+            'propuesto_por', 'puede_aceptar', 'tiene_recomendaciones', 'codigo',
+            'fecha_cita_embajada', 'turno_de'
         ]
     
     def get_cliente_nombre(self, obj):
@@ -73,6 +78,37 @@ class SimulacroListSerializer(serializers.ModelSerializer):
     def get_codigo(self, obj):
         """Genera el código del simulacro en formato SIM-xxx."""
         return f"SIM-{obj.id:03d}"
+    
+    def get_fecha_cita_embajada(self, obj):
+        """Obtiene la fecha de cita con la embajada de la solicitud asociada."""
+        try:
+            if obj.solicitud and hasattr(obj.solicitud, 'entrevista') and obj.solicitud.entrevista:
+                fecha = obj.solicitud.entrevista.fecha
+                return str(fecha) if fecha else None
+        except Exception:
+            pass
+        return None
+
+    def get_turno_de(self, obj):
+        """
+        Calcula de quién es el turno de responder basándose en el estado y propuesto_por.
+        
+        Reglas:
+        - 'solicitado' (cliente propuso) → turno del asesor
+        - 'pendiente_respuesta' (asesor propuso) → turno del cliente
+        - 'contrapropuesta' → turno del que NO hizo la última propuesta
+        - 'contrapropuesta_final' → turno del asesor (cliente ya dio su última oferta)
+        """
+        if obj.estado == 'solicitado':
+            return 'asesor'  # El cliente solicitó, espera respuesta del asesor
+        elif obj.estado == 'pendiente_respuesta':
+            return 'cliente'  # El asesor propuso, espera respuesta del cliente
+        elif obj.estado == 'contrapropuesta':
+            # Si el cliente hizo contrapropuesta, turno del asesor y viceversa
+            return 'asesor' if obj.propuesto_por == 'cliente' else 'cliente'
+        elif obj.estado == 'contrapropuesta_final':
+            return 'asesor'  # El cliente dio su última oferta, el asesor decide
+        return None
 
     def get_puede_aceptar(self, obj):
         """

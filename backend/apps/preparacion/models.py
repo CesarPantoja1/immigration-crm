@@ -16,6 +16,7 @@ class Simulacro(TimeStampedModel, SoftDeleteModel):
         ('propuesto', 'Propuesto'),
         ('pendiente_respuesta', 'Pendiente de Respuesta'),
         ('contrapropuesta', 'Contrapropuesta Pendiente'),
+        ('contrapropuesta_final', 'Contrapropuesta Final'),
         ('confirmado', 'Confirmado'),
         ('en_sala_espera', 'En Sala de Espera'),
         ('en_progreso', 'En Progreso'),
