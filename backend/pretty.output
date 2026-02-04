@@ -1,550 +1,123 @@
-Característica: Alertas de entrevistas # features/notificaciones/alertas_entrevista.feature:2
-  Como migrante
-  Quiero recibir alertas oportunas sobre mi entrevista consular y mi preparación
-  Para reducir el riesgo de inasistencia y cumplir el proceso sin retrasos
-  Antecedentes:   # features/notificaciones/alertas_entrevista.feature:7
+Característica: Agendamiento de entrevista # features/solicitudes/agendamiento/agendamiento_entrevista.feature:3
+  Como solicitante de un trámite migratorio con solicitud previamente aprobada,
+  quiero agendar una entrevista asociada a mi solicitud,
+  para cumplir una etapa obligatoria del proceso y continuar con mi trámite.
+  Antecedentes:   # features/solicitudes/agendamiento/agendamiento_entrevista.feature:8
 
-  Escenario: Notificar entrevista agendada al migrante                                                 # features/notificaciones/alertas_entrevista.feature:32
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                        # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                                      # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                           # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                                     # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                             # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                               # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00001" no tiene entrevista registrada                              # features/notificaciones/steps/alertas_entrevista.py:202
-    Cuando el asesor "Carlos Ruiz" registra una entrevista para "SOL-2026-00001" en "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:212
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con            # features/notificaciones/steps/alertas_entrevista.py:237
-      | tipo                | id_solicitud   | fecha_hora_entrevista |
-      | Entrevista agendada | SOL-2026-00001 | 2026-02-15 09:00      |
-    Y la notificación queda asociada a la solicitud "SOL-2026-00001" al abrir su detalle               # features/notificaciones/steps/alertas_entrevista.py:260
+  Esquema del escenario: Agendamiento con selección de horario específico -- @1.1                # features/solicitudes/agendamiento/agendamiento_entrevista.feature:31
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
+    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
+    Dado que existe una fecha de entrevista "2026-02-15" con los siguientes horarios disponibles # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:86
+      | horario | estado     |
+      | 08:00   | Disponible |
+      | 09:00   | Disponible |
+      | 10:00   | Disponible |
+      | 11:00   | Disponible |
+    Cuando el solicitante selecciona la fecha "2026-02-15" y el horario "09:00"                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:124
+    Entonces el sistema registra la entrevista asociada a la solicitud                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:147
+    Y el horario "09:00" queda registrado como no disponible                                     # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:154
+    Y muestra el mensaje "Entrevista agendada para el 15 de febrero de 2026 a las 09:00"         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:161
 
-  Esquema del escenario: Recordatorio antes de la entrevista -- @1.1                                 # features/notificaciones/alertas_entrevista.feature:55
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                      # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                                    # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                         # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                                   # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                           # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                             # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:272
-    Y la fecha y hora actual del sistema es "2026-02-14 09:00"                                       # features/notificaciones/steps/alertas_entrevista.py:282
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"       # features/notificaciones/steps/alertas_entrevista.py:289
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con          # features/notificaciones/steps/alertas_entrevista.py:237
-      | tipo                    | id_solicitud   | fecha_hora_entrevista |
-      | Recordatorio entrevista | SOL-2026-00001 | 2026-02-15 09:00      |
-    Y el detalle de la notificación es "Faltan 24h"                                                  # features/notificaciones/steps/alertas_entrevista.py:320
+  Escenario: Rechazo de modificación directa de entrevista programada                                                            # features/solicitudes/agendamiento/agendamiento_entrevista.feature:43
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
+    Y el sistema presenta opciones de fecha y horario para entrevistas                                                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
+    Dado que el solicitante tiene una entrevista en estado "Programada"                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:176
+    Cuando el solicitante solicita la modificación de la fecha o el horario de la entrevista fuera del proceso de reprogramación # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:193
+    Entonces el sistema rechaza la solicitud de modificación                                                                     # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:203
+    Y mantiene la entrevista en su estado original                                                                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:209
 
-  Esquema del escenario: Recordatorio antes de la entrevista -- @1.2                                 # features/notificaciones/alertas_entrevista.feature:56
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                      # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                                    # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                         # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                                   # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                           # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                             # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:272
-    Y la fecha y hora actual del sistema es "2026-02-15 07:00"                                       # features/notificaciones/steps/alertas_entrevista.py:282
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"       # features/notificaciones/steps/alertas_entrevista.py:289
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con          # features/notificaciones/steps/alertas_entrevista.py:237
-      | tipo                    | id_solicitud   | fecha_hora_entrevista |
-      | Recordatorio entrevista | SOL-2026-00001 | 2026-02-15 09:00      |
-    Y el detalle de la notificación es "Faltan 2h"                                                   # features/notificaciones/steps/alertas_entrevista.py:320
+  Escenario: Reprogramación exitosa de entrevista                                       # features/solicitudes/agendamiento/agendamiento_entrevista.feature:54
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
+    Y el sistema presenta opciones de fecha y horario para entrevistas                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
+    Dado que el solicitante tiene una entrevista en estado "Programada"                 # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:176
+    Cuando el solicitante solicita la reprogramación de la entrevista a una nueva fecha # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:219
+    Entonces el sistema actualiza la fecha de la entrevista                             # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:234
+    Y la entrevista queda en estado "Reprogramada"                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:240
+    Y el solicitante recibe una confirmación de la reprogramación                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:246
 
-  Escenario: Reprogramación de una entrevista                                                        # features/notificaciones/alertas_entrevista.feature:62
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                      # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                                    # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                         # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                                   # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                           # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                             # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:272
-    Cuando el asesor "Carlos Ruiz" reprograma la entrevista de "SOL-2026-00001" a "2026-02-20 10:00" # features/notificaciones/steps/alertas_entrevista.py:337
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con          # features/notificaciones/steps/alertas_entrevista.py:237
-      | tipo                    | id_solicitud   | fecha_hora_anterior | nueva_fecha_hora |
-      | Entrevista reprogramada | SOL-2026-00001 | 2026-02-15 09:00    | 2026-02-20 10:00 |
+  Esquema del escenario: Restricción de reprogramaciones sucesivas -- @1.1   # features/solicitudes/agendamiento/agendamiento_entrevista.feature:72
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada     # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
+    Y el sistema presenta opciones de fecha y horario para entrevistas       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
+    Dado que el solicitante tiene una entrevista en estado "Programada"      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:176
+    Y la entrevista ha sido reprogramada 1 veces                             # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:253
+    Y la embajada permite un máximo de 2 reprogramaciones por solicitud      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:268
+    Cuando el solicitante solicita una nueva reprogramación de la entrevista # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:275
+    Entonces el sistema permite la reprogramación                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:293
+    Y muestra el mensaje "Esta es su última reprogramación permitida"        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
 
-  Esquema del escenario: No emitir recordatorios basados en la fecha anterior tras reprogramación -- @1.1           # features/notificaciones/alertas_entrevista.feature:79
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                                     # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                                                   # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                                        # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                                                  # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                                          # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                                            # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Reprogramada" para "2026-02-20 10:00"              # features/notificaciones/steps/alertas_entrevista.py:272
-    Y previamente estuvo "Programada" para "2026-02-15 09:00"                                                       # features/notificaciones/steps/alertas_entrevista.py:369
-    Y la fecha y hora actual del sistema es "2026-02-14 09:00"                                                      # features/notificaciones/steps/alertas_entrevista.py:282
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"                      # features/notificaciones/steps/alertas_entrevista.py:289
-    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista" asociada a "2026-02-15 09:00"  # features/notificaciones/steps/alertas_entrevista.py:376
-    Y el contador de notificaciones de tipo "Recordatorio entrevista" para la solicitud "SOL-2026-00001" no aumenta # features/notificaciones/steps/alertas_entrevista.py:387
+  Esquema del escenario: Restricción de reprogramaciones sucesivas -- @1.2                     # features/solicitudes/agendamiento/agendamiento_entrevista.feature:73
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
+    Y el sistema presenta opciones de fecha y horario para entrevistas                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
+    Dado que el solicitante tiene una entrevista en estado "Programada"                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:176
+    Y la entrevista ha sido reprogramada 2 veces                                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:253
+    Y la embajada permite un máximo de 2 reprogramaciones por solicitud                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:268
+    Cuando el solicitante solicita una nueva reprogramación de la entrevista                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:275
+    Entonces el sistema rechaza la reprogramación                                              # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:293
+    Y muestra el mensaje "Error: ha alcanzado el límite máximo de reprogramaciones permitidas" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
 
-  Esquema del escenario: No emitir recordatorios basados en la fecha anterior tras reprogramación -- @1.2           # features/notificaciones/alertas_entrevista.feature:80
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                                     # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                                                   # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                                        # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                                                  # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                                          # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                                            # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Reprogramada" para "2026-02-20 10:00"              # features/notificaciones/steps/alertas_entrevista.py:272
-    Y previamente estuvo "Programada" para "2026-02-15 09:00"                                                       # features/notificaciones/steps/alertas_entrevista.py:369
-    Y la fecha y hora actual del sistema es "2026-02-15 07:00"                                                      # features/notificaciones/steps/alertas_entrevista.py:282
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001"                      # features/notificaciones/steps/alertas_entrevista.py:289
-    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista" asociada a "2026-02-15 09:00"  # features/notificaciones/steps/alertas_entrevista.py:376
-    Y el contador de notificaciones de tipo "Recordatorio entrevista" para la solicitud "SOL-2026-00001" no aumenta # features/notificaciones/steps/alertas_entrevista.py:387
+  Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.1   # features/solicitudes/agendamiento/agendamiento_entrevista.feature:89
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
+    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
+    Dado que el solicitante tiene una entrevista agendada en la embajada "USA"                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
+    Y la embajada "USA" define un mínimo de 24 horas de anticipación para cancelaciones          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
+    Y el tiempo restante hasta la entrevista es de 48 horas                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
+    Cuando el solicitante solicita la cancelación de la entrevista                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
+    Entonces el sistema permite la cancelación                                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
+    Y la entrevista queda en estado "Cancelada"                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
+    Y muestra el mensaje "Cancelación confirmada exitosamente"                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
 
-  Escenario: Cancelación de entrevista                                                               # features/notificaciones/alertas_entrevista.feature:86
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                      # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                                    # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                         # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                                   # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                           # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                             # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:272
-    Cuando el asesor "Carlos Ruiz" cancela la entrevista de "SOL-2026-00001"                         # features/notificaciones/steps/alertas_entrevista.py:406
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con          # features/notificaciones/steps/alertas_entrevista.py:237
-      | tipo                 | id_solicitud   | fecha_hora_entrevista |
-      | Entrevista cancelada | SOL-2026-00001 | 2026-02-15 09:00      |
+  Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.2                                    # features/solicitudes/agendamiento/agendamiento_entrevista.feature:90
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
+    Y el sistema presenta opciones de fecha y horario para entrevistas                                                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
+    Dado que el solicitante tiene una entrevista agendada en la embajada "USA"                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
+    Y la embajada "USA" define un mínimo de 24 horas de anticipación para cancelaciones                                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
+    Y el tiempo restante hasta la entrevista es de 12 horas                                                                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
+    Cuando el solicitante solicita la cancelación de la entrevista                                                                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
+    Entonces el sistema rechaza la cancelación                                                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
+    Y la entrevista queda en estado "Programada"                                                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
+    Y muestra el mensaje "Error: no es posible cancelar la entrevista debido a que no se cumple el tiempo mínimo de anticipación" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
 
-  Esquema del escenario: No emitir recordatorios si la entrevista está cancelada -- @1.1       # features/notificaciones/alertas_entrevista.feature:103
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                              # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                   # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                             # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                     # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                       # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista en estado "Cancelada"          # features/notificaciones/steps/alertas_entrevista.py:430
-    Y la entrevista cancelada correspondía a "2026-02-15 09:00"                                # features/notificaciones/steps/alertas_entrevista.py:446
-    Y la fecha y hora actual del sistema es "2026-02-14 09:00"                                 # features/notificaciones/steps/alertas_entrevista.py:282
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001" # features/notificaciones/steps/alertas_entrevista.py:289
-    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista"           # features/notificaciones/steps/alertas_entrevista.py:453
-    Y el contador de notificaciones no aumenta para la solicitud "SOL-2026-00001"              # features/notificaciones/steps/alertas_entrevista.py:461
+  Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.3   # features/solicitudes/agendamiento/agendamiento_entrevista.feature:91
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
+    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
+    Dado que el solicitante tiene una entrevista agendada en la embajada "España"                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
+    Y la embajada "España" define un mínimo de 48 horas de anticipación para cancelaciones       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
+    Y el tiempo restante hasta la entrevista es de 72 horas                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
+    Cuando el solicitante solicita la cancelación de la entrevista                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
+    Entonces el sistema permite la cancelación                                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
+    Y la entrevista queda en estado "Cancelada"                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
+    Y muestra el mensaje "Cancelación confirmada exitosamente"                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
 
-  Esquema del escenario: No emitir recordatorios si la entrevista está cancelada -- @1.2       # features/notificaciones/alertas_entrevista.feature:104
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                              # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                   # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                             # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                     # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                       # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista en estado "Cancelada"          # features/notificaciones/steps/alertas_entrevista.py:430
-    Y la entrevista cancelada correspondía a "2026-02-15 09:00"                                # features/notificaciones/steps/alertas_entrevista.py:446
-    Y la fecha y hora actual del sistema es "2026-02-15 07:00"                                 # features/notificaciones/steps/alertas_entrevista.py:282
-    Cuando el sistema evalúa recordatorios configurados para la entrevista de "SOL-2026-00001" # features/notificaciones/steps/alertas_entrevista.py:289
-    Entonces no aparece ninguna notificación nueva de tipo "Recordatorio entrevista"           # features/notificaciones/steps/alertas_entrevista.py:453
-    Y el contador de notificaciones no aumenta para la solicitud "SOL-2026-00001"              # features/notificaciones/steps/alertas_entrevista.py:461
+  Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.4                                    # features/solicitudes/agendamiento/agendamiento_entrevista.feature:92
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
+    Y el sistema presenta opciones de fecha y horario para entrevistas                                                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
+    Dado que el solicitante tiene una entrevista agendada en la embajada "España"                                                 # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
+    Y la embajada "España" define un mínimo de 48 horas de anticipación para cancelaciones                                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
+    Y el tiempo restante hasta la entrevista es de 36 horas                                                                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
+    Cuando el solicitante solicita la cancelación de la entrevista                                                                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
+    Entonces el sistema rechaza la cancelación                                                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
+    Y la entrevista queda en estado "Programada"                                                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
+    Y muestra el mensaje "Error: no es posible cancelar la entrevista debido a que no se cumple el tiempo mínimo de anticipación" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
 
-  Escenario: Alerta cuando falta una semana y no existe simulacro confirmado                         # features/notificaciones/alertas_entrevista.feature:110
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                      # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                                    # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                         # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                                   # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                           # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                             # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista "Programada" para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:272
-    Y no existe un simulacro en estado "Confirmado" asociado a "SOL-2026-00001"                      # features/notificaciones/steps/alertas_entrevista.py:477
-    Y la fecha y hora actual del sistema es "2026-02-08 09:00"                                       # features/notificaciones/steps/alertas_entrevista.py:282
-    Cuando el sistema evalúa el estado de preparación para la entrevista de "SOL-2026-00001"         # features/notificaciones/steps/alertas_entrevista.py:488
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con          # features/notificaciones/steps/alertas_entrevista.py:237
-      | tipo                    | id_solicitud   |
-      | Preparación recomendada | SOL-2026-00001 |
-    Y el detalle de la notificación es "Realizar simulación de entrevista"                           # features/notificaciones/steps/alertas_entrevista.py:320
+  Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.5   # features/solicitudes/agendamiento/agendamiento_entrevista.feature:93
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                         # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
+    Y el sistema presenta opciones de fecha y horario para entrevistas                           # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
+    Dado que el solicitante tiene una entrevista agendada en la embajada "Canadá"                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
+    Y la embajada "Canadá" define un mínimo de 72 horas de anticipación para cancelaciones       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
+    Y el tiempo restante hasta la entrevista es de 96 horas                                      # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
+    Cuando el solicitante solicita la cancelación de la entrevista                               # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
+    Entonces el sistema permite la cancelación                                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
+    Y la entrevista queda en estado "Cancelada"                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
+    Y muestra el mensaje "Cancelación confirmada exitosamente"                                   # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
 
-  Escenario: Aviso al asesor cuando un simulacro ha sido completado                       # features/notificaciones/alertas_entrevista.feature:124
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria           # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                         # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                              # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                        # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                  # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que el asesor "Carlos Ruiz" está autenticado en el sistema                       # features/notificaciones/steps/alertas_entrevista.py:519
-    Y existe un simulacro "SIM-001" asociado a la solicitud "SOL-2026-00001"              # features/notificaciones/steps/alertas_entrevista.py:530
-    Y el simulacro "SIM-001" está en estado "En progreso"                                 # features/notificaciones/steps/alertas_entrevista.py:538
-    Cuando el simulacro "SIM-001" cambia a estado "Completado"                            # features/notificaciones/steps/alertas_entrevista.py:546
-    Entonces en el centro de notificaciones del asesor aparece una notificación nueva con # features/notificaciones/steps/alertas_entrevista.py:247
-      | tipo                  | id_simulacro |
-      | Simulación completada | SIM-001      |
-    Y el detalle de la notificación es "Generar recomendaciones"                          # features/notificaciones/steps/alertas_entrevista.py:320
-
-  Escenario: Notificar las recomendaciones publicadas al migrante                                     # features/notificaciones/alertas_entrevista.feature:134
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                       # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                                     # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                          # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                                    # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                            # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                              # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que existe un documento de recomendaciones para el simulacro "SIM-001" en estado "Publicado" # features/notificaciones/steps/alertas_entrevista.py:565
-    Cuando el documento de recomendaciones del simulacro "SIM-001" se publica en el sistema           # features/notificaciones/steps/alertas_entrevista.py:578
-    Entonces en el centro de notificaciones del migrante aparece una notificación nueva con           # features/notificaciones/steps/alertas_entrevista.py:237
-      | tipo                   | id_simulacro |
-      | Recomendaciones listas | SIM-001      |
-
-  Escenario: Acceso directo a detalles de entrevista desde notificación de agendamiento            # features/notificaciones/alertas_entrevista.feature:145
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                    # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                                  # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                       # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                                 # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                         # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                           # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00001" tiene una entrevista programada para "2026-02-15 09:00" # features/notificaciones/steps/alertas_entrevista.py:598
-    Y el migrante recibe la notificación de "Entrevista Agendada"                                  # features/notificaciones/steps/alertas_entrevista.py:612
-    Cuando accedo a la notificación de cita consular asignada                                      # features/notificaciones/steps/alertas_entrevista.py:619
-    Entonces soy redirigido a la vista de entrevista de "SOL-2026-00001"                           # features/notificaciones/steps/alertas_entrevista.py:626
-    Y visualizo la fecha "15 de febrero de 2026" y hora "09:00" de la cita                         # features/notificaciones/steps/alertas_entrevista.py:634
-    Y se muestra la dirección del consulado y documentos requeridos para el día                    # features/notificaciones/steps/alertas_entrevista.py:641
-    Y la notificación queda marcada como leída                                                     # features/notificaciones/steps/alertas_entrevista.py:648
-
-  Escenario: Acceso directo desde notificación de reprogramación                                     # features/notificaciones/alertas_entrevista.feature:154
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria                      # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                                    # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                                         # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                                   # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                           # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                             # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la entrevista de "SOL-2026-00001" fue reprogramada de "2026-02-15" a "2026-02-20 10:00" # features/notificaciones/steps/alertas_entrevista.py:654
-    Y el migrante recibe la notificación de "Entrevista Reprogramada"                                # features/notificaciones/steps/alertas_entrevista.py:612
-    Cuando accedo a la notificación de cambio de fecha                                               # features/notificaciones/steps/alertas_entrevista.py:662
-    Entonces soy redirigido a la vista de entrevista de "SOL-2026-00001"                             # features/notificaciones/steps/alertas_entrevista.py:626
-    Y visualizo la nueva fecha "20 de febrero de 2026" claramente destacada                          # features/notificaciones/steps/alertas_entrevista.py:669
-    Y se muestra un comparativo con la fecha anterior tachada                                        # features/notificaciones/steps/alertas_entrevista.py:675
-
-  Escenario: Acceso a preparación desde recordatorio de 24 horas                # features/notificaciones/alertas_entrevista.feature:162
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"               # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                    # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                              # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista      # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación        # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que faltan 24 horas para la entrevista de "SOL-2026-00001"             # features/notificaciones/steps/alertas_entrevista.py:682
-    Y el migrante recibe el recordatorio de proximidad de cita                  # features/notificaciones/steps/alertas_entrevista.py:689
-    Cuando accedo al recordatorio de entrevista próxima                         # features/notificaciones/steps/alertas_entrevista.py:695
-    Entonces soy redirigido a la vista de entrevista de "SOL-2026-00001"        # features/notificaciones/steps/alertas_entrevista.py:626
-    Y visualizo el checklist de preparación con los elementos pendientes        # features/notificaciones/steps/alertas_entrevista.py:702
-    Y se destaca la cuenta regresiva "Faltan 24 horas para su cita"             # features/notificaciones/steps/alertas_entrevista.py:708
-
-  Escenario: Acceso directo a simulacro confirmado desde notificación           # features/notificaciones/alertas_entrevista.feature:170
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"               # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                    # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                              # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista      # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación        # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que existe un simulacro "SIM-015" confirmado para "SOL-2026-00001"     # features/notificaciones/steps/alertas_entrevista.py:714
-    Y el migrante recibe la notificación de "Simulacro Confirmado"              # features/notificaciones/steps/alertas_entrevista.py:612
-    Cuando accedo a la notificación de práctica programada                      # features/notificaciones/steps/alertas_entrevista.py:723
-    Entonces soy redirigido a la vista de detalle del simulacro "SIM-015"       # features/notificaciones/steps/alertas_entrevista.py:730
-    Y visualizo la fecha, hora y enlace de videoconferencia del simulacro       # features/notificaciones/steps/alertas_entrevista.py:737
-    Y se muestra el botón para unirse a la sesión cuando esté activa            # features/notificaciones/steps/alertas_entrevista.py:743
-
-  Escenario: Acceso a propuesta de simulacro pendiente de confirmación          # features/notificaciones/alertas_entrevista.feature:178
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"               # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                    # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                              # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista      # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación        # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que el asesor propuso el simulacro "SIM-016" para "SOL-2026-00001"     # features/notificaciones/steps/alertas_entrevista.py:749
-    Y el simulacro está en estado "Propuesto" pendiente de aceptación           # features/notificaciones/steps/alertas_entrevista.py:758
-    Cuando accedo a la notificación de "Nueva Propuesta de Simulacro"           # features/notificaciones/steps/alertas_entrevista.py:765
-    Entonces soy redirigido a la vista del simulacro "SIM-016"                  # features/notificaciones/steps/alertas_entrevista.py:772
-    Y visualizo las opciones para "Confirmar" o "Solicitar otro horario"        # features/notificaciones/steps/alertas_entrevista.py:779
-    Y se muestran los horarios alternativos disponibles                         # features/notificaciones/steps/alertas_entrevista.py:785
-
-  Escenario: Acceso directo a feedback de simulacro desde notificación            # features/notificaciones/alertas_entrevista.feature:186
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria   # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                 # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                      # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista        # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación          # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que el simulacro "SIM-001" fue completado y evaluado                     # features/notificaciones/steps/alertas_entrevista.py:791
-    Y las recomendaciones están publicadas para el migrante                       # features/notificaciones/steps/alertas_entrevista.py:799
-    Cuando accedo a la notificación de "Recomendaciones Disponibles"              # features/notificaciones/steps/alertas_entrevista.py:805
-    Entonces soy redirigido a la vista de recomendaciones del simulacro "SIM-001" # features/notificaciones/steps/alertas_entrevista.py:812
-    Y visualizo el análisis de fortalezas y áreas de mejora                       # features/notificaciones/steps/alertas_entrevista.py:819
-    Y se muestran las preguntas frecuentes sugeridas para practicar               # features/notificaciones/steps/alertas_entrevista.py:825
-
-  Escenario: No notificar asignación interna de solicitud al asesor             # features/notificaciones/alertas_entrevista.feature:198
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"               # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                    # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                              # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista      # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación        # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la solicitud "SOL-2026-00005" está sin asesor asignado             # features/notificaciones/steps/alertas_entrevista.py:835
-    Y el buzón del sistema contiene 10 notificaciones totales                   # features/notificaciones/steps/alertas_entrevista.py:842
-    Cuando el coordinador asigna "SOL-2026-00005" al asesor "Carlos Ruiz"       # features/notificaciones/steps/alertas_entrevista.py:848
-    Entonces la asignación se registra en el expediente                         # features/notificaciones/steps/alertas_entrevista.py:855
-    Y NO se genera notificación al migrante por esta acción administrativa      # features/notificaciones/steps/alertas_entrevista.py:862
-    Y el asesor visualiza la solicitud en su bandeja de trabajo                 # features/notificaciones/steps/alertas_entrevista.py:870
-
-  Escenario: Acceso a notificación de entrevista que ya no existe                         # features/notificaciones/alertas_entrevista.feature:210
-    Dado que soy un solicitante autenticado en el sistema de gestión migratoria           # features/notificaciones/steps/alertas_entrevista.py:150
-    Y gestiono la solicitud "SOL-2026-00001" en estado "APROBADA"                         # features/notificaciones/steps/alertas_entrevista.py:159
-    Y tengo asignado al asesor "Carlos Ruiz"                                              # features/notificaciones/steps/alertas_entrevista.py:166
-    Y el catálogo de tipos de notificación incluye                                        # features/notificaciones/steps/alertas_entrevista.py:174
-      | tipo                    | propósito                                                        |
-      | Entrevista agendada     | Confirmar que ya existe una cita consular registrada             |
-      | Entrevista reprogramada | Informar un cambio de fecha u hora de una cita ya registrada     |
-      | Entrevista cancelada    | Informar que la cita registrada quedó sin efecto                 |
-      | Recordatorio entrevista | Reducir inasistencia con recordatorios por ventana               |
-      | Preparación recomendada | Alertar preparación faltante antes de la entrevista              |
-      | Simulación completada   | Aviso operativo al asesor para dar continuidad (recomendaciones) |
-      | Recomendaciones listas  | Avisar al migrante que su feedback ya está disponible            |
-    Y el sistema tiene configuradas ventanas de recordatorio de entrevista                # features/notificaciones/steps/alertas_entrevista.py:182
-      | ventana |
-      | 24h     |
-      | 2h      |
-    Y el sistema tiene configurada una ventana de control de preparación                  # features/notificaciones/steps/alertas_entrevista.py:190
-      | ventana |
-      | 7d      |
-    Dado que la entrevista de "SOL-2026-00010" fue cancelada definitivamente              # features/notificaciones/steps/alertas_entrevista.py:880
-    Y existe una notificación antigua de recordatorio para esa entrevista                 # features/notificaciones/steps/alertas_entrevista.py:889
-    Cuando accedo a la notificación del recordatorio obsoleto                             # features/notificaciones/steps/alertas_entrevista.py:895
-    Entonces visualizo el mensaje de entrevista cancelada "Esta entrevista fue cancelada" # features/notificaciones/steps/alertas_entrevista.py:909
-    Y se muestra la opción de contactar al asesor para reagendar                          # features/notificaciones/steps/alertas_entrevista.py:915
-    Y permanezco en el buzón con la notificación marcada como leída                       # features/notificaciones/steps/alertas_entrevista.py:921
+  Esquema del escenario: Cancelación de entrevista según reglas de tiempo por embajada -- @1.6                                    # features/solicitudes/agendamiento/agendamiento_entrevista.feature:94
+    Dado que el solicitante cuenta con una solicitud migratoria aprobada                                                          # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:66
+    Y el sistema presenta opciones de fecha y horario para entrevistas                                                            # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:75
+    Dado que el solicitante tiene una entrevista agendada en la embajada "Canadá"                                                 # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:303
+    Y la embajada "Canadá" define un mínimo de 72 horas de anticipación para cancelaciones                                        # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:319
+    Y el tiempo restante hasta la entrevista es de 48 horas                                                                       # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:332
+    Cuando el solicitante solicita la cancelación de la entrevista                                                                # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:349
+    Entonces el sistema rechaza la cancelación                                                                                    # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:367
+    Y la entrevista queda en estado "Programada"                                                                                  # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:373
+    Y muestra el mensaje "Error: no es posible cancelar la entrevista debido a que no se cumple el tiempo mínimo de anticipación" # features/solicitudes/agendamiento/steps/agendamiento_entrevista.py:383
 
