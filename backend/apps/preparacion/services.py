@@ -54,36 +54,66 @@ class SimulacroService:
         return queryset.select_related('cliente', 'asesor', 'solicitud').order_by('-fecha', '-hora')
     
     @staticmethod
-    def verificar_disponibilidad(usuario) -> dict:
-        """Verifica si el cliente puede solicitar más simulacros."""
+    def verificar_disponibilidad(usuario, solicitud=None) -> dict:
+        """
+        Verifica si el cliente puede solicitar más simulacros.
+        El contador es POR SOLICITUD, no global.
+        """
+        # Si se proporciona una solicitud, filtrar por ella
+        filtros = {
+            'cliente': usuario,
+            'is_deleted': False
+        }
+        if solicitud:
+            filtros['solicitud'] = solicitud
+        
         simulacros_activos = Simulacro.objects.filter(
-            cliente=usuario,
-            is_deleted=False
+            **filtros
         ).exclude(estado='cancelado').count()
         
         disponibles = max(0, MAX_SIMULACROS_POR_PROCESO - simulacros_activos)
+        
+        if solicitud:
+            tipo_visa = solicitud.get_tipo_visa_display() if hasattr(solicitud, 'get_tipo_visa_display') else 'esta visa'
+            if disponibles > 0:
+                if simulacros_activos == 0:
+                    mensaje = f'Puede solicitar hasta {MAX_SIMULACROS_POR_PROCESO} simulacros para {tipo_visa}'
+                else:
+                    mensaje = f'Tiene {disponibles} simulacro(s) disponible(s) para esta solicitud'
+            else:
+                mensaje = f'Ha alcanzado el límite de {MAX_SIMULACROS_POR_PROCESO} simulacros para {tipo_visa}'
+        else:
+            mensaje = f'Tiene {disponibles} simulacro(s) disponible(s)' if disponibles > 0 \
+                      else f'Ha alcanzado el límite de {MAX_SIMULACROS_POR_PROCESO} simulacros por proceso'
         
         return {
             'disponibilidad': 'disponible' if disponibles > 0 else 'no_disponible',
             'simulacros_activos': simulacros_activos,
             'simulacros_disponibles': disponibles,
-            'mensaje': f'Tiene {disponibles} simulacro(s) disponible(s)' if disponibles > 0 
-                       else f'Ha alcanzado el límite de {MAX_SIMULACROS_POR_PROCESO} simulacros por proceso'
+            'mensaje': mensaje
         }
     
     @staticmethod
-    def obtener_contador(usuario) -> dict:
-        """Obtiene el contador de simulacros del cliente."""
+    def obtener_contador(usuario, solicitud=None) -> dict:
+        """
+        Obtiene el contador de simulacros del cliente.
+        El contador es POR SOLICITUD si se proporciona una.
+        """
+        filtros_base = {
+            'cliente': usuario,
+            'is_deleted': False
+        }
+        if solicitud:
+            filtros_base['solicitud'] = solicitud
+        
         completados = Simulacro.objects.filter(
-            cliente=usuario,
             estado='completado',
-            is_deleted=False
+            **filtros_base
         ).count()
         
         activos = Simulacro.objects.filter(
-            cliente=usuario,
-            estado__in=['solicitado', 'propuesto', 'pendiente_respuesta', 'confirmado', 'en_progreso'],
-            is_deleted=False
+            estado__in=['solicitado', 'propuesto', 'pendiente_respuesta', 'contrapropuesta', 'contrapropuesta_final', 'confirmado', 'en_progreso'],
+            **filtros_base
         ).count()
         
         total = completados + activos
@@ -95,6 +125,29 @@ class SimulacroService:
             'total_permitidos': MAX_SIMULACROS_POR_PROCESO,
             'disponibles': max(0, MAX_SIMULACROS_POR_PROCESO - total)
         }
+    
+    @staticmethod
+    def validar_fecha_antes_cita_embajada(fecha_simulacro, solicitud) -> tuple[bool, str | None]:
+        """
+        Valida que la fecha del simulacro sea ANTERIOR a la cita con la embajada.
+        Solo valida si existe una entrevista agendada con fecha.
+        """
+        if not solicitud:
+            return True, None  # Sin solicitud, no validar
+        
+        # Obtener la fecha de entrevista de la solicitud
+        try:
+            # Verificar si tiene entrevista asociada
+            entrevista = getattr(solicitud, 'entrevista', None)
+            if entrevista and hasattr(entrevista, 'fecha') and entrevista.fecha:
+                fecha_entrevista = entrevista.fecha
+                # Solo validar si es una fecha válida
+                if fecha_simulacro and fecha_simulacro >= fecha_entrevista:
+                    return False, 'La fecha del simulacro debe ser anterior a su cita con la embajada'
+        except Exception:
+            pass  # Si no hay entrevista o error, permitir (no bloquear)
+        
+        return True, None
     
     @staticmethod
     def solicitar_simulacro(cliente, solicitud, modalidad: str = 'virtual',
@@ -112,10 +165,10 @@ class SimulacroService:
                           'Estado actual: ' + 
                           (solicitud.get_estado_display() if hasattr(solicitud, 'get_estado_display') else solicitud.estado))
         
-        # Verificar disponibilidad
-        info = SimulacroService.verificar_disponibilidad(cliente)
+        # Verificar disponibilidad POR SOLICITUD
+        info = SimulacroService.verificar_disponibilidad(cliente, solicitud)
         if info['disponibilidad'] != 'disponible':
-            return None, 'Ha alcanzado el límite de 2 simulacros permitidos.'
+            return None, f'Ha alcanzado el límite de {MAX_SIMULACROS_POR_PROCESO} simulacros para esta solicitud.'
         
         # Crear simulacro (CLIENTE solicita -> propuesto_por='cliente')
         fecha_default = date.today()
@@ -211,7 +264,8 @@ class SimulacroService:
         - Si el CLIENTE acepta (propuesto_por='asesor') → notifica al asesor
         - Si el ASESOR acepta (propuesto_por='cliente') → notifica al cliente
         """
-        estados_aceptables = ['solicitado', 'propuesto', 'pendiente_respuesta']
+        # Estados donde se puede aceptar (incluye contrapropuestas)
+        estados_aceptables = ['solicitado', 'propuesto', 'pendiente_respuesta', 'contrapropuesta', 'contrapropuesta_final']
         
         if simulacro.estado not in estados_aceptables:
             return False, f'El simulacro no puede ser aceptado en estado {simulacro.estado}'
@@ -236,10 +290,26 @@ class SimulacroService:
         return True, None
     
     @staticmethod
-    def contrapropuesta(simulacro: Simulacro, fecha, hora) -> tuple[bool, str | None]:
-        """Propone fecha alternativa."""
-        if simulacro.estado != 'pendiente_respuesta':
-            return False, 'El simulacro no está pendiente de respuesta'
+    def contrapropuesta(simulacro: Simulacro, fecha, hora, quien_propone: str = None) -> tuple[bool, str | None]:
+        """
+        Propone fecha alternativa para un simulacro.
+        
+        Permite contrapropuesta en los siguientes estados:
+        - 'pendiente_respuesta': Cliente propone fecha alternativa a propuesta del asesor
+        - 'solicitado': Asesor propone fecha alternativa a solicitud del cliente
+        - 'contrapropuesta': Se permite otra contrapropuesta (negociación)
+        - 'contrapropuesta_final': El asesor puede aceptar o definir fecha final
+        
+        Args:
+            simulacro: El simulacro a modificar
+            fecha: Nueva fecha propuesta
+            hora: Nueva hora propuesta
+            quien_propone: 'cliente' o 'asesor' - quién está haciendo esta contrapropuesta
+        """
+        estados_permitidos = ['pendiente_respuesta', 'solicitado', 'contrapropuesta', 'contrapropuesta_final']
+        
+        if simulacro.estado not in estados_permitidos:
+            return False, f'No se puede proponer fecha alternativa en estado {simulacro.get_estado_display()}'
         
         # Parse fecha if it's a string
         if isinstance(fecha, str):
@@ -258,9 +328,20 @@ class SimulacroService:
                 except (ValueError, TypeError):
                     return False, 'Formato de hora inválido. Use HH:MM o HH:MM:SS'
         
+        # Validar que la fecha sea anterior a la cita con la embajada
+        if simulacro.solicitud:
+            valido, error = SimulacroService.validar_fecha_antes_cita_embajada(fecha, simulacro.solicitud)
+            if not valido:
+                return False, error
+        
         simulacro.fecha_propuesta = fecha
         simulacro.hora_propuesta = hora
         simulacro.estado = 'contrapropuesta'
+        
+        # Actualizar quién hizo la última propuesta (importante para determinar turno)
+        if quien_propone:
+            simulacro.propuesto_por = quien_propone
+        
         simulacro.save()
         return True, None
     
@@ -577,3 +658,4 @@ class ConfiguracionIAService:
                 return False, f'Error: {response.status_code}'
         except Exception as e:
             return False, str(e)
+
