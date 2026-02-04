@@ -54,11 +54,11 @@ Característica: Generacion de recomendaciones personalizadas basadas en analisi
     Dado que el cliente "Maria Garcia" completo un simulacro
     Y el asesor ya genero las recomendaciones con IA
     Cuando el cliente accede a "Ver Resumen" en la seccion de simulacros completados y "Ver Recomendaciones"
-    Entonces puede ver la lista de recomendaciones disponibles:
+    Entonces puede ver la lista de recomendaciones disponibles
       | campo                | descripcion                                    |
       | Fecha del simulacro  | Fecha en que se realizo el simulacro           |
       | Nivel de preparacion | Segun nivel (alto/medio/bajo)  |
-    Y puede expandir las secciones colapsables:
+    Y puede expandir las secciones colapsables
       | seccion                  |
       | Indicadores de Desempeno |
       | Fortalezas Identificadas |
@@ -79,7 +79,7 @@ Característica: Generacion de recomendaciones personalizadas basadas en analisi
   Escenario: La IA evalua los 4 indicadores de desempeno
     Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia"
     Cuando el cliente consulta sus recomendaciones
-    Entonces la recomendacion incluye los indicadores:
+    Entonces la recomendacion incluye los indicadores
       | indicador   | descripcion                              | valores_posibles   |
       | Claridad    | Que tan claras son las respuestas        | alto, medio, bajo  |
       | Coherencia  | Si el discurso es logico y estructurado  | alto, medio, bajo  |
@@ -92,7 +92,7 @@ Característica: Generacion de recomendaciones personalizadas basadas en analisi
 
   Escenario: La IA genera fortalezas identificadas
     Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia"
-    Entonces cada fortaleza identificada contiene:
+    Entonces cada fortaleza identificada contiene
       | campo                | descripcion                                      |
       | Categoria            | Area de la fortaleza                             |
       | Descripcion          | Explicacion de por que es una fortaleza          |
@@ -101,7 +101,7 @@ Característica: Generacion de recomendaciones personalizadas basadas en analisi
 
   Escenario: La IA genera puntos de mejora
     Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia"
-    Entonces cada punto de mejora contiene:
+    Entonces cada punto de mejora contiene
       | campo                | descripcion                                       |
       | Categoria            | Area a mejorar                                    |
       | Descripcion          | Explicacion del aspecto a mejorar                 |
@@ -110,7 +110,7 @@ Característica: Generacion de recomendaciones personalizadas basadas en analisi
 
   Escenario: La IA genera recomendaciones accionables
     Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia"
-    Entonces cada recomendacion contiene:
+    Entonces cada recomendacion contiene
       | campo           | descripcion                                    |
       | Titulo          | Nombre corto de la recomendacion               |
       | Descripcion     | Explicacion detallada                          |

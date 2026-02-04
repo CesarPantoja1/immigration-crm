@@ -13,7 +13,7 @@ Característica: Seguimiento de Solicitudes Migratorias
   # ============================================================
 
   Escenario: Visualización del portafolio de solicitudes en el dashboard
-    Dado que tengo registrados los siguientes trámites:
+    Dado que tengo registrados los siguientes trámites
       | tipo_visa | embajada       | estado             | fecha_creacion |
       | TRABAJO   | ESTADOUNIDENSE | APROBADA           | 2024-01-15     |
       | ESTUDIO   | ESPAÑOLA       | EN_REVISION        | 2024-02-10     |

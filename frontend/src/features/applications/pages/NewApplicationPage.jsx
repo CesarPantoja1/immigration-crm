@@ -85,6 +85,8 @@ export default function NewApplicationPage() {
 
   const currentVisaType = VISA_TYPES.find(v => v.id === selectedVisa)
   const allFilesUploaded = currentVisaType?.documents.every(doc => files[doc])
+  const almenosUnDocumento = currentVisaType?.documents.some(doc => files[doc])
+  const dosDocumentos = currentVisaType?.documents.filter(doc => files[doc]).length === 2
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -291,7 +293,7 @@ export default function NewApplicationPage() {
             <Button variant="secondary" onClick={() => setStep(2)}>
               Atrás
             </Button>
-            <Button onClick={() => setStep(4)} disabled={!allFilesUploaded}>
+            <Button onClick={() => setStep(4)} disabled={!dosDocumentos}>
               Continuar
             </Button>
           </div>

@@ -36,6 +36,20 @@ Característica: Recepcion de solicitudes
       | ESTUDIO   | ESTADOUNIDENSE | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
 
 
+  Esquema del escenario: Migrante ingresa solicitud incompleta correctamente
+    Dado que un migrante solicita visa <tipo_visa> para embajada <embajada>
+    Cuando carga alguno de los documentos obligatorios
+      | documentos            |
+      | <documentos_cargados> |
+    Entonces todos los documentos tienen estado "EN_REVISION"
+    Y el estado de la solicitud es "EN_REVISION"
+    Y el sistema registra la solicitud
+
+    Ejemplos:
+      | tipo_visa | embajada       | documentos_cargados                                             |
+      | VIVIENDA  | ESTADOUNIDENSE | Pasaporte                                                       |
+#      | TRABAJO   | BRASILENA      | Pasaporte, Antecedentes penales, Foto, Contrato de trabajo      |
+#      | ESTUDIO   | ESTADOUNIDENSE | Pasaporte, Antecedentes penales, Foto, Certificado de matricula |
 #=====================================
 #  ASESOR
 #=====================================

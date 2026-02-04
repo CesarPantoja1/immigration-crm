@@ -57,30 +57,35 @@ def before_scenario(context, scenario):
     
     NOTA: Los tests de seguimiento_solicitud.feature usan lógica pura en memoria,
     no requieren limpieza de BD. Esta limpieza es para otros features que sí
-    interactúan con la BD real (alertas_entrevista, agendamiento, etc.)
+    interactúan con la BD real (alertas_entrevista, agendamiento, simulacion, etc.)
     """
     # Detectar si el feature requiere limpieza de BD
     # Los features con lógica pura no necesitan limpieza
     features_sin_bd = [
         'seguimiento_solicitud.feature',  # Usa business_logic puro
     ]
-    
+
     feature_name = scenario.feature.filename.split('/')[-1].split('\\')[-1]
-    
+
     if feature_name in features_sin_bd:
         # Este feature usa lógica pura, no necesita limpieza de BD
         return
-    
+
     # Limpieza de BD para features que sí la necesitan
     from apps.notificaciones.models import Notificacion, ConfiguracionRecordatorio
-    from apps.solicitudes.models import Solicitud, Documento, Cita
+    from apps.solicitudes.models import Solicitud, Documento, Entrevista
+    from apps.preparacion.models import Simulacro, Recomendacion, Practica
     from apps.usuarios.models import Usuario
-    
+
     # Limpiar en orden para evitar conflictos de FK
+    # Primero modelos hijos, luego padres
+    Recomendacion.objects.all().delete()
+    Simulacro.objects.all().delete()
+    Practica.objects.all().delete()
     Notificacion.objects.all().delete()
     ConfiguracionRecordatorio.objects.all().delete()
     Documento.objects.all().delete()
-    Cita.objects.all().delete()
+    Entrevista.objects.all().delete()
     Solicitud.objects.all().delete()
     Usuario.objects.all().delete()
 
