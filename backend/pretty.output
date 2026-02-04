@@ -1,141 +1,148 @@
-CaracterÃ­stica: Generacion de recomendaciones personalizadas basadas en analisis de IA # features/preparacion/recomendaciones/generacion_recomendaciones.feature:2
-  Como migrante que completo un simulacro de entrevista consular
-  Quiero recibir recomendaciones personalizadas generadas por IA
-  Para identificar mis fortalezas, corregir debilidades y prepararme mejor para mi entrevista real
-  CaracterÃ­stica: Generacion de recomendaciones personalizadas basadas en analisis de IA  # features/preparacion/recomendaciones/generacion_recomendaciones.feature:2
+Característica: Seguimiento de Solicitudes Migratorias # features/notificaciones/seguimiento_solicitud.feature:3
+  Como migrante
+  Quiero mantenerme informado acerca del estado de mi tramite migratorio
+  Para tomar decisiones informadas según el progreso de mi solicitud
+  Antecedentes:   # features/notificaciones/seguimiento_solicitud.feature:8
 
-  Escenario: Subir un archivo en formato .txt                                          # features/preparacion/recomendaciones/generacion_recomendaciones.feature:18
-    Dado que el asesor tiene simulacros completados                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:161
-      | asesor      | cliente      | estado     | codigo  |
-      | Asesor Demo | Maria Garcia | completado | SIM-001 |
-      | Asesor Demo | Juan Perez   | completado | SIM-002 |
-      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
-    Dado que el asesor "Asesor Demo" tiene un simulacro completado con "Maria Garcia"  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:210
-    Cuando sube el archivo "transcripcion_maria.txt" con la conversacion del simulacro # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:227
-    Entonces el sistema confirma "Transcripcion subida exitosamente"                   # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:280
-    Y muestra la cantidad de caracteres y lineas del archivo                           # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:294
+  Escenario: Visualización del portafolio de solicitudes en el dashboard                      # features/notificaciones/seguimiento_solicitud.feature:15
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"               # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que tengo registrados los siguientes trámites                                        # features/notificaciones/steps/seguimiento_solicitud.py:73
+      | tipo_visa | embajada       | estado             | fecha_creacion |
+      | TRABAJO   | ESTADOUNIDENSE | APROBADA           | 2024-01-15     |
+      | ESTUDIO   | ESPAÑOLA       | EN_REVISION        | 2024-02-10     |
+      | VIVIENDA  | CANADIENSE     | PENDIENTE_REVISION | 2024-02-20     |
+    Cuando accedo al dashboard de seguimiento                                                 # features/notificaciones/steps/seguimiento_solicitud.py:92
+    Entonces veo una lista con 3 solicitudes ordenadas por fecha de actualización descendente # features/notificaciones/steps/seguimiento_solicitud.py:104
+    Y cada tarjeta de solicitud muestra los campos "tipo_visa", "embajada" y "estado"         # features/notificaciones/steps/seguimiento_solicitud.py:115
 
-  Escenario: Subir un archivo que no es .txt                                          # features/preparacion/recomendaciones/generacion_recomendaciones.feature:24
-    Dado que el asesor tiene simulacros completados                                   # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:161
-      | asesor      | cliente      | estado     | codigo  |
-      | Asesor Demo | Maria Garcia | completado | SIM-001 |
-      | Asesor Demo | Juan Perez   | completado | SIM-002 |
-      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
-    Dado que el asesor "Asesor Demo" tiene un simulacro completado con "Maria Garcia" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:210
-    Cuando intenta subir el archivo "transcripcion_maria.pdf"                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:267
-    Entonces el sistema muestra "El archivo debe ser de texto (.txt)"                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:287
-    Y el simulacro no cuenta con transcripcion subida                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:301
+  Escenario: Consulta del detalle de una solicitud aprobada                                 # features/notificaciones/seguimiento_solicitud.feature:25
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"             # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que existe la solicitud "SOL-2024-00001" con estado "APROBADA"                     # features/notificaciones/steps/seguimiento_solicitud.py:128
+    Cuando selecciono ver el detalle de "SOL-2024-00001"                                    # features/notificaciones/steps/seguimiento_solicitud.py:144
+    Entonces la pantalla de detalle muestra el estado "APROBADA" con indicador visual verde # features/notificaciones/steps/seguimiento_solicitud.py:152
+    Y se muestra la sección "Historial de Documentos" con al menos 1 registro               # features/notificaciones/steps/seguimiento_solicitud.py:159
+    Y se muestra la sección "Validaciones Consulares" con el resultado de cada documento    # features/notificaciones/steps/seguimiento_solicitud.py:166
 
-  Escenario: Asesor genera recomendaciones con IA exitosamente                                # features/preparacion/recomendaciones/generacion_recomendaciones.feature:34
-    Dado que el asesor tiene simulacros completados                                           # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:161
-      | asesor      | cliente      | estado     | codigo  |
-      | Asesor Demo | Maria Garcia | completado | SIM-001 |
-      | Asesor Demo | Juan Perez   | completado | SIM-002 |
-      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
-    Dado que el asesor "Asesor Demo" tiene un simulacro con transcripcion subida exitosamente # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:312
-    Y tiene configurada su API key de Gemini                                                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:336
-    Cuando hace clic en "Generar con IA"                                                      # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:371
-    Entonces el sistema analiza la transcripcion con Gemini                                   # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:410
-    Y genera el documento de recomendaciones                                                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:416
-    Y el cliente "Maria Garcia" recibe la notificacion "Recomendaciones disponibles"          # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:424
-    Y el simulacro tiene la opcion de ver feedback disponible                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:431
+  Escenario: Cálculo del porcentaje de avance documental                                     # features/notificaciones/seguimiento_solicitud.feature:36
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"              # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que la solicitud "SOL-2024-00004" de tipo "TRABAJO" requiere 4 documentos validados # features/notificaciones/steps/seguimiento_solicitud.py:177
+    Y la solicitud tiene 3 documentos con estado "APROBADO"                                  # features/notificaciones/steps/seguimiento_solicitud.py:188
+    Cuando consulto el progreso de "SOL-2024-00004"                                          # features/notificaciones/steps/seguimiento_solicitud.py:199
+    Entonces la barra de progreso muestra "75%" de completitud                               # features/notificaciones/steps/seguimiento_solicitud.py:207
+    Y el contador indica "1 documento pendiente de validación"                               # features/notificaciones/steps/seguimiento_solicitud.py:214
 
-  Escenario: Asesor intenta generar recomendaciones sin API key configurada                                                 # features/preparacion/recomendaciones/generacion_recomendaciones.feature:43
-    Dado que el asesor tiene simulacros completados                                                                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:161
-      | asesor      | cliente      | estado     | codigo  |
-      | Asesor Demo | Maria Garcia | completado | SIM-001 |
-      | Asesor Demo | Juan Perez   | completado | SIM-002 |
-      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
-    Dado que el asesor "Asesor Demo" no ha configurado su API key de Gemini                                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:348
-    Y tiene un simulacro con transcripcion disponible                                                                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:356
-    Cuando hace clic en "Generar con IA"                                                                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:371
-    Entonces el sistema muestra "No se ha configurado una API key de IA valida. Por favor, configura tu API key de Gemini." # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:287
+  Escenario: Filtrado de solicitudes por propietario autenticado                            # features/notificaciones/seguimiento_solicitud.feature:47
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"             # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que en el sistema existe una solicitud del usuario "pedro.lopez@ejemplo.com"       # features/notificaciones/steps/seguimiento_solicitud.py:228
+    Cuando consulto la lista de mis solicitudes                                             # features/notificaciones/steps/seguimiento_solicitud.py:238
+    Entonces la respuesta contiene únicamente solicitudes asociadas a "usuario@ejemplo.com" # features/notificaciones/steps/seguimiento_solicitud.py:247
+    Y la cantidad de solicitudes de "pedro.lopez@ejemplo.com" en la respuesta es 0          # features/notificaciones/steps/seguimiento_solicitud.py:254
 
-  Escenario: Cliente consulta sus recomendaciones                                                            # features/preparacion/recomendaciones/generacion_recomendaciones.feature:53
-    Dado que el asesor tiene simulacros completados                                                          # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:161
-      | asesor      | cliente      | estado     | codigo  |
-      | Asesor Demo | Maria Garcia | completado | SIM-001 |
-      | Asesor Demo | Juan Perez   | completado | SIM-002 |
-      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
-    Dado que el cliente "Maria Garcia" completo un simulacro                                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:443
-    Y el asesor ya genero las recomendaciones con IA                                                         # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:454
-    Cuando el cliente accede a "Ver Resumen" en la seccion de simulacros completados y "Ver Recomendaciones" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:464
-    Entonces puede ver la lista de recomendaciones disponibles:                                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:475
-      | campo                | descripcion                          |
-      | Fecha del simulacro  | Fecha en que se realizo el simulacro |
-      | Nivel de preparacion | Segun nivel (alto/medio/bajo)        |
-    Y puede expandir las secciones colapsables:                                                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:488
-      | seccion                  |
-      | Indicadores de Desempeno |
-      | Fortalezas Identificadas |
-      | Puntos de Mejora         |
-      | Recomendaciones          |
+  Escenario: Bloqueo de acceso a expediente de tercero                              # features/notificaciones/seguimiento_solicitud.feature:53
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"     # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que el expediente "SOL-2024-00099" pertenece al usuario "otro@ejemplo.com" # features/notificaciones/steps/seguimiento_solicitud.py:261
+    Cuando intento acceder al recurso "SOL-2024-00099"                              # features/notificaciones/steps/seguimiento_solicitud.py:272
+    Entonces el sistema responde con código de error "403 FORBIDDEN"                # features/notificaciones/steps/seguimiento_solicitud.py:283
+    Y el mensaje de error indica "No tiene permisos para acceder a este expediente" # features/notificaciones/steps/seguimiento_solicitud.py:290
 
-  Escenario: Cliente sin recomendaciones intenta descargar PDF            # features/preparacion/recomendaciones/generacion_recomendaciones.feature:68
-    Dado que el asesor tiene simulacros completados                       # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:161
-      | asesor      | cliente      | estado     | codigo  |
-      | Asesor Demo | Maria Garcia | completado | SIM-001 |
-      | Asesor Demo | Juan Perez   | completado | SIM-002 |
-      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
-    Dado que el cliente "Juan Perez" tiene un simulacro completado        # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:505
-    Pero el simulacro no tiene recomendaciones generadas                  # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:516
-    Cuando intenta descargar el PDF de recomendaciones                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:525
-    Entonces el sistema muestra "Este simulacro no tiene recomendaciones" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:287
+  Escenario: Generación de alerta por documento próximo a vencer                                       # features/notificaciones/seguimiento_solicitud.feature:63
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"                        # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que la solicitud "SOL-2024-00015" tiene el documento "Pasaporte" con vencimiento "2024-03-08" # features/notificaciones/steps/seguimiento_solicitud.py:300
+    Y la fecha actual del sistema es "2024-02-23"                                                      # features/notificaciones/steps/seguimiento_solicitud.py:317
+    Cuando el sistema ejecuta la verificación de vencimientos                                          # features/notificaciones/steps/seguimiento_solicitud.py:323
+    Entonces se genera una alerta de nivel "URGENTE" con el mensaje "Pasaporte vence en 14 días"       # features/notificaciones/steps/seguimiento_solicitud.py:337
+    Y la alerta incluye la acción sugerida "Renueva tu documento antes de la cita consular"            # features/notificaciones/steps/seguimiento_solicitud.py:344
 
-  Escenario: La IA evalua los 4 indicadores de desempeno                               # features/preparacion/recomendaciones/generacion_recomendaciones.feature:79
-    Dado que el asesor tiene simulacros completados                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:161
-      | asesor      | cliente      | estado     | codigo  |
-      | Asesor Demo | Maria Garcia | completado | SIM-001 |
-      | Asesor Demo | Juan Perez   | completado | SIM-002 |
-      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
-    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:541
-    Cuando el cliente consulta sus recomendaciones                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:563
-    Entonces la recomendacion incluye los indicadores:                                 # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:573
-      | indicador   | descripcion                             | valores_posibles  |
-      | Claridad    | Que tan claras son las respuestas       | alto, medio, bajo |
-      | Coherencia  | Si el discurso es logico y estructurado | alto, medio, bajo |
-      | Seguridad   | Nivel de confianza al responder         | alto, medio, bajo |
-      | Pertinencia | Si las respuestas abordan lo preguntado | alto, medio, bajo |
+  Escenario: Información de siguientes pasos tras aprobación                                # features/notificaciones/seguimiento_solicitud.feature:74
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"             # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que la solicitud "SOL-2024-00016" tiene estado "APROBADA"                          # features/notificaciones/steps/seguimiento_solicitud.py:355
+    Cuando consulto los siguientes pasos de "SOL-2024-00016"                                # features/notificaciones/steps/seguimiento_solicitud.py:363
+    Entonces el panel de próximos pasos muestra "Esperar asignación de fecha de entrevista" # features/notificaciones/steps/seguimiento_solicitud.py:387
+    Y el tiempo estimado de espera indica "3-5 días hábiles"                                # features/notificaciones/steps/seguimiento_solicitud.py:393
 
-  Escenario: La IA genera fortalezas identificadas                                     # features/preparacion/recomendaciones/generacion_recomendaciones.feature:93
-    Dado que el asesor tiene simulacros completados                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:161
-      | asesor      | cliente      | estado     | codigo  |
-      | Asesor Demo | Maria Garcia | completado | SIM-001 |
-      | Asesor Demo | Juan Perez   | completado | SIM-002 |
-      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
-    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:541
-    Entonces cada fortaleza identificada contiene:                                     # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:591
-      | campo                | descripcion                                   |
-      | Categoria            | Area de la fortaleza                          |
-      | Descripcion          | Explicacion de por que es una fortaleza       |
-      | Pregunta relacionada | Referencia a la pregunta del simulacro        |
-      | Impacto              | Nivel de impacto positivo (alto, medio, bajo) |
+  Escenario: Acceso directo al expediente tras notificación de aprobación             # features/notificaciones/seguimiento_solicitud.feature:84
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"       # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que la solicitud "SOL-2024-00042" ha sido aprobada por la embajada           # features/notificaciones/steps/seguimiento_solicitud.py:403
+    Y el migrante recibe una notificación de "Solicitud Aprobada"                     # features/notificaciones/steps/seguimiento_solicitud.py:420
+    Cuando accedo a la notificación de decisión favorable                             # features/notificaciones/steps/seguimiento_solicitud.py:437
+    Entonces soy redirigido automáticamente a la vista de detalle de "SOL-2024-00042" # features/notificaciones/steps/seguimiento_solicitud.py:451
+    Y visualizo el estado "APROBADA" con indicador visual de éxito                    # features/notificaciones/steps/seguimiento_solicitud.py:458
+    Y la notificación queda marcada como leída en el buzón                            # features/notificaciones/steps/seguimiento_solicitud.py:464
 
-  Escenario: La IA genera puntos de mejora                                             # features/preparacion/recomendaciones/generacion_recomendaciones.feature:102
-    Dado que el asesor tiene simulacros completados                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:161
-      | asesor      | cliente      | estado     | codigo  |
-      | Asesor Demo | Maria Garcia | completado | SIM-001 |
-      | Asesor Demo | Juan Perez   | completado | SIM-002 |
-      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
-    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:541
-    Entonces cada punto de mejora contiene:                                            # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:617
-      | campo                | descripcion                               |
-      | Categoria            | Area a mejorar                            |
-      | Descripcion          | Explicacion del aspecto a mejorar         |
-      | Pregunta relacionada | Referencia a la pregunta donde se detecto |
-      | Impacto              | Nivel de impacto en la entrevista         |
+  Escenario: Acceso directo al expediente tras notificación de rechazo                # features/notificaciones/seguimiento_solicitud.feature:92
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"       # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que la solicitud "SOL-2024-00043" ha sido rechazada por la embajada          # features/notificaciones/steps/seguimiento_solicitud.py:411
+    Y el migrante recibe una notificación de "Solicitud Rechazada"                    # features/notificaciones/steps/seguimiento_solicitud.py:420
+    Cuando accedo a la notificación de decisión desfavorable                          # features/notificaciones/steps/seguimiento_solicitud.py:444
+    Entonces soy redirigido automáticamente a la vista de detalle de "SOL-2024-00043" # features/notificaciones/steps/seguimiento_solicitud.py:451
+    Y visualizo el estado "RECHAZADA" con el motivo del rechazo                       # features/notificaciones/steps/seguimiento_solicitud.py:470
+    Y se muestra la sección "Opciones de Apelación" con los plazos legales            # features/notificaciones/steps/seguimiento_solicitud.py:476
 
-  Escenario: La IA genera recomendaciones accionables                                  # features/preparacion/recomendaciones/generacion_recomendaciones.feature:111
-    Dado que el asesor tiene simulacros completados                                    # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:161
-      | asesor      | cliente      | estado     | codigo  |
-      | Asesor Demo | Maria Garcia | completado | SIM-001 |
-      | Asesor Demo | Juan Perez   | completado | SIM-002 |
-      | Asesor Demo | Pedro Ruiz   | completado | SIM-003 |
-    Dado que el asesor "Asesor Demo" genero recomendaciones con IA para "Maria Garcia" # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:541
-    Entonces cada recomendacion contiene:                                              # features/preparacion/recomendaciones/steps/recomendaciones_steps.py:641
-      | campo           | descripcion                                  |
-      | Titulo          | Nombre corto de la recomendacion             |
-      | Descripcion     | Explicacion detallada                        |
-      | Accion concreta | Paso especifico que el cliente debe realizar |
-      | Impacto         | Nivel de impacto si se implementa            |
+  Escenario: Acceso directo a corrección de documento desde notificación crítica     # features/notificaciones/seguimiento_solicitud.feature:100
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"      # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que existe la solicitud "SOL-2024-00050" en estado "PENDIENTE_CORRECCION"   # features/notificaciones/steps/seguimiento_solicitud.py:486
+    Y el documento "Certificado de Antecedentes" fue rechazado por "Imagen ilegible" # features/notificaciones/steps/seguimiento_solicitud.py:497
+    Cuando accedo a la notificación de "Documento Rechazado - Acción Requerida"      # features/notificaciones/steps/seguimiento_solicitud.py:515
+    Entonces soy redirigido a la sección de documentos de "SOL-2024-00050"           # features/notificaciones/steps/seguimiento_solicitud.py:522
+    Y visualizo la alerta crítica indicando el documento a corregir                  # features/notificaciones/steps/seguimiento_solicitud.py:528
+    Y el campo de carga del documento rechazado está habilitado para resubida        # features/notificaciones/steps/seguimiento_solicitud.py:536
+
+  Escenario: Acceso directo a firma de contrato desde notificación                       # features/notificaciones/seguimiento_solicitud.feature:108
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"          # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que la solicitud "SOL-2024-00055" tiene un contrato generado pendiente de firma # features/notificaciones/steps/seguimiento_solicitud.py:546
+    Cuando accedo a la notificación de "Contrato Listo para Firma"                       # features/notificaciones/steps/seguimiento_solicitud.py:515
+    Entonces soy redirigido a la vista de contrato de "SOL-2024-00055"                   # features/notificaciones/steps/seguimiento_solicitud.py:564
+    Y visualizo el documento del contrato con opción de firma digital                    # features/notificaciones/steps/seguimiento_solicitud.py:571
+    Y se muestra el plazo límite para completar la firma                                 # features/notificaciones/steps/seguimiento_solicitud.py:577
+
+  Escenario: No generar notificación al subir documento exitosamente                # features/notificaciones/seguimiento_solicitud.feature:119
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"     # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que el migrante tiene la solicitud "SOL-2024-00060" en estado "EN_PROCESO" # features/notificaciones/steps/seguimiento_solicitud.py:587
+    Y el buzón de notificaciones contiene 3 mensajes no leídos                      # features/notificaciones/steps/seguimiento_solicitud.py:598
+    Cuando el migrante carga el documento "Pasaporte" en la solicitud               # features/notificaciones/steps/seguimiento_solicitud.py:623
+    Entonces la carga se confirma visualmente en la interfaz de documentos          # features/notificaciones/steps/seguimiento_solicitud.py:632
+    Y el contador de notificaciones permanece en 3 mensajes                         # features/notificaciones/steps/seguimiento_solicitud.py:638
+    Y NO se genera una notificación de tipo "Documento Subido"                      # features/notificaciones/steps/seguimiento_solicitud.py:645
+
+  Escenario: No generar notificación al cambiar a estado de revisión            # features/notificaciones/seguimiento_solicitud.feature:127
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com" # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que la solicitud "SOL-2024-00061" está en estado "EN_PROCESO"          # features/notificaciones/steps/seguimiento_solicitud.py:652
+    Y el buzón del migrante contiene 2 notificaciones                           # features/notificaciones/steps/seguimiento_solicitud.py:611
+    Cuando el asesor marca la solicitud como "EN_REVISION"                      # features/notificaciones/steps/seguimiento_solicitud.py:660
+    Entonces el estado de la solicitud se actualiza a "EN_REVISION"             # features/notificaciones/steps/seguimiento_solicitud.py:667
+    Y el contador de notificaciones del migrante permanece en 2                 # features/notificaciones/steps/seguimiento_solicitud.py:674
+    Y NO se genera una notificación de tipo "Solicitud en Revisión"             # features/notificaciones/steps/seguimiento_solicitud.py:645
+
+  Escenario: No generar notificación al aprobar documento                                             # features/notificaciones/seguimiento_solicitud.feature:135
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"                       # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que la solicitud "SOL-2024-00062" tiene el documento "Visa Anterior" pendiente de validación # features/notificaciones/steps/seguimiento_solicitud.py:681
+    Y el buzón del migrante contiene 1 notificación                                                   # features/notificaciones/steps/seguimiento_solicitud.py:617
+    Cuando el asesor aprueba el documento "Visa Anterior"                                             # features/notificaciones/steps/seguimiento_solicitud.py:696
+    Entonces el documento muestra estado "APROBADO" en el panel de documentos                         # features/notificaciones/steps/seguimiento_solicitud.py:703
+    Y el contador de notificaciones permanece en 1                                                    # features/notificaciones/steps/seguimiento_solicitud.py:709
+    Y solo se notifica cuando hay rechazo que requiere acción del migrante                            # features/notificaciones/steps/seguimiento_solicitud.py:716
+
+  Escenario: Marcar notificación como leída al consultar detalle                # features/notificaciones/seguimiento_solicitud.feature:147
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com" # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que el migrante tiene 5 notificaciones no leídas en su buzón           # features/notificaciones/steps/seguimiento_solicitud.py:727
+    Y una de ellas es sobre la decisión de "SOL-2024-00070"                     # features/notificaciones/steps/seguimiento_solicitud.py:739
+    Cuando accedo a la notificación de decisión de "SOL-2024-00070"             # features/notificaciones/steps/seguimiento_solicitud.py:752
+    Entonces el contador de notificaciones no leídas disminuye a 4              # features/notificaciones/steps/seguimiento_solicitud.py:758
+    Y la notificación consultada aparece con indicador visual de "leída"        # features/notificaciones/steps/seguimiento_solicitud.py:765
+
+  Escenario: Marcar todas las notificaciones como leídas                        # features/notificaciones/seguimiento_solicitud.feature:154
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com" # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que el migrante tiene 8 notificaciones no leídas acumuladas            # features/notificaciones/steps/seguimiento_solicitud.py:772
+    Cuando solicito marcar todas las notificaciones como leídas                 # features/notificaciones/steps/seguimiento_solicitud.py:778
+    Entonces el contador de notificaciones no leídas se establece en 0          # features/notificaciones/steps/seguimiento_solicitud.py:784
+    Y todas las notificaciones del buzón muestran estado "leída"                # features/notificaciones/steps/seguimiento_solicitud.py:791
+
+  Escenario: Manejo de notificación con enlace expirado o inválido                                               # features/notificaciones/seguimiento_solicitud.feature:160
+    Dado que estoy autenticado como solicitante con email "usuario@ejemplo.com"                                  # features/notificaciones/steps/seguimiento_solicitud.py:54
+    Dado que existe una notificación antigua referenciando "SOL-2023-00001"                                      # features/notificaciones/steps/seguimiento_solicitud.py:802
+    Y la solicitud "SOL-2023-00001" fue archivada del sistema                                                    # features/notificaciones/steps/seguimiento_solicitud.py:816
+    Cuando accedo a la notificación del expediente archivado                                                     # features/notificaciones/steps/seguimiento_solicitud.py:822
+    Entonces visualizo el mensaje de expediente no disponible "El expediente referenciado ya no está disponible" # features/notificaciones/steps/seguimiento_solicitud.py:832
+    Y permanezco en el buzón de notificaciones                                                                   # features/notificaciones/steps/seguimiento_solicitud.py:839
+    Y se ofrece la opción de eliminar la notificación obsoleta                                                   # features/notificaciones/steps/seguimiento_solicitud.py:845
 
